@@ -98,8 +98,10 @@ await robot.turn(-45, rate=300)            # 300deg/sで45度左回転
 await robot.curve(200, 90)                 # 半径200mmで90度カーブ
 
 # モーター操作
-await left_lift.run_angle(300, 180)        # 左アームを180度回転
-await right_lift.run_angle(500, -360)      # 右アームを逆方向に1回転
+await robot.run_motor(left_lift, 180)      # 左アームを180度回転
+await robot.run_motor(right_lift, -360, speed=500)  # 右アームを逆方向に1回転
+await left_lift.run_angle(300, 180)        # 左アームを180度回転（従来の方法）
+await right_lift.run_angle(500, -360)      # 右アームを逆方向に1回転（従来の方法）
 
 # 待機
 await wait(500)                            # 0.5秒待機
