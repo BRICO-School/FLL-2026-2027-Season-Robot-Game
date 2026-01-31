@@ -12,19 +12,26 @@ async def run(hub ,robot, left_wheel, right_wheel,left_lift,right_lift):
 
     # 新
 
+    right_lift.dc(-100)  # 100%パワーで回す（マイナス=逆方向）
+    await wait(2000)    # 2秒間回す
+    right_lift.stop()   # 止める ← 修正！
+
     await robot.straight(350)
 
     await robot.straight(-150)
 
-    await robot.straight(450)
+    await robot.straight(300)
 
 
     left_lift.dc(100)  # 100%パワーで回す（マイナス=逆方向）
-    await wait(2000)    # 3秒間回す（時間は調整してください）
+    await wait(1500)    # 3秒間回す（時間は調整してください）
     left_lift.stop()    # 止める
-
-    await right_lift.run_angle(300, -180)
     
+
+    right_lift.dc(-100)  # 100%パワーで回す（マイナス=逆方向）
+    await wait(2000)    # 2秒間回す
+    right_lift.stop()   # 止める ← 修正！
+
     left_lift.dc(-100)  # 100%パワーで回す（マイナス=逆方向）
     await wait(2000)    # 3秒間回す（時間は調整してください）
     left_lift.stop()    # 止める

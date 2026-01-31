@@ -13,15 +13,24 @@ async def run(hub ,robot, left_wheel, right_wheel,left_lift,right_lift):
     # await robot.straight(400)
     
     # await left_lift.run_angle(800, 900)  # 左アーム操作
-    # await right_lift.run_angle(300, 180) # 右アーム操作
+    #  await robot.straight(350)  # 350mm直進して移動
+    
+    # ステップ2: 位置調整のため少し後退
+      # 130mm後退して最適な位置に調整
+    
+    # ステップ3: カーブしながら前進（タイムアウト処理付き）
+    await robot.curve(850, 25, speed=200, timeout=2000)  # 200mm/sでカーブ、2秒でタイムアウト
+    
+    # ステップ4: スタート地点に向けて後退
+    await robot.straight(550, speed=350)  # 350mm/sで後退してベースに戻る 
   
-    #await robot.straight(250)
+    await left_lift.run_angle(300, -200)#await robot.straight(250)
 
    # await left_lift.run_angle(700, 600)
-    await right_lift.run_angle(400, 10000)
+    await right_lift.run_angle(2000, -7000)
     #await robot.straight(400)  
     await left_lift.run_angle(250, -150)
-    await robot.straight(-350)
+    #await robot.straight(-350)
     # # ステップ1: 目標地点に向かって前進
     # await robot.straight(350)  # 350mm直進して移動
     
