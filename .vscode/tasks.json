@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "validate: active python file",
+      "type": "shell",
+      "command": "/bin/zsh",
+      "args": [
+        "-lc",
+        "if [[ \"${file}\" != *.py ]]; then echo \"ERROR: Active file is not a .py file: ${file}\"; echo \"Open a run*.py (or selector.py) and press F5.\"; exit 1; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ruff: check (fix)",
+      "type": "shell",
+      "command": "ruff",
+      "args": ["check", "--fix", "."],
+      "options": {
+        "env": {
+          "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+        }
+      },
+      "windows": {
+        "options": {
+          "env": {
+            "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+          }
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ruff: format",
+      "type": "shell",
+      "command": "ruff",
+      "args": ["format", "."],
+      "options": {
+        "env": {
+          "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+        }
+      },
+      "windows": {
+        "options": {
+          "env": {
+            "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+          }
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ruff: all",
+      "dependsOrder": "sequence",
+      "dependsOn": ["validate: active python file", "ruff: format", "ruff: check (fix)"],
+      "problemMatcher": []
+    }
+  ]
+}

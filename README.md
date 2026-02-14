@@ -1,6 +1,6 @@
 # FLL 2026-2027 シーズン ロボットゲーム
 
-FIRST LEGO League 2026-2027シーズンのロボットゲーム用プログラムです。  
+FIRST LEGO League 2026-2027シーズンのロボットゲーム用プログラムです。
 Pybricks + LEGO SPIKE Prime Hub を使用しています。
 
 ## 🚀 クイックスタート
@@ -18,7 +18,45 @@ python -m venv .venv
 source .venv/bin/activate
 
 # 依存パッケージのインストール
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+
+# 開発用（lint/format）
+python -m pip install -r requirements-dev.txt
+```
+
+### ruff（コード整形/チェック）
+このリポジトリは `ruff` を使って、コードの整形（format）とチェック（lint）を行います。
+
+```bash
+# 開発用ツール（ruff / pre-commit）をインストール
+python -m pip install -r requirements-dev.txt
+
+# 整形
+ruff format .
+
+# チェック
+ruff check .
+```
+
+VS Code の `F5` 実行は、起動前に `ruff` を自動実行する設定になっています（`preLaunchTask`）。
+もし `ruff: command not found` が出る場合は、上の `requirements-dev.txt` のインストールが抜けています。
+
+### pybricksdev が見つからない場合（`No module named pybricksdev`）
+VS Code の実行設定は `-m pybricksdev` を使うので、`.venv` に `pybricksdev` が入っていないと起動できません。
+
+```bash
+# まず仮想環境を有効化
+source .venv/bin/activate
+
+# requirements を入れ直す
+python -m pip install -r requirements.txt
+
+# もし入らない場合（プレリリース扱いで弾かれる場合）は --pre を付ける
+python -m pip install --pre -r requirements.txt
+
+# 入ったか確認
+python -m pip show pybricksdev
+python -m pybricksdev --help
 ```
 
 ### 2. プログラムの実行方法
