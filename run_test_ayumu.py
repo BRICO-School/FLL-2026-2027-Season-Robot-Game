@@ -24,7 +24,7 @@ from setup import initialize_robot
 # - "all": 狭い範囲で3種のみ（旋回正確性 → 直進 → カーブ）。本格版は各モードを個別に。
 #
 TEST_MODE = (
-    "speed"  # 一度に全てのテストを実行。単体なら "straight"/"curve"/"turn_accuracy" 等に変更
+    "square"  # 一度に全てのテストを実行。単体なら "straight"/"curve"/"turn_accuracy" 等に変更
 )
 
 # ログを出す間隔（ミリ秒）
@@ -48,6 +48,9 @@ SPEED_TEST_ACCEL_REF_SPEED = 300
 # 回転テスト（deg）
 TURN_ANGLE_DEG = 90
 TURN_RATE = None  # 例: 200（deg/s）。Noneならデフォルト
+
+# 四角形テスト（1辺の長さ mm）。400×400mm の四角形
+SQUARE_SIDE_MM = 400
 
 # カーブテスト（半径mm / 角度deg / 試行回数）※範囲: 縦80cm×横40cm
 CURVE_RADIUS_MM = 200  # カーブの半径（mm）。正で左、負で右。横40cm内に収まる
@@ -629,7 +632,7 @@ async def square_test(hub, robot, left_wheel, right_wheel):
         try:
             for i in range(4):
                 print(f"--- square leg {i + 1}/4 ---")
-                await robot.straight(STRAIGHT_DISTANCE_MM)
+                await robot.straight(SQUARE_SIDE_MM)
                 await robot.turn(90)
         finally:
             stop_logging = True
@@ -645,7 +648,7 @@ async def square_test(hub, robot, left_wheel, right_wheel):
     md_lines = [
         "# 四角形テスト結果 (square)",
         "",
-        f"- 1辺: {STRAIGHT_DISTANCE_MM} mm, 90°×4",
+        f"- 1辺: {SQUARE_SIDE_MM} mm (400×400mm), 90°×4",
         "",
         f"- 最終距離: {dist:.1f} mm (スタートに戻っていれば 0 に近い)",
         f"- 最終向き: {heading:.1f}° (0 または 360 に近い)",
