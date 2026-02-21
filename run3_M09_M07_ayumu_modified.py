@@ -81,8 +81,7 @@ async def sensor_logger_task():
         right_deg = right_wheel.angle()
         dist = robot.distance()
         print(
-            f"LOG: dist={dist:4.0f} mm  heading={heading:4.0f}°"
-            f"  L={left_deg:5.0f}°  R={right_deg:5.0f}°"
+            f"LOG: dist={dist:4.0f} mm  heading={heading:4.0f}°  L={left_deg:5.0f}°  R={right_deg:5.0f}°"
         )
         await wait(200)  # 0.2秒待機して、他のタスクに実行を譲る
 
@@ -99,10 +98,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    # ラン2だけ、他のランとは異なり低速で動くようにする
-    hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot(
-        straight_speed_percent=40,
-        turn_speed_percent=30,
-        motor_power_percent=100,
-    )
+    hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
     run_task(multitask(sensor_logger_task(), main()))
