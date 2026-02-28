@@ -30,6 +30,9 @@ TEST_MODE = (
 # ログを出す間隔（ミリ秒）
 LOG_INTERVAL_MS = 100
 
+# 基準機の仕様（ログに記録する用）
+REFERENCE_ROBOT_WEIGHT_G = 715  # 基準機の重さ（g）
+
 # テスト範囲: 縦80cm × 横40cm（直進=縦方向、往復=横方向で収まるよう距離を設定）
 # 直進テスト（mm）
 STRAIGHT_DISTANCE_MM = 800  # 縦80cm
@@ -115,7 +118,9 @@ async def sensor_logger_task(hub, robot, left_wheel, right_wheel, label):
     last_dist = robot.distance()
 
     print(f"--- logger start: {label} ---")
-    print("ms,dist_mm,delta_mm,heading_deg,left_deg,right_deg,left_dps,right_dps")
+    print(f"reference_robot_weight_g,{REFERENCE_ROBOT_WEIGHT_G}")
+    # 走行時間(ms), 走行距離(mm), 区間距離(mm), 走行速度(mm/s), 向き(deg), 左角(deg), 右角(deg), 左角速度(dps), 右角速度(dps)
+    print("ms,dist_mm,delta_mm,speed_mm_s,heading_deg,left_deg,right_deg,left_dps,right_dps")
 
     while not stop_logging:
         elapsed = timer.time()
@@ -128,9 +133,12 @@ async def sensor_logger_task(hub, robot, left_wheel, right_wheel, label):
 
         delta = dist - last_dist
         last_dist = dist
+        # 走行速度 = 区間距離 / 区間時間(s)
+        interval_s = LOG_INTERVAL_MS / 1000.0
+        speed_mm_s = delta / interval_s if interval_s > 0 else 0.0
 
         print(
-            f"{elapsed:.0f},{dist:.1f},{delta:.1f},{heading:.1f},{left_deg:.1f},{right_deg:.1f},{left_dps:.1f},{right_dps:.1f}"
+            f"{elapsed:.0f},{dist:.1f},{delta:.1f},{speed_mm_s:.1f},{heading:.1f},{left_deg:.1f},{right_deg:.1f},{left_dps:.1f},{right_dps:.1f}"
         )
 
         await wait(LOG_INTERVAL_MS)
