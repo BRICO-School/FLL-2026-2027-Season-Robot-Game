@@ -3,12 +3,20 @@
   "tasks": [
     {
       "label": "validate: active python file",
-      "type": "shell",
+      "type": "process",
       "command": "/bin/zsh",
       "args": [
         "-lc",
         "if [[ \"${file}\" != *.py ]]; then echo \"ERROR: Active file is not a .py file: ${file}\"; echo \"Open a run*.py (or selector.py) and press F5.\"; exit 1; fi"
       ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-Command",
+          "if ('${fileExtname}' -ne '.py') { Write-Host 'ERROR: Active file is not a .py file: ${file}'; Write-Host 'Open a run*.py (or selector.py) and press F5.'; exit 1 }"
+        ]
+      },
       "problemMatcher": []
     },
     {
