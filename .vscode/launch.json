@@ -13,7 +13,10 @@
                 "${file}",
                 "--name",
                 "Pybricks Hub"
-            ]
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
         },
         {
             "name": "🤖 Robot 2 (Pybricks Hub2)",
@@ -27,7 +30,10 @@
                 "${file}",
                 "--name",
                 "Pybricks Hub2"
-            ]
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
         },
         {
             "name": "🤖 Robot 3 (Pybricks Hub3)",
@@ -41,7 +47,10 @@
                 "${file}",
                 "--name",
                 "Pybricks Hub3"
-            ]
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
         }
     ]
 }
