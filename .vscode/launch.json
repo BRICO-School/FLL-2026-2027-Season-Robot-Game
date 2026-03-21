@@ -51,6 +51,40 @@
             "env": {
                 "PYTHONUTF8": "1"
             }
+        },
+        {
+            "name": "🤖 Robot 4 (Pybricks Hub4)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "module": "pybricksdev",
+            "args": [
+                "run",
+                "ble",
+                "${file}",
+                "--name",
+                "Pybricks Hub4"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
+            "name": "🤖 Robot 5 (Pybricks Hub5)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "module": "pybricksdev",
+            "args": [
+                "run",
+                "ble",
+                "${file}",
+                "--name",
+                "Pybricks Hub5"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
         }
     ]
 }
