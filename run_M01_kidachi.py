@@ -19,11 +19,14 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # 0.5秒待機して動作を安定させる
     await wait(500)
 
-    # 300mm 後進する
-    await robot.straight(-300)
+    # 200mm 後進する
+    await robot.straight(-200)
 
     # 0.5秒待機して動作を安定させる
     await wait(500)
+
+    # 50mm 後進する
+    await robot.straight(-50)
 
     # 左アームを下げる（300deg/sで450度回転）
     await left_lift.run_angle(300, 450)
