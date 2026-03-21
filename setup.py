@@ -24,6 +24,64 @@ from pybricks.pupdevices import Motor  # モーターを使うための道具
 from pybricks.robotics import DriveBase  # ロボットの移動機能を使うための道具
 from pybricks.tools import StopWatch, wait  # 待機とタイマーの道具
 
+
+class NullMotor:
+    """
+    物理的にモーターが接続されていない場合に使うダミーモーター。
+
+    - await motor.run_angle(...) / motor.run_angle(..., wait=False) の両方に対応
+    - motor.control.done() を常に True にする（即完了扱い）
+    - angle()/speed()/reset_angle()/dc()/stop() を最低限提供
+    """
+
+    def __init__(self, name="(null)"):
+        self._name = name
+        self._angle = 0
+        self.control = self  # motor.control.done() 互換
+
+    def done(self):
+        return True
+
+    def angle(self):
+        return self._angle
+
+    def speed(self):
+        return 0
+
+    def reset_angle(self, angle=0):
+        self._angle = angle
+
+    def stop(self):
+        return None
+
+    def dc(self, _duty):
+        return None
+
+    async def _run_angle_wait(self, _speed, angle):
+        self._angle += angle
+        return None
+
+    def run_angle(self, speed, angle, wait=True, **_kwargs):
+        # 本物のモーターと同じ呼び出し形に寄せる。
+        # wait=False の場合は非同期処理を開始した扱いにして即 return。
+        if wait is False:
+            self._angle += angle
+            return None
+        return self._run_angle_wait(speed, angle)
+
+
+def _safe_motor(port, positive_direction, name):
+    """
+    モーターが未接続でもプログラムを止めないための安全生成。
+    接続されていなければ NullMotor を返す。
+    """
+    try:
+        return Motor(port, positive_direction=positive_direction)
+    except Exception as e:
+        print(f"! {name} not found on {port}; using NullMotor. ({e})")
+        return NullMotor(name)
+
+
 # ===== デフォルトの速度・加速度設定 =====
 # 各runファイルから共通で使用できる設定値
 
@@ -78,19 +136,20 @@ def setup_motors():
     どちらの方向を「正」とするかを設定します。
 
     【ポートの接続】
-    - Port.F : 左タイヤ（反時計回りが正の方向）
-    - Port.B : 右タイヤ（時計回りが正の方向）
-    - Port.E : 左リフト（時計回りが正の方向）
-    - Port.A : 右リフト（時計回りが正の方向）
+    - Port.F : 左タイヤ（反時計回りが正の方向）※必須
+    - Port.B : 右タイヤ（時計回りが正の方向）※必須
+    - Port.E : 左リフト（未接続なら NullMotor）
+    - Port.A : 右リフト（未接続なら NullMotor）
+
+    B と F のモーターが繋がっていれば走行可能です。
     """
-    # 左タイヤのモーター（ポートFに接続、反時計回りが正）
+    # リフトは未接続のことがあるので先に安全に生成（未接続なら NullMotor）
+    left_lift = _safe_motor(Port.E, positive_direction=Direction.CLOCKWISE, name="left_lift")
+    right_lift = _safe_motor(Port.A, positive_direction=Direction.CLOCKWISE, name="right_lift")
+    # 左タイヤのモーター（ポートFに接続、反時計回りが正）※必須
     left_wheel = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
-    # 右タイヤのモーター（ポートBに接続、時計回りが正）
+    # 右タイヤのモーター（ポートBに接続、時計回りが正）※必須
     right_wheel = Motor(Port.B, positive_direction=Direction.CLOCKWISE)
-    # 左リフトのモーター（ポートEに接続、時計回りが正）
-    left_lift = Motor(Port.E, positive_direction=Direction.CLOCKWISE)
-    # 右リフトのモーター（ポートAに接続、時計回りが正）
-    right_lift = Motor(Port.A, positive_direction=Direction.CLOCKWISE)
 
     # 4つのモーターをまとめて返す
     return left_wheel, right_wheel, left_lift, right_lift
@@ -308,7 +367,7 @@ def setup_robot_parameters(left_wheel, right_wheel):
         left_wheel,  # 左タイヤのモーター
         right_wheel,  # 右タイヤのモーター
         wheel_diameter=62,  # タイヤの直径（mm）
-        axle_track=115,  # 左右のタイヤの間隔（mm）
+        axle_track=85,  # 左右のタイヤの間隔（mm）
     )
 
     # ----- デフォルトの速度・加速度を自動適用 -----

@@ -85,6 +85,81 @@
             "env": {
                 "PYTHONUTF8": "1"
             }
+        },
+        {
+            "name": "📝 Robot 1 + Log (Pybricks Hub)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "program": "${workspaceFolder}/run_with_log.py",
+            "args": [
+                "${file}",
+                "--name",
+                "Pybricks Hub"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
+            "name": "📝 Robot 2 + Log (Pybricks Hub2)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "program": "${workspaceFolder}/run_with_log.py",
+            "args": [
+                "${file}",
+                "--name",
+                "Pybricks Hub2"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
+            "name": "📝 Robot 3 + Log (Pybricks Hub3)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "program": "${workspaceFolder}/run_with_log.py",
+            "args": [
+                "${file}",
+                "--name",
+                "Pybricks Hub3"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
+            "name": "📝 Robot 4 + Log (Pybricks Hub4)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "program": "${workspaceFolder}/run_with_log.py",
+            "args": [
+                "${file}",
+                "--name",
+                "Pybricks Hub4"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
+            "name": "📝 Robot 5 + Log (Pybricks Hub5)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "program": "${workspaceFolder}/run_with_log.py",
+            "args": [
+                "${file}",
+                "--name",
+                "Pybricks Hub5"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
         }
     ]
 }
