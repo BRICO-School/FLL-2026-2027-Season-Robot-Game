@@ -10,7 +10,7 @@
 """
 
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Port, Axis, Direction, Color, Stop
+from pybricks.parameters import Port, Axis, Direction, Color, Stop, Icon
 from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, multitask, run_task, StopWatch
@@ -19,14 +19,15 @@ from setup import initialize_robot
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    #######################################
-    # ここにロボットの動作を記述してください
-    #######################################
-
-    await robot.straight(200)
-    await robot.straight(-200)
+    await robot.straight(240, timeout=2000)
+    await robot.straight(-240)
+    await robot.turn(-40)
+    await robot.curve(550, 60)
+    await robot.turn(60)
+    await robot.straight(100)
+    # await robot.straight(500, timeout=3000) # await robot.curve(200, -90)
+    # await robot.turn(90)
     """
-
     ロボットの動作を記述する関数
 
     【使用可能なメソッド】
@@ -61,6 +62,14 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     - turn: 240deg/s, 加速度850deg/s²
     - curve: 240mm/s, 加速度800mm/s²
     """
+
+    #######################################
+    # ここにロボットの動作を記述してください
+    #######################################
+
+    # hub.display.icon(Icon.HEART)
+    # await wait(3000)
+    # hub.display.off()
 
     # ロボットを停止
     robot.stop()
