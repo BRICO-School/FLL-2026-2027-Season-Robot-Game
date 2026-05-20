@@ -1,15 +1,8 @@
 """
-【runファイルテンプレート】
-このファイルは新しいrunを作成するためのテンプレートです。
-コピーして使用してください。
-
-【使い方】
-1. このファイルをコピーして、新しい名前をつける（例: run2_M04_M05.py）
-2. run() 関数内にロボットの動作を記述する
-3. selector.py の programs リストに追加する
+【M10 - Naotaro（直奈太郎）】
 
 【更新履歴】
-- 2026-05-20: コメントアウト解除・動作ステップ追加・右アーム回転方向を正転（720度）に修正
+- 2026-05-20: 初版作成（前進100mm・後退200mm）
 """
 
 from pybricks.hubs import PrimeHub
@@ -21,15 +14,6 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-    await robot.straight(320)
-    await robot.straight(-105)
-    await robot.turn(-90)
-    await robot.straight(-100)
-    await robot.straight(100)
-    await left_lift.run_angle(300, 50)
-    # await right_lift.run_angle(1000, -720)
-    await right_lift.run_angle(1000, 720)
-
     """
     ロボットの動作を記述する関数
 
@@ -69,6 +53,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
     # ここにロボットの動作を記述してください
     #######################################
+    await robot.straight(100)
+    await robot.straight(-200)
 
     # ロボットを停止
     robot.stop()
