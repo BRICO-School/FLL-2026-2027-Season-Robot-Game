@@ -21,15 +21,17 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-    await robot.straight(320)
-    await robot.straight(-105)
+    await robot.straight(300)
+    await wait(3000)
+    await robot.straight(-150, speed=200)
+    # await robot.straight(-150)
+    await robot.straight(50)
     await robot.turn(-90)
+    # await robot.straight(-30)
     await robot.straight(-100)
-    await robot.straight(100)
-    await left_lift.run_angle(300, 50)
-    # await right_lift.run_angle(1000, -720)
+    await right_lift.run_angle(1000, -720)
+    await robot.straight(90)
     await right_lift.run_angle(1000, 720)
-
     """
     ロボットの動作を記述する関数
 
