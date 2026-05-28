@@ -1,0 +1,29 @@
+#!/bin/sh
+# run_*.py をコミットすると変更ログを自動記録するフック。
+# WSL / Windows(Git-Bash) どちらの git commit でも動く POSIX sh。
+# 記録に失敗してもコミットはブロックしない（記録漏れには警告のみ）。
+
+ROOT=$(git rev-parse --show-toplevel) || exit 0
+
+# staged な「トップ階層の run_*.py」だけを対象（old/ などは除外）
+files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^run_[^/]*\.py$' || true)
+[ -z "$files" ] && exit 0
+
+# 動く Python を探す（WSL: python3 / Windows: py / 予備: python）
+PY=""
+for c in python3 py python; do
+  if command -v "$c" >/dev/null 2>&1 && "$c" -c "import sys" >/dev/null 2>&1; then
+    PY="$c"
+    break
+  fi
+done
+if [ -z "$PY" ]; then
+  echo "[changelog-hook] WARNING: python が見つからず変更ログを記録できません（コミットは継続）。" >&2
+  exit 0
+fi
+
+# shellcheck disable=SC2086
+if ! "$PY" "$ROOT/scripts/changelog_hook.py" $files; then
+  echo "[changelog-hook] WARNING: 変更ログの生成に失敗しました（コミットは継続）。" >&2
+fi
+exit 0
