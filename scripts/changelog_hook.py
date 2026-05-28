@@ -28,7 +28,9 @@ except Exception:
 def repo_root():
     r = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
-        capture_output=True, encoding="utf-8", errors="replace",
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return r.stdout.strip()
 
@@ -78,7 +80,9 @@ def agy_reachable():
 def staged_diff(rel):
     r = subprocess.run(
         ["git", "diff", "--cached", "--", rel],
-        capture_output=True, encoding="utf-8", errors="replace",
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return r.stdout or ""
 
@@ -102,8 +106,12 @@ def agy_summary(diff):
     cmd, stdin = call
     try:
         r = subprocess.run(
-            cmd, input=stdin, capture_output=True,
-            encoding="utf-8", errors="replace", timeout=120,
+            cmd,
+            input=stdin,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
         )
         if r.returncode != 0:
             return None
@@ -133,7 +141,7 @@ def update_docstring(path, date, summary):
     end = text.find('"""', start + 3)
     if end == -1:
         return False
-    body = text[start + 3:end]
+    body = text[start + 3 : end]
     line = f"- {date}: {summary}"
     prefix, suffix = text[:end], text[end:]
     if "【更新履歴】" in body:
