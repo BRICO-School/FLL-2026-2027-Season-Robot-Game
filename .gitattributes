@@ -1,0 +1,14 @@
+# 改行コードを LF に正規化する。
+# WSL と native Windows の両方から編集するため、CRLF/LF の混在で大量の
+# 「見かけだけの差分」が出ていた。これを防ぎ、コミットは常に LF に統一する。
+
+# すべてのテキストファイルを自動判定し、チェックアウト時は LF にそろえる。
+* text=auto eol=lf
+
+# POSIX シェルスクリプト・git フックは必ず LF（CRLF だと実行できない）。
+*.sh           text eol=lf
+scripts/hooks/* text eol=lf
+
+# バイナリは改行正規化しない。
+*.pdf binary
+*.zip binary
