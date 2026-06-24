@@ -1,0 +1,7 @@
+{
+  // .venv は Python 拡張機能が自動検出するため、OS 依存のインタプリタパスは直書きしない。
+  //   Windows: .venv\Scripts\python.exe  /  macOS: .venv/bin/python  ← レイアウトが別物
+  // settings.json は OS ごとに設定を切り替える仕組みが無いため、パスを固定すると片方の OS で
+  // 壊れる。初回だけ「Python: Select Interpreter」で .venv を選べば VS Code が記憶する。
+  "python.terminal.activateEnvironment": true
+}
