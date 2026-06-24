@@ -28,6 +28,50 @@
 
 ---
 
+## 技術スタック（使っている道具一覧）
+
+「このプロジェクトは何でできているか」を一覧にしました。**どの道具がどっち側
+（[ハブ] / [PC]）のものか**を意識すると、§1 以降がぐっと読みやすくなります。
+
+### 言語・実行環境
+
+| 道具 | バージョン / 種別 | どっち側 | 役割 |
+|------|-------------------|----------|------|
+| **Python** | 3.9 を基準（`pyproject.toml` の `target-version = "py39"`） | 両方 | 全コードの言語。ただしハブと PC で「種類」が違う（下記） |
+| **MicroPython** | Pybricks 同梱 | [ハブ] | ハブの中で `setup.py` / `selector.py` / `run_*.py` を動かす軽量 Python |
+| **CPython** | PC の標準 Python | [PC] | `pybricksdev` などの PC 側ツールを動かす普通の Python |
+
+### ハードウェア・ファームウェア
+
+| 道具 | 種別 | 役割 |
+|------|------|------|
+| **LEGO SPIKE Prime ハブ** | ハードウェア | ロボットの「脳」。プログラムはこの中で動く |
+| **Pybricks ファームウェア** | ハブ用 OS / ランタイム | ハブで Python を動かすための土台。`code.pybricks.com` で書き込む |
+| **BLE（Bluetooth Low Energy）** | 無線通信 | PC からハブへ `.py` を無線で送る。Windows / Mac のみ対応（WSL 不可） |
+
+### ライブラリ・ツール（`.venv` の中に入れる）
+
+| 道具 | バージョン | どっち側 | 役割 |
+|------|-----------|----------|------|
+| **pybricks** | `>=3.6.1` | [ハブ]（PC では補完用） | ハブのモーター・センサーを操作する API。実体はハブで動く |
+| **pybricksdev** | `>=1.0.0a49` | [PC] | 書いた `.py` を BLE でハブに送って実行するツール |
+| **ruff** | （`.venv` に同梱） | [PC] | 整形（format）とチェック（lint）。設定は `pyproject.toml`（§7.1） |
+| **pre-commit** | （`.venv` に同梱） | [PC] | `git commit` 時に ruff を自動実行（`.pre-commit-config.yaml`） |
+
+### 開発環境・周辺
+
+| 道具 | 役割 |
+|------|------|
+| **VS Code** | エディタ兼実行環境。F5 で実行（`launch.json` / `tasks.json` / `settings.json`、§8） |
+| **venv（`.venv`）** | プロジェクト専用の道具箱。上記ライブラリ・ツールをここに隔離（§8.1） |
+| **Git + pre-commit フック** | バージョン管理。コミット時に整形・変更履歴の自動記録を実行（§7.3） |
+| **agy（Antigravity の AI CLI）** | コミット時に diff を日本語1行に要約する（`changelog_hook.py`、§7.3） |
+
+> 設定ファイルの所在: 依存ライブラリ＝`requirements.txt`、ruff 設定＝`pyproject.toml`、
+> pre-commit 設定＝`.pre-commit-config.yaml`、VS Code 設定＝`.vscode/`。
+
+---
+
 ## 1. 全体像 — コードが動く場所は「2か所」ある
 
 このプロジェクトで一番大事なポイントは、**コードが動く場所が 2 種類ある**ことです。
@@ -531,6 +575,62 @@ OS ごとに VS Code が解決します。直書きの Windows パスが無い�
 > **settings.json は OS 依存パスを外して両対応にした**。
 > 「OS で形が変わるのは `.venv` の中身（§8.2）」という1点さえ押さえれば、設定ファイルの
 > 作り分けの理由はすべて説明できます。
+
+### 8.5 `.vscode/` の3つのファイルは何をしている？
+
+`.vscode/` には設定ファイルが **3 つ**あり、それぞれ役割がはっきり分かれています。
+ざっくり言うと **「launch=何を実行するか」「tasks=実行前の下準備」「settings=エディタの土台」**
+です。
+
+| ファイル | ひとことで言うと | F5 のときの担当 |
+|----------|------------------|-----------------|
+| **launch.json** | 「どのハブに、どう送って動かすか」のメニュー | 本番（pybricksdev でハブへ送る） |
+| **tasks.json** | 「送る前にやる下準備（ruff）」の手順書 | 前処理（preLaunchTask で先に走る） |
+| **settings.json** | 「どの Python を使うか」などエディタの土台設定 | 裏方（どの `.venv` を使うか決める） |
+
+#### ① launch.json — 「実行とデバッグ」のメニュー
+
+F5 で動く実行構成（メニュー項目）を定義します。**合計 10 個**入っています。
+
+- **🤖 Robot 1〜5（通常）** … `module: pybricksdev` で `${file}`（今開いているファイル）を
+  `--name "Pybricks HubN"` のハブへ BLE 送信（§8.3）。
+- **📝 Robot 1〜5 + Log（記録付き）** … `program: run_with_log.py` 経由で同じことをしつつ、
+  画面の出力をログに保存（§7.4）。
+- すべての構成に共通する仕掛け:
+  - `"preLaunchTask": "ruff: all"` … 実行前に必ず tasks.json の整形・チェックを走らせる。
+  - `"env": { "PYTHONUTF8": "1" }` … 日本語などの文字化けを防ぐ。
+  - `${file}` という**変数**でファイルを指すので、OS 依存のパス直書きが無い（§8.4）。
+
+#### ② tasks.json — F5 の「実行前の下準備」
+
+launch.json から呼ばれる作業（タスク）を定義します。中心は **`ruff: all`** で、
+`dependsOrder: "sequence"`（順番に実行）で次の 3 つを上から順に走らせます。
+
+1. **`validate: active python file`** … 開いているファイルが `.py` か確認。違えば
+   「run\*.py か selector.py を開いて F5 してね」と出して**止める**（誤実行の予防）。
+2. **`ruff: format`** … 書式を自動でそろえる（§7.1 ①）。
+3. **`ruff: check (fix)`** … おかしい所を自動で直す（§7.1 ②）。
+
+- `ruff` を `.venv` から確実に呼ぶため、`options.env.PATH` の先頭に `.venv` の実行フォルダを
+  足しています。ここが **OS で分かれる唯一の場所**で、`windows:` キーで
+  `.venv\Scripts`（Win）と `.venv/bin`（Mac/Linux）を切り替えています（§8.4）。
+
+#### ③ settings.json — エディタの土台設定
+
+このワークスペースだけに効くエディタ設定です。今は最小限で、本質は **「どの Python を
+使うか」を `.venv` の自動検出に任せる**という方針です。
+
+- 入っている設定は `"python.terminal.activateEnvironment": true` の **1 行だけ**。
+  ターミナルを開いたとき `.venv` を自動で有効化します。
+- **あえて入れていないもの**: インタプリタのパス固定
+  （`python.defaultInterpreterPath` など）。これは OS で形が違ううえ、settings.json には
+  tasks.json のような `windows:` 分岐が無いため、固定すると片方の OS で壊れるからです（§8.4）。
+- そのため**各自、初回だけ「Python: Select Interpreter」で `.venv` を選ぶ**必要があります。
+  選べば VS Code が記憶し、以後 F5 はその `.venv` の Python を使います。
+  （選び忘れると `No module named pybricksdev` になりがち＝§8 の注意点。）
+
+> 3 つの関係を一言で: **F5 を押す → settings.json が決めた `.venv` の Python で →
+> tasks.json が下準備（ruff）をして → launch.json がハブへ送って実行する。**
 
 ---
 
