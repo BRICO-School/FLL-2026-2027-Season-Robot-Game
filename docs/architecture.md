@@ -252,6 +252,44 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 > `setup.py` は全ミッションが使う土台なので、ここを変えたら直線・四角・カーブの走行を
 > 必ず再テストして `docs/` に記録するのがルールです。
 
+### 4.5 主な設定変数の一覧（コードのどの名前を変えればいい？）
+
+§4.4 の表を、**実際にコードに書かれている変数名**で対応づけたものです。「この値を
+変えたい」と思ったとき、`setup.py` のどこを探せばよいかが分かります。
+
+#### デフォルトの速度・加速度（ファイル冒頭の3つの辞書）
+
+ファイル先頭で定義され、`run_*.py` から `import` して共通利用します。速度を指定せずに
+`straight()` などを呼んだときは、ここの値が使われます。
+
+| 変数名 | 中身（キー = 値） | 何を設定しているか |
+|--------|-------------------|--------------------|
+| `DEFAULT_STRAIGHT_SETTINGS` | `straight_speed=400`, `straight_acceleration=500` | 直進のデフォルト速度(mm/s)・加速度(mm/s²) |
+| `DEFAULT_TURN_SETTINGS` | `turn_rate=240`, `turn_acceleration=850` | その場回転のデフォルト速度(deg/s)・加速度(deg/s²) |
+| `DEFAULT_CURVE_SETTINGS` | `straight_speed=240`, `straight_acceleration=800` | カーブのデフォルト速度(mm/s)・加速度(mm/s²) |
+
+#### ハブ・モーター・機体寸法（各 `setup_*` 関数の中）
+
+| 変数 / 引数 | 場所（関数） | 何を設定しているか |
+|-------------|--------------|--------------------|
+| `top_side=Axis.Z`, `front_side=Axis.X` | `setup_hub()` | ハブの取り付け向き（上＝Z軸・前＝X軸） |
+| `Port.F` / `Port.B` | `setup_motors()` | 左タイヤ／右タイヤのポート（※必須） |
+| `Port.E` / `Port.A` | `setup_motors()` | 左リフト／右リフトのポート（未接続なら `NullMotor`） |
+| `positive_direction=Direction.…` | `setup_motors()` | 各モーターの「正」とする回転方向 |
+| `wheel_diameter=62` | `setup_robot_parameters()` | タイヤの直径(mm) |
+| `axle_track=85` | `setup_robot_parameters()` | 左右タイヤの間隔(mm) |
+
+#### PID ゲイン（`setup_pid_control()` の中のローカル変数）
+
+| 変数名 | 値 | 何を設定しているか |
+|--------|----|--------------------|
+| `DISTANCE_KP` / `DISTANCE_KI` / `DISTANCE_KD` | `1000` / `50` / `10` | 距離制御（進む距離）の P・I・D ゲイン |
+| `HEADING_KP` / `HEADING_KI` / `HEADING_KD` | `2000` / `50` / `100` | 方向制御（向き）の P・I・D ゲイン |
+
+> 💡 速度・加速度を**全ミッション共通で**変えたいなら冒頭の `DEFAULT_*` 辞書を、
+> **1回の動作だけ**変えたいなら呼び出し側で `robot.straight(200, speed=220)` のように
+> 引数で渡します（§4.2）。機体寸法・向き・PID は `setup_*` 関数の中の値が大元です。
+
 ---
 
 ## 5. `selector.py` — 本番の入口
