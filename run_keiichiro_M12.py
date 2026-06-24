@@ -28,8 +28,11 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # await robot.straight(100)
     # await robot.straight(-150)
     # await robot.straight(850)
-    await robot.curve(200, 30)
-    await robot.straight(100)
+    # await robot.curve(3400, 15)
+    await robot.straight(600)
+    await robot.straight(-150)
+    await robot.straight(300)
+
     # 半径300mmで15度だけ右にカーブしながら前進（数値を変えて調整）
     """
     ロボットの動作を記述する関数
