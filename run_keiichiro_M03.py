@@ -7,6 +7,9 @@
 1. このファイルをコピーして、新しい名前をつける（例: run2_M04_M05.py）
 2. run() 関数内にロボットの動作を記述する
 3. selector.py の programs リストに追加する
+
+【更新履歴】
+- 2026-05-20: robot.straight(500, speed=500) を追加
 """
 
 from pybricks.hubs import PrimeHub
@@ -19,12 +22,8 @@ from setup import initialize_robot
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    #######################################
-    # ここにロボットの動作を記述してください
-    #######################################
+    await right_lift.run_angle(5000, 500)
 
-    await robot.straight(200)
-    await robot.straight(-200)
     """
 
     ロボットの動作を記述する関数
@@ -61,6 +60,10 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     - turn: 240deg/s, 加速度850deg/s²
     - curve: 240mm/s, 加速度800mm/s²
     """
+
+    #######################################
+    # ここにロボットの動作を記述してください
+    #######################################
 
     # ロボットを停止
     robot.stop()

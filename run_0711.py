@@ -8,9 +8,13 @@
 2. run() 関数内にロボットの動作を記述する
 3. selector.py の programs リストに追加する
 
+【devフラグとは？】
+- dev=True : 開発モード（センサーログが有効、デバッグに便利）
+- dev=False: 本番モード（センサーログなし、競技本番用）
+
 【更新履歴】
 - 2026-05-20: robot.straight(500, speed=500) を追加
-
+- 2026-07-11: selector.py からセンサーログ機能（dev フラグ + sensor_logger_task）を移植
 """
 
 from pybricks.hubs import PrimeHub
@@ -20,20 +24,47 @@ from pybricks.robotics import DriveBase
 from pybricks.tools import wait, multitask, run_task, StopWatch
 from setup import initialize_robot
 
+# ===== 開発モードの設定 =====
+# ★★★ここを変更することで、開発モードと本番モードを切り替えます★★★
+dev = True  # False=本番モード、True=開発モード（センサーログ有効）
+
+
+# ===== センサーログを記録するタスク =====
+async def sensor_logger_task(hub, robot, left_wheel, right_wheel):
+    """
+    センサーの値を0.2秒ごとに画面に表示する関数。
+
+    【記録される情報】
+    - 経過時間（ms）
+    - dist  : ロボットが進んだ距離（mm）
+    - heading: ロボットの向き（度）
+    - L / R  : 左右タイヤの回転角度（度）
+
+    【出力例】
+    LOG[ 1000ms]: dist= 150 mm  heading=   0°  L=  720°  R=  720°
+    """
+    print("--- センサーログタスク開始 ---")
+    logger_timer = StopWatch()
+    logger_timer.reset()
+
+    while True:
+        elapsed_time = logger_timer.time()
+        heading = hub.imu.heading()
+        left_deg = left_wheel.angle()
+        right_deg = right_wheel.angle()
+        dist = robot.distance()
+
+        print(
+            f"LOG[{elapsed_time:5.0f}ms]: dist={dist:4.0f} mm  heading={heading:4.0f}°  L={left_deg:5.0f}°  R={right_deg:5.0f}°"
+        )
+
+        await wait(200)
+
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    # await robot.straight(510, speed=500)
-    # await robot.straight(-100, speed=541)
-    # await robot.straight(100)
-    # await robot.straight(-150)
-    # await robot.straight(850)
-    # await robot.curve(3400, 15)
-    await robot.straight(600)
-    await robot.straight(-150)
-    # await robot.straight(300)
+    await robot.turn(360, rate=400)
 
-    # 半径300mmで15度だけ右にカーブしながら前進（数値を変えて調整）
     """
     ロボットの動作を記述する関数
 
@@ -82,4 +113,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 # ===== 単体テスト用（このファイルを直接実行した場合） =====
 if __name__ == "__main__":
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
-    run_task(run(hub, robot, left_wheel, right_wheel, left_lift, right_lift))
+
+    if dev:
+        print("--- 開発モードで起動（センサーログ有効） ---")
+        run_task(
+            multitask(
+                sensor_logger_task(hub, robot, left_wheel, right_wheel),
+                run(hub, robot, left_wheel, right_wheel, left_lift, right_lift),
+            )
+        )
+    else:
+        print("--- 本番モードで起動（センサーログなし） ---")
+        run_task(run(hub, robot, left_wheel, right_wheel, left_lift, right_lift))

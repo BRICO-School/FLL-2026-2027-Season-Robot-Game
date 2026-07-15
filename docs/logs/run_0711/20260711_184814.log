@@ -1,0 +1,39 @@
+=== 実行ログ ===
+スクリプト: run_0711.py
+実行日時 : 2026-07-11 18:48:14
+ハブ     : --name Pybricks Hub5
+==================================================
+
+0.55s - Expected: c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd_attach_to_process\attach_amd64.dll to exist.
+Searching for Pybricks Hub5...
+Traceback (most recent call last):
+  File "c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 3740, in <module>
+    main()
+  File "c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 3725, in main
+    globals = debugger.run(setup["file"], None, None, is_module)
+  File "c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 2709, in run
+    return self._exec(is_module, entry_point_fn, module_name, file, globals, locals)
+  File "c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 2728, in _exec
+    globals = pydevd_runpy._run_module_as_main(module_name, alter_argv=False)
+  File "c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_runpy.py", line 228, in _run_module_as_main
+    return _run_code(code, main_globals, None, "__main__", mod_spec)
+  File "c:\Users\User\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_runpy.py", line 118, in _run_code
+    exec(code, run_globals)
+  File "c:\Users\User\OneDrive\Desktop\FLL-2026-2027-Season-Robot-Game\.venv\lib\site-packages\pybricksdev\__main__.py", line 9, in <module>
+    main()
+  File "c:\Users\User\OneDrive\Desktop\FLL-2026-2027-Season-Robot-Game\.venv\lib\site-packages\pybricksdev\cli\__init__.py", line 389, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "C:\Users\User\AppData\Local\Python\pythoncore-3.9-64\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\User\AppData\Local\Python\pythoncore-3.9-64\lib\asyncio\base_events.py", line 642, in run_until_complete
+    return future.result()
+  File "c:\Users\User\OneDrive\Desktop\FLL-2026-2027-Season-Robot-Game\.venv\lib\site-packages\pybricksdev\cli\__init__.py", line 192, in run
+    device_or_address = await find_device(args.name)
+  File "c:\Users\User\OneDrive\Desktop\FLL-2026-2027-Season-Robot-Game\.venv\lib\site-packages\pybricksdev\ble\__init__.py", line 68, in find_device
+    raise asyncio.TimeoutError
+asyncio.exceptions.TimeoutError
+
+==================================================
+終了コード: 1
+終了日時  : 2026-07-11 18:48:28
+実行時間  : 13.6 秒

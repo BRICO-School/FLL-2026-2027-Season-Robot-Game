@@ -10,9 +10,9 @@
 
 【更新履歴】
 - 2026-05-20: robot.straight(500, speed=500) を追加
-
 """
 
+from collections.abc import Awaitable
 from pybricks.hubs import PrimeHub
 from pybricks.parameters import Port, Axis, Direction, Color, Stop
 from pybricks.pupdevices import Motor
@@ -22,18 +22,6 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-
-    # await robot.straight(510, speed=500)
-    # await robot.straight(-100, speed=541)
-    # await robot.straight(100)
-    # await robot.straight(-150)
-    # await robot.straight(850)
-    # await robot.curve(3400, 15)
-    await robot.straight(600)
-    await robot.straight(-150)
-    # await robot.straight(300)
-
-    # 半径300mmで15度だけ右にカーブしながら前進（数値を変えて調整）
     """
     ロボットの動作を記述する関数
 

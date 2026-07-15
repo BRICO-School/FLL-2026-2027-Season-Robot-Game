@@ -87,6 +87,23 @@
             }
         },
         {
+            "name": "🤖 Robot 6 (Pybricks Hub5)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "module": "pybricksdev",
+            "args": [
+                "run",
+                "ble",
+                "${file}",
+                "--name",
+                "Pybricks Hub6"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
             "name": "📝 Robot 1 + Log (Pybricks Hub)",
             "type": "debugpy",
             "request": "launch",
@@ -156,6 +173,21 @@
                 "${file}",
                 "--name",
                 "Pybricks Hub5"
+            ],
+            "env": {
+                "PYTHONUTF8": "1"
+            }
+        },
+        {
+            "name": "📝 Robot 6 + Log (Pybricks Hub5)",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "ruff: all",
+            "program": "${workspaceFolder}/run_with_log.py",
+            "args": [
+                "${file}",
+                "--name",
+                "Pybricks Hub6"
             ],
             "env": {
                 "PYTHONUTF8": "1"
