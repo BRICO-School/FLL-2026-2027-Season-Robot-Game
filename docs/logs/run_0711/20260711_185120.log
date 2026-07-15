@@ -1,0 +1,52 @@
+=== 実行ログ ===
+スクリプト: run_0711.py
+実行日時 : 2026-07-11 18:51:20
+ハブ     : --name Pybricks Hub6
+==================================================
+
+0.34s - Expected: c:\Users\user\.cursor\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd_attach_to_process\attach_amd64.dll to exist.
+Searching for Pybricks Hub6...
+
+  0%|          | 0.00/4.04k [00:00<?, ?B/s]
+ 13%|█▎        | 507/4.04k [00:00<00:01, 2.51kB/s]
+ 25%|██▌       | 1.01k/4.04k [00:00<00:01, 1.95kB/s]
+ 38%|███▊      | 1.52k/4.04k [00:00<00:01, 1.83kB/s]
+ 50%|█████     | 2.03k/4.04k [00:01<00:01, 1.93kB/s]
+ 63%|██████▎   | 2.54k/4.04k [00:01<00:00, 2.01kB/s]
+ 75%|███████▌  | 3.04k/4.04k [00:01<00:00, 1.74kB/s]
+ 88%|████████▊ | 3.55k/4.04k [00:01<00:00, 1.86kB/s]
+100%|██████████| 4.04k/4.04k [00:02<00:00, 1.91kB/s]
+100%|██████████| 4.04k/4.04k [00:02<00:00, 1.91kB/s]
+=== ロボット初期化開始 ===
+✓ ハブ設定完了
+! left_lift not found on Port.E; using NullMotor. ([Errno 19] ENODEV: 
+
+A sensor or motor is not connected to the specified port:
+--> Check the cables to each motor and sensor.
+--> Check the port settings in your script.
+--> Check the line in your script that matches
+    the line number given in the 'Traceback' above.
+
+)
+! right_lift not found on Port.A; using NullMotor. ([Errno 19] ENODEV: 
+
+A sensor or motor is not connected to the specified port:
+--> Check the cables to each motor and sensor.
+--> Check the port settings in your script.
+--> Check the line in your script that matches
+    the line number given in the 'Traceback' above.
+
+)
+✓ モーター設定完了
+✓ デフォルト設定適用: 直進={'straight_acceleration': 500, 'straight_speed': 400}, 回転={'turn_acceleration': 850, 'turn_rate': 240}
+✓ ロボットパラメータ設定完了
+✓ PID制御設定完了
+✓ センサー初期化完了
+✓ モーター角度リセット完了: 全モーター=0°
+=== ロボット初期化完了 ===
+The program was stopped (SystemExit).
+
+==================================================
+終了コード: 0
+終了日時  : 2026-07-11 18:51:38
+実行時間  : 18.2 秒
