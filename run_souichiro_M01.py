@@ -12,7 +12,6 @@
 - 2026-05-20: robot.straight(500, speed=500) を追加
 """
 
-from collections.abc import Awaitable
 from pybricks.hubs import PrimeHub
 from pybricks.parameters import Port, Axis, Direction, Color, Stop
 from pybricks.pupdevices import Motor
@@ -22,6 +21,15 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
+
+    await robot.straight(500, speed=200, timeout=2000)
+    await robot.straight(-170, speed=200)
+    await wait(5000)
+    await right_lift.run_angle(300, -180 * 4)
+    await robot.straight(-170, speed=200)
+    await wait(2000)
+    await right_lift.run_angle(800, 180 * 7)
+
     """
     ロボットの動作を記述する関数
 
