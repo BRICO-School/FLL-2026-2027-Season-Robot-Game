@@ -11,6 +11,7 @@
 【更新履歴】
 - 2026-05-20: robot.straight(500, speed=500) を追加
 - 2026-08-31: リフトモーターの動作テスト用スクリプトを新規追加した。
+- 2026-09-04: 走行と右アーム操作の往復動作を10回繰り返す処理に変更した。
 """
 
 from pybricks.hubs import PrimeHub
@@ -22,10 +23,19 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-
-    await robot.straight(30)
-    await right_lift.run_angle(5100, -5662)  # 右アームを逆方向に1回転
-
+    for i in range(10):  # 10回くりかえす
+        print("# ", i + 1, "回目")
+        await robot.straight(65 * 10)
+        await robot.turn(90)
+        await robot.straight(45 * 10)
+        await robot.turn(-90)
+        await robot.straight(35)
+        await right_lift.run_angle(5100, -5662)  # 右アームを逆方向に1回転
+        await robot.straight(-35)
+        await robot.turn(90)
+        await robot.straight(45 * -10)
+        await robot.turn(-90)
+        await robot.straight(65 * -10)
     """
     ロボットの動作を記述する関数
 
