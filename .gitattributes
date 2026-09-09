@@ -12,3 +12,6 @@ scripts/hooks/* text eol=lf
 # バイナリは改行正規化しない。
 *.pdf binary
 *.zip binary
+
+# 試行記録 CSV は追記専用。複数 PC の追記を両方残す union マージで自動解決する。
+docs/trials/trials.csv merge=union
