@@ -79,8 +79,9 @@ FLL-2026-2027-Season-Robot-Game/
 ├── run_M01_kanna.py
 ├── run_M01_kidachi.py
 ├── run_test_ayumu*.py          # 歩むの検証用スクリプト
-├── requirements.txt            # pybricks, pybricksdev
-├── requirements-dev.txt        # ruff, pre-commit, matplotlib（試行記録のグラフ用）
+├── pyproject.toml              # 依存 (pybricks, pybricksdev, ruff …) と ruff 設定
+├── uv.lock                     # 依存の完全固定 (全 OS 共通)
+├── .python-version             # Python 3.12 に固定
 ├── pyproject.toml              # ruff 設定
 ├── .pre-commit-config.yaml     # ruff check/format フック
 ├── .vscode/
@@ -187,26 +188,20 @@ stdout を tee しつつ `docs/logs/<script>/<YYYYMMDD_HHMMSS>.log` に保存し
 
 ### 4.1 初回セットアップ（PC ごとに1回）
 
-**Windows (PowerShell):**
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-pre-commit install
-```
+依存管理は [uv](https://docs.astral.sh/uv/) に統一しています。
+Python の版は `.python-version`（3.12）、ライブラリの版は `uv.lock` で固定されているため、
+Windows / macOS / Linux のどこで実行しても同じ環境が `.venv` に再現されます。
 
-**macOS / Linux:**
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-pre-commit install
+uv sync                    # .venv 作成 + Python 3.12 取得 + 依存インストール (全 OS 共通)
+uv run pre-commit install  # commit 時に ruff を自動実行
 ```
 
-`pybricksdev` がプレリリース扱いでインストールに失敗する場合は
-`python -m pip install --pre -r requirements.txt` を試してください。
+- `uv sync` は既存の `.venv` があれば差分だけ更新します（作り直しは不要）。
+- 依存を追加するときは `uv add <pkg>`（実行時）/ `uv add --group dev <pkg>`（開発用）。
+  `pyproject.toml` と `uv.lock` が更新されるので両方 commit してください。
+- `requirements.txt` は廃止しました。uv を入れられない端末では
+  `uv export --format requirements.txt` の出力を pip で入れてください。
 
 ### 4.2 ハブ側セットアップ
 
@@ -238,12 +233,12 @@ Windows / macOS どちらも同じ流れで、OS 依存部分のみ分岐しま�
 | ソフト | 最低バージョン | 備考 |
 |--------|--------------|------|
 | Git | 2.30+ | Windows は Git for Windows、Mac は `brew install git` か Xcode Command Line Tools |
-| Python | 3.9+ | `pyproject.toml` の `target-version = "py39"` に合わせる |
+| uv | 最新 | Windows: `winget install astral-sh.uv` / Mac: `brew install uv`。Python 3.12 は uv が自動取得 |
 | VS Code | 最新 | `Python` 拡張機能を入れる |
 | Google Chrome | 最新 | Pybricks firmware の書き込みに必要（Web Bluetooth） |
 
-Windows でインストーラから Python を入れる場合は **「Add python.exe to PATH」** に
-必ずチェックを入れてください（`.venv` 作成が失敗する原因の最頻値です）。
+Python を手動でインストールする必要はありません。`uv sync` が `.python-version` に
+書かれた 3.12 を自動で取得します（既に 3.12 があればそれを使います）。
 
 #### 初期化手順
 
@@ -252,29 +247,19 @@ Windows でインストーラから Python を入れる場合は **「Add python
 git clone https://github.com/BRICO-School/FLL-2026-2027-Season-Robot-Game.git
 cd FLL-2026-2027-Season-Robot-Game
 
-# 2. 仮想環境作成（Windows）
-python -m venv .venv
-.venv\Scripts\activate
+# 2. 仮想環境作成 + 依存インストール (全 OS 共通)
+uv sync
 
-# 2. 仮想環境作成（macOS / Linux）
-python3 -m venv .venv
-source .venv/bin/activate
+# 3. pre-commit フック有効化
+uv run pre-commit install
 
-# 3. 依存インストール
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-
-# 4. pre-commit フック有効化
-pre-commit install
-
-# 5. 動作確認
-python -m pybricksdev --help
-ruff --version
+# 4. # 5. 動作確認
+uv run python -m pybricksdev --version
+uv run ruff --version
 ```
 
-`pybricksdev` は a49 等のプレリリース版指定のため、素で入らない場合は
-`python -m pip install --pre -r requirements.txt` を使ってください。
+`.venv` を有効化（activate）すれば `uv run` を付けずに `pybricksdev` / `ruff` を直接呼べます。
+VS Code の F5 実行は `.venv` の Python を使うため、uv の有無に関係なく動きます。
 
 #### VS Code 側の初期設定
 
@@ -331,7 +316,7 @@ git switch -c feature/<member>-<topic>
 2. ハブを USB-C で PC に接続し、中央ボタンで電源 ON
 3. 左上の歯車 → **Install Pybricks Firmware** → **SPIKE Prime** を選択
 4. **Firmware version**: 最新安定版を選択
-   （既存ハブと揃えることを推奨。`requirements.txt` の `pybricks>=3.6.1` と整合する版）
+   （既存ハブと揃えることを推奨。`pyproject.toml` の `pybricks>=4.0.0` スタブと整合する版）
 5. **Hub name** は後述のハブ命名規則に従って入力（この時点で決める）
 6. 「Install」を押し、ハブのボタン操作指示に従って DFU モードに入れる
 7. プログレスバー完了まで USB を抜かない
@@ -449,7 +434,7 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 
 ### 4.6 Lint / Format / Pre-commit
 
-- `pyproject.toml` で `target-version = "py39"`, `line-length = 100`。
+- `pyproject.toml` で `target-version = "py312"`, `line-length = 100`。
 - `select = ["E", "F", "I", "B", "UP"]`、`ignore = ["E501"]`（長い行は許容）。
 - `run*.py` と `run_template.py` は `F401`（未使用 import）と `I001`（import ソート）を除外
   → 子どもが学習用に意図的に残している import を壊さないため。
@@ -518,8 +503,8 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 
 | 症状 | 原因 | 対処 |
 |------|------|------|
-| `No module named pybricksdev` | `.venv` 未有効化 / 未インストール | `pip install --pre -r requirements.txt` |
-| `ruff: command not found` | `requirements-dev.txt` 未インストール | `pip install -r requirements-dev.txt` |
+| `No module named pybricksdev` | `.venv` 未作成 / VS Code のインタプリタが `.venv` でない | `uv sync` → `Python: Select Interpreter` で `.venv` を選ぶ |
+| `ruff: command not found` | `.venv` 未作成 / 未有効化 | `uv sync`、または `uv run ruff …` で呼ぶ |
 | ハブに接続できない | Bluetooth 未待受 / 名前不一致 | ハブの Bluetooth ボタン押下、`launch.json` の `--name` 確認 |
 | ロボットがまっすぐ進まない | PID / トレッド / タイヤ径 | `docs/how_to_reduce_SD.md` の手順で再調整 |
 | リフトが動かない | `Port.A` / `Port.E` 未接続 → NullMotor | 物理接続を確認。意図的に外している場合は想定通り |

@@ -37,7 +37,8 @@
 
 | 道具 | バージョン / 種別 | どっち側 | 役割 |
 |------|-------------------|----------|------|
-| **Python** | 3.9 を基準（`pyproject.toml` の `target-version = "py39"`） | 両方 | 全コードの言語。ただしハブと PC で「種類」が違う（下記） |
+| **Python** | 3.12 に固定（`.python-version`。ruff も `target-version = "py312"`） | 両方 | 全コードの言語。ただしハブと PC で「種類」が違う（下記） |
+| **uv** | 最新 | [PC] | Python 本体と依存ライブラリを `uv.lock` どおりに `.venv` へ再現する。`uv sync` の1コマンドで全 OS 同じ環境になる |
 | **MicroPython** | Pybricks 同梱 | [ハブ] | ハブの中で `setup.py` / `selector.py` / `run_*.py` を動かす軽量 Python |
 | **CPython** | PC の標準 Python | [PC] | `pybricksdev` などの PC 側ツールを動かす普通の Python |
 
@@ -67,7 +68,7 @@
 | **Git + pre-commit フック** | バージョン管理。コミット時に整形・変更履歴の自動記録を実行（§7.3） |
 | **agy（Antigravity の AI CLI）** | コミット時に diff を日本語1行に要約する（`changelog_hook.py`、§7.3） |
 
-> 設定ファイルの所在: 依存ライブラリ＝`requirements.txt`、ruff 設定＝`pyproject.toml`、
+> 設定ファイルの所在: 依存ライブラリ＝`pyproject.toml`（固定版は `uv.lock`）、ruff 設定＝`pyproject.toml`、
 > pre-commit 設定＝`.pre-commit-config.yaml`、VS Code 設定＝`.vscode/`。
 
 ---
@@ -365,7 +366,7 @@ run_test_*.py                              性能テスト用（競技では使�
 ### 7.1 ruff（整形＆チェック）
 
 ruff の仕事は **「整形(format)」** と **「チェック(check / lint)」** の 2 つで、別物です。
-設定は `pyproject.toml` にあります（対象 Python 3.9、1 行 100 文字 など）。
+設定は `pyproject.toml` にあります（対象 Python 3.12、1 行 100 文字 など）。
 
 #### ① 整形（`ruff format`）— 見た目だけそろえる
 
@@ -404,7 +405,7 @@ def f(a):
 | **E** | pycodestyle | PEP8（公式スタイル）違反。空白・インデントの崩れ | 関数前の空行が足りない |
 | **I** | isort | **import の並び順**（標準→外部→自作、アルファベット順） | import がバラバラ |
 | **B** | bugbear | **ありがちな罠**。事故りやすい書き方を警告 | デフォルト引数に `[]`/`{}` を使う |
-| **UP** | pyupgrade | **古い書き方を新しく**（3.9 で使える範囲で） | `"%s" % x` → f-string |
+| **UP** | pyupgrade | **古い書き方を新しく**（3.12 で使える範囲で） | `"%s" % x` → f-string |
 
 `ruff check --fix` を付けると、このうち自動で直せるもの（import 並べ替え・不要 import 削除
 など）は自動修正されます。一番効くのは **`F`（Pyflakes）** で、「使い忘れ・定義し忘れ」など
@@ -540,8 +541,8 @@ git commit
 `.venv` を使う利点:
 
 1. **干渉しない** — 他プロジェクトとライブラリのバージョンがぶつからない。
-2. **再現できる** — `requirements.txt` ＋ `.venv` で、新しい PC でも同じ環境を作れる
-   （だから README に `pip install -r requirements.txt` の手順がある）。
+2. **再現できる** — `uv.lock` ＋ `.python-version` ＋ `.venv` で、新しい PC でも同じ環境を作れる
+   （だから README の手順が `uv sync` の1行で済む）。
 3. **PC を汚さない** — システムの Python はきれいなまま。
 4. **使い捨てできる** — 壊れたらフォルダごと消して作り直せる（だから `.venv` は Git に入れない）。
 

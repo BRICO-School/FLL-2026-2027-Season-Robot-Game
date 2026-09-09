@@ -32,25 +32,16 @@
 
 ### ① Python のおまじないを入れる（仮想環境）
 
-ターミナル（VS Code の下のまっくろい画面）で、順番にうつ：
+ターミナル（VS Code の下のまっくろい画面）で、**Windows も Mac も同じ** 1行をうつ：
 
-**Windows の人:**
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-```
-
-**Mac の人:**
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
+uv sync
 ```
 
-> 「`(.venv)`」がターミナルの左に出ていれば、じゅんびOK！
+これだけで、Python 3.12 と必要なライブラリが `.venv` フォルダーに入ります。
+（`uv` がまだ入っていない人は、下の「新しい PC でのセットアップ」の①を見てね）
+
+> 左下に「Python 3.12 (.venv)」と出ていれば、じゅんびOK！
 
 ### ② Pybricks をハブに書きこむ
 
@@ -76,7 +67,7 @@ python -m pip install -r requirements-dev.txt
 | 入れるもの | どこから | メモ |
 |----------|---------|------|
 | **Git** | https://git-scm.com/ | Windows は「Git for Windows」、Mac は `brew install git` |
-| **Python 3.9 以上** | https://www.python.org/ | Windows は「Add to PATH」に✅ |
+| **uv** | https://docs.astral.sh/uv/ | Windows は `winget install astral-sh.uv`、Mac は `brew install uv`。Python 本体は uv が自動で入れるので別に入れなくてOK |
 | **VS Code** | https://code.visualstudio.com/ | みんなこれで書いています |
 | **Google Chrome** | https://www.google.com/chrome/ | Pybricks のファームウェア書きこみに使う |
 
@@ -96,8 +87,7 @@ cd FLL-2026-2027-Season-Robot-Game
 
 ### ③ 仮想環境をつくる
 
-上の「🚀 使う前のじゅんび」の手順①をやってください。
-（Windows と Mac で少しコマンドがちがうよ）
+上の「🚀 使う前のじゅんび」の手順①（`uv sync`）をやってください。
 
 ### ④ VS Code でフォルダをひらく
 
@@ -105,7 +95,7 @@ cd FLL-2026-2027-Season-Robot-Game
 File → Open Folder → FLL-2026-2027-Season-Robot-Game
 ```
 
-左下に「Python 3.xx (.venv)」と出ていたらOK！
+左下に「Python 3.12 (.venv)」と出ていたらOK！
 もし出てなかったら **Ctrl+Shift+P**（Mac は **Cmd+Shift+P**）
 → `Python: Select Interpreter` → `.venv` をえらぶ。
 
@@ -279,7 +269,7 @@ await wait(500)                             # 0.5秒まつ
 - **まっすぐ進まない** → `docs/how_to_reduce_SD.md` を読むとヒントがあるよ
 - **こわれた！** → あわてず `old/` フォルダーを見る。前のバージョンがあるかも
 - **ハブが見つからない** → Bluetooth の名前があってる？ ハブのボタンはおした？
-- **ruff: command not found** → 「じゅんび①」の `requirements-dev.txt` のインストールがまだ
+- **ruff: command not found** → 「じゅんび①」の `uv sync` がまだ。もう一回うってみよう
 
 ---
 

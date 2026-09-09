@@ -16,7 +16,7 @@ docs/trials/trials.csv（run_with_log.py が貯める記録）を集計して、
   docs/trials/charts/success_rate_<mission>.png … ミッション別グラフ（成功率の折れ線 + 試行数の棒）
   docs/trials/charts/all_missions.png           … 全体の累計試行回数と成功率
 
-グラフには matplotlib が必要（requirements-dev.txt に入っている）。
+グラフには matplotlib が必要（`uv sync` で dev グループとして入る）。
 無ければ表だけ作って、グラフはスキップする。
 """
 
@@ -223,7 +223,7 @@ def setup_matplotlib():
         import matplotlib.pyplot as plt
         from matplotlib import font_manager
     except ImportError:
-        print("⚠ matplotlib が無いのでグラフは作りません（pip install -r requirements-dev.txt）")
+        print("⚠ matplotlib が無いのでグラフは作りません（uv sync で入ります）")
         return None
     # 日本語フォントがあれば使う。無ければ英語ラベルにする
     candidates = [

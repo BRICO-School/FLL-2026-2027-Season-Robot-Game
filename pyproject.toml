@@ -1,5 +1,26 @@
+[project]
+name = "fll-2026-2027-season-robot-game"
+version = "0.1.0"
+description = "FLL 2026-2027 シーズン ロボットゲーム (SPIKE Prime + Pybricks)"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "pybricks>=4.0.0",      # ハブ用 API のスタブ (エディタ補完用。実行はハブ側)
+    "pybricksdev>=2.3.2",   # PC からハブへ BLE でプログラムを送る
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15,<0.16",     # 0.16 は Markdown 内コードも整形するため当面固定
+    "pre-commit",
+    "matplotlib",           # scripts/trial_report.py のグラフ作成用 (PC 側のみ)
+]
+
+# このリポジトリはパッケージではなく run_*.py の集まりなので build しない
+[tool.uv]
+package = false
+
 [tool.ruff]
-target-version = "py39"
+target-version = "py312"
 line-length = 100
 extend-exclude = ["old", ".venv"]
 
