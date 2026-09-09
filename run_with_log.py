@@ -30,6 +30,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 【更新履歴】
 - 2026-09-09: 走行結果の記録とコードスナップショット保存機能を追加した。
 - 2026-09-09: セレクター経由のプログラム実行ログの記録に対応した
+- 2026-09-09: Ctrl+Cによる中断時にプロセスを安全に終了する処理を追加。
 """
 
 import csv
@@ -406,10 +407,20 @@ def main():
         )
 
         watcher = SelectorWatcher()
-        for line in process.stdout:
-            print(line, end="")
-            f.write(line)
-            watcher.feed(line)  # 読むだけ。ハブとの通信には触らない
+        try:
+            for line in process.stdout:
+                print(line, end="")
+                f.write(line)
+                watcher.feed(line)  # 読むだけ。ハブとの通信には触らない
+        except KeyboardInterrupt:
+            # Ctrl+C で止めたとき: pybricksdev を終わらせてから、記録の入力に進む
+            print("\n⏹ 停止しました（pybricksdev を終了します）")
+            f.write("\n[Ctrl+C で停止]\n")
+            try:
+                process.terminate()
+                process.wait(timeout=5)
+            except Exception:
+                process.kill()
 
         process.wait()
 
