@@ -29,6 +29,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 
 【更新履歴】
 - 2026-09-09: 走行結果の記録とコードスナップショット保存機能を追加した。
+- 2026-09-09: セレクター経由のプログラム実行ログの記録に対応した
 """
 
 import csv
@@ -61,7 +62,13 @@ CSV_COLUMNS = [
     "log_path",
     "code_hash",
     "snapshot",
+    "via",  # selector 経由なら "selector P1" のように入る。直接実行なら空
 ]
+
+# selector.py が画面に出す行（この文字列を PC 側で読むだけ。ハブ側は変更しない）
+SELECTOR_START = re.compile(r"=== プログラム (\d+) を実行中 ===")
+SELECTOR_DONE = re.compile(r"=== プログラム (\d+) 実行完了 ===")
+SELECTOR_ERROR = re.compile(r"^エラー: ")
 
 # 入力キー → result 列の値
 RESULT_KEYS = {
@@ -143,6 +150,52 @@ def snapshot_files(root, run_file):
     return seen
 
 
+def selector_programs(root):
+    """selector.py の programs リストから、添字順に (モジュール名, 画面の番号) を返す。"""
+    names = []
+    path = os.path.join(root, "selector.py")
+    if not os.path.exists(path):
+        return names
+    with open(path, encoding="utf-8") as f:
+        in_list = False
+        for line in f:
+            if re.match(r"\s*programs\s*=\s*\[", line):
+                in_list = True
+                continue
+            if in_list:
+                if line.strip().startswith("]"):
+                    break
+                m = re.search(r'"module"\s*:\s*(\w+)', line)
+                if m:
+                    d = re.search(r'"display_number"\s*:\s*(\d+)', line)
+                    names.append((m.group(1), d.group(1) if d else str(len(names))))
+    return names
+
+
+class SelectorWatcher:
+    """selector.py の表示行を読んで「何番を・いつ・どうなったか」を控える。
+
+    出力を眺めるだけで、ハブへは何も送らない。
+    """
+
+    def __init__(self):
+        self.runs = []  # {"index", "start", "end", "error"}
+
+    def feed(self, line):
+        m = SELECTOR_START.search(line)
+        if m:
+            self.runs.append(
+                {"index": int(m.group(1)), "start": datetime.now(), "end": None, "error": False}
+            )
+            return
+        if not self.runs or self.runs[-1]["end"] is not None:
+            return
+        if SELECTOR_ERROR.search(line):
+            self.runs[-1]["error"] = True
+        elif SELECTOR_DONE.search(line) or "セレクターに戻りました" in line:
+            self.runs[-1]["end"] = datetime.now()
+
+
 def save_snapshot(root, files):
     """ファイル内容のハッシュを計算し、未保存ならコピーする。(hash, dir) を返す。"""
     h = hashlib.sha256()
@@ -212,26 +265,14 @@ def ask_note():
         return ""
 
 
-def record_trial(root, run_file, hub_args, start_time, elapsed, exit_code, log_path):
-    """走行後に成否を聞いて CSV に追記し、コードのコピーを残す。"""
+def write_trial(
+    root, run_file, hub_args, start_time, elapsed, exit_code, log_path, result, note, via=""
+):
+    """1 試行分を CSV に追記し、コードのコピーを残す。"""
     script_base = os.path.basename(run_file)
     script_name = os.path.splitext(script_base)[0]
     mission = guess_mission(script_name)
-    label = f"{script_base} ({mission})" if mission else script_base
-
-    print()
-    print("─" * 40)
-    print(f"🏁 結果を記録します: {label}")
-    print("   o=成功  x=失敗  d=途中まで  e=動かなかった  s=記録しない")
-    default_key = "e" if exit_code != 0 else "o"
-    result = ask_result(default_key)
-    if result is None:
-        print("📊 記録しませんでした")
-        return
-    note = ask_note()
-
     code_hash, snap_rel = save_snapshot(root, snapshot_files(root, run_file))
-
     date = start_time.strftime("%Y-%m-%d")
     row = {
         "trial_id": start_time.strftime("%Y%m%d_%H%M%S"),
@@ -249,14 +290,74 @@ def record_trial(root, run_file, hub_args, start_time, elapsed, exit_code, log_p
         "log_path": os.path.relpath(log_path, root).replace(os.sep, "/"),
         "code_hash": code_hash,
         "snapshot": snap_rel,
+        "via": via,
     }
     append_trial(root, row)
-
     ok, total = today_tally(root, date, mission)
-    print(
-        f"📊 記録しました: {mission or script_base} {result}（今日 {mission or script_base}: {ok}/{total} 成功）"
-    )
+    name = mission or script_base
+    print(f"📊 記録しました: {name} {result}（今日 {name}: {ok}/{total} 成功）")
     print(f"📊 コード: {snap_rel}")
+
+
+def print_header(label):
+    print()
+    print("─" * 40)
+    print(f"🏁 結果を記録します: {label}")
+    print("   o=成功  x=失敗  d=途中まで  e=動かなかった  s=記録しない")
+
+
+def record_trial(root, run_file, hub_args, start_time, elapsed, exit_code, log_path):
+    """run_*.py を 1 つ走らせたあとの記録（1 プロセス = 1 試行）。"""
+    script_base = os.path.basename(run_file)
+    mission = guess_mission(os.path.splitext(script_base)[0])
+    print_header(f"{script_base} ({mission})" if mission else script_base)
+    result = ask_result("e" if exit_code != 0 else "o")
+    if result is None:
+        print("📊 記録しませんでした")
+        return
+    note = ask_note()
+    write_trial(root, run_file, hub_args, start_time, elapsed, exit_code, log_path, result, note)
+
+
+def record_selector_trials(root, hub_args, watcher, exit_code, log_path):
+    """selector.py の通し練習: 走ったプログラムごとに順番に成否を聞く。"""
+    modules = selector_programs(root)
+    print()
+    print("─" * 40)
+    print(f"🏁 通し練習の結果を記録します（{len(watcher.runs)} 回走りました）")
+    print("   o=成功  x=失敗  d=途中まで  e=動かなかった  s=記録しない")
+    for i, run in enumerate(watcher.runs, 1):
+        idx = run["index"]
+        module, shown = modules[idx] if idx < len(modules) else (f"program{idx}", str(idx))
+        run_file = os.path.join(root, module + ".py")
+        if not os.path.exists(run_file):
+            run_file = os.path.join(root, "selector.py")
+        mission = guess_mission(module)
+        end = run["end"] or datetime.now()
+        elapsed = (end - run["start"]).total_seconds()
+        label = f"{mission} / {module}" if mission else module
+        print()
+        print(
+            f"[{i}/{len(watcher.runs)}] 画面の番号 {shown}: {label}"
+            + ("  ⚠ エラーあり" if run["error"] else "")
+        )
+        result = ask_result("x" if run["error"] else "o")
+        if result is None:
+            print("📊 記録しませんでした")
+            continue
+        note = ask_note()
+        write_trial(
+            root,
+            run_file,
+            hub_args,
+            run["start"],
+            elapsed,
+            exit_code,
+            log_path,
+            result,
+            note,
+            via=f"selector P{shown}",
+        )
 
 
 def main():
@@ -304,9 +405,11 @@ def main():
             bufsize=1,
         )
 
+        watcher = SelectorWatcher()
         for line in process.stdout:
             print(line, end="")
             f.write(line)
+            watcher.feed(line)  # 読むだけ。ハブとの通信には触らない
 
         process.wait()
 
@@ -324,9 +427,18 @@ def main():
     # ===== 走行後の試行記録（ロボットの実行はもう終わっている） =====
     if not no_trial:
         try:
-            record_trial(
-                script_dir, run_file, hub_args, start_time, elapsed, process.returncode, log_path
-            )
+            if os.path.basename(run_file) == "selector.py" and watcher.runs:
+                record_selector_trials(script_dir, hub_args, watcher, process.returncode, log_path)
+            else:
+                record_trial(
+                    script_dir,
+                    run_file,
+                    hub_args,
+                    start_time,
+                    elapsed,
+                    process.returncode,
+                    log_path,
+                )
         except Exception as e:  # 記録の失敗で終了コードを変えない
             print(f"⚠ 試行記録に失敗しました（走行結果には影響しません）: {e}")
 

@@ -66,7 +66,7 @@ FLL-2026-2027-Season-Robot-Game/
 ├── selector.py                 # ★ 競技本番のエントリポイント（multitask）
 ├── run_template.py             # 新しい run を作るテンプレート
 ├── run_template copy.py        # テンプレートの派生
-├── run_with_log.py             # pybricksdev ラッパー（ログ自動保存）
+├── run_with_log.py             # pybricksdev ラッパー（ログ自動保存 + 走行後の成否記録）
 ├── run1_M01_M02_kanna.py       # ミッション別プログラム（担当者名付き）
 ├── run1_M05_M06_M07_M08_kidachi.py
 ├── run1_M10_M11.py
@@ -80,7 +80,7 @@ FLL-2026-2027-Season-Robot-Game/
 ├── run_M01_kidachi.py
 ├── run_test_ayumu*.py          # 歩むの検証用スクリプト
 ├── requirements.txt            # pybricks, pybricksdev
-├── requirements-dev.txt        # ruff, pre-commit
+├── requirements-dev.txt        # ruff, pre-commit, matplotlib（試行記録のグラフ用）
 ├── pyproject.toml              # ruff 設定
 ├── .pre-commit-config.yaml     # ruff check/format フック
 ├── .vscode/
@@ -94,7 +94,9 @@ FLL-2026-2027-Season-Robot-Game/
 │   ├── square_test_evaluation.md
 │   ├── curve_test_evaluation.md
 │   ├── tread_ratio_summary.md
-│   └── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先
+│   ├── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先
+│   ├── trial_log_spec.md       # 試行記録の仕様
+│   └── trials/                 # 試行記録 CSV・コードのスナップショット・集計レポート
 └── old/                        # 旧版スクリプトと旧 README（参照のみ、ruff 除外）
 ```
 
@@ -157,6 +159,14 @@ stdout を tee しつつ `docs/logs/<script>/<YYYYMMDD_HHMMSS>.log` に保存し
   回帰調査やばらつき評価がやりやすくなります。
 - 作成されたログは **Git 管理対象** になっているため、
   量が増えたら定期的に整理するか、`.gitignore` に追加するか検討してください。
+- 走行終了後にターミナルで成否（o/x/d/e/s）とメモを聞き、`docs/trials/trials.csv` に
+  1 行追記します。走行した `run_*.py` と `setup.py` は `docs/trials/snapshots/<code_hash>/`
+  に内容ハッシュ単位でコピーされます。`selector.py` 経由ではハブの出力行からプログラム
+  境界を検出し、走ったプログラムごとに聞きます。ハブ側コードは無変更で、記録は
+  pybricksdev プロセス終了後にのみ動きます。`--no-trial` / `TRIAL_LOG=0` でスキップ。
+- 集計は `python scripts/trial_report.py`（`--since` / `--mission` / `--by day` / `--diff`）。
+  `docs/trials/report.md` と `docs/trials/charts/*.png` を生成します。仕様は
+  `docs/trial_log_spec.md`。
 
 ### 3.4 ハードウェア構成（ポート割付）
 

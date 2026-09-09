@@ -61,6 +61,7 @@ scripts/trial_report.py（プレゼン前に手で実行）
 | `log_path` | `docs/logs/run_M01_kidachi/20260909_183012.log` | 詳細ログへのリンク | 自動 |
 | `code_hash` | `a3f9c1e2` | 走行した `run_*.py` ＋ `setup.py` の内容ハッシュ（短縮）。同じ値なら同じコードで走った | 自動 |
 | `snapshot` | `docs/trials/snapshots/a3f9c1e2/` | 走行時のコードのコピー先（§4.5） | 自動 |
+| `via` | `selector P3` | selector 経由ならハブ画面の番号。直接実行なら空（§4.4） | 自動 |
 
 `result` の値:
 
@@ -120,8 +121,11 @@ scripts/trial_report.py（プレゼン前に手で実行）
   `programs` 順から引いたモジュール名を入れる。
 - 標準出力の読み取りは既存のループに `if line.startswith("=== プログラム")` を
   足すだけで、ハブとの通信には影響しない。
-
-第 1 段階では `run_*.py` 単体実行の記録だけを実装し、selector 対応は第 2 段階でよい。
+- 実装: `SelectorWatcher` が「実行中」「実行完了」「エラー:」「セレクターに戻りました」の
+  行を控え、終了後に `record_selector_trials()` が 1 回ずつ聞く。`script` 列には走った
+  モジュール名（`run1_M10_M11.py` など）、`via` 列にハブ画面の番号が入る。
+  スナップショットはそのモジュール＋`setup.py` なので、単体実行と同じコードなら
+  同じ `code_hash` になり、集計が混ざらない。エラー行があった回は既定キーが `x`。
 
 ### 4.5 走行時のコードをそのまま保存する（スナップショット）
 
@@ -191,12 +195,12 @@ python scripts/trial_report.py --mission M01
 
 ## 7. 実装ステップ
 
-| 段階 | 内容 | 触るファイル |
-|------|------|-------------|
-| 1 | `run_with_log.py` に成否入力・CSV 追記・コードスナップショット保存を追加。`--no-trial` 対応 | `run_with_log.py`、`.gitattributes` |
-| 2 | `scripts/trial_report.py`（表＋PNG） | `scripts/`、`requirements-dev.txt` |
-| 3 | README の「パターンC: ログをのこして動かす」に「結果を o/x で答える」を追記 | `README.md`、`docs/architecture.md` |
-| 4 | selector 通し練習の複数ミッション対応（§4.4） | `run_with_log.py` |
+| 段階 | 内容 | 触るファイル | 状態 |
+|------|------|-------------|------|
+| 1 | `run_with_log.py` に成否入力・CSV 追記・コードスナップショット保存を追加。`--no-trial` 対応 | `run_with_log.py`、`.gitattributes` | 完了（2026-09-09、実機確認済） |
+| 2 | `scripts/trial_report.py`（表＋PNG） | `scripts/`、`requirements-dev.txt` | 完了（2026-09-09） |
+| 3 | README の「パターンC: ログをのこして動かす」に「結果を o/x で答える」を追記 | `README.md`、`docs/architecture.md` | 完了（2026-09-09） |
+| 4 | selector 通し練習の複数ミッション対応（§4.4） | `run_with_log.py` | 完了（2026-09-09、実機未確認） |
 
 段階 1 だけでも「試行回数と成功率の時系列」は取れ始める。**記録を早く始めるほど
 プレゼンのグラフが長くなる**ので、段階 1 を先に入れて運用を開始し、2 以降は後追いでよい。

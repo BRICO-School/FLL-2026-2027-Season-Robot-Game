@@ -1,3 +1,3 @@
 ruff
 pre-commit
-
+matplotlib  # scripts/trial_report.py のグラフ作成用（PC 側のみ）
