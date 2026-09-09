@@ -11,6 +11,7 @@
 【更新履歴】
 - 2026-05-20: robot.straight(500, speed=500) を追加
 - 2026-08-28: 左アームの動作テスト用スクリプトを新規追加した。
+- 2026-09-09: 左リフトの回転数を30回転から24回転に変更した
 """
 
 from pybricks.hubs import PrimeHub
@@ -23,11 +24,10 @@ from setup import initialize_robot
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    await left_lift.run_angle(1000, 360 * 30)
+    await left_lift.run_angle(1000, 360 * 24)
 
     """
-    ロボットの動作を記述する関数
-
+    ロボットの動作を記述する関数54
     【使用可能なメソッド】
 
     === 移動系（speedとtimeoutを指定可能） ===
