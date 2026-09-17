@@ -19,6 +19,7 @@
 【更新履歴】
 - 2026-09-17: 旋回時のズレとジャイロ精度を定規で測定するスクリプトを追加した
 - 2026-09-17: ビープ音の呼び出しを周波数と長さを指定した非同期処理に変更した。
+- 2026-09-17: 旋回チェックで回転速度を指定できるようにした
 """
 
 from pybricks.tools import StopWatch, run_task, wait
@@ -26,6 +27,7 @@ from setup import initialize_robot
 
 TURNS = 5
 MODE = "spin"  # "spin" / "steps"
+RATE = None  # 回転速度 (deg/s)。None なら setup.py の既定（250）
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
@@ -35,16 +37,16 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     robot.reset()
     await wait(500)
     if MODE == "spin":
-        await robot.turn(360 * TURNS)
+        await robot.turn(360 * TURNS, rate=RATE)
     else:
         for _ in range(TURNS * 4):
-            await robot.turn(90)
+            await robot.turn(90, rate=RATE)
             await wait(300)
     await wait(1000)
     h1 = hub.imu.heading()
     robot.stop()  # モーターの力を抜く（手で回せるように）
     print(
-        "# MODE:", MODE, "/ 命令:", 360 * TURNS, "度 / 止まった時のジャイロ h1:", round(h1, 2), "度"
+        "# MODE:", MODE, "/ 回転速度:", RATE, "/ 命令:", 360 * TURNS, "度 / 止まった時のジャイロ h1:", round(h1, 2), "度"
     )
     print("# ピッと鳴ったら、手で定規にぴったり当て直して、手を離してね")
     await hub.speaker.beep(frequency=880, duration=200)
@@ -71,8 +73,10 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     print("# 電池:", hub.battery.voltage(), "mV")
 
 
-def main(mode=None):
-    global MODE
+def main(mode=None, rate=None):
+    global MODE, RATE
+    if rate is not None:
+        RATE = rate
     if mode is not None:
         MODE = mode
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
