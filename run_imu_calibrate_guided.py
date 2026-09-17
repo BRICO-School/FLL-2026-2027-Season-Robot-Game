@@ -1,0 +1,160 @@
+"""
+【IMU 3 軸校正（合図つき）】（2026-09-17）
+
+中身の計算は Pybricks 公式の _imu_calibrate（v3.6.0）と同じ。分かりやすくするために足したのは合図だけ:
+  ・ハブの画面に、いまの軸（X / Y / Z）と「あと何回」（8 → 1）を出す
+  ・軸が変わるときはメロディが鳴って止まる。ハブを持ち上げて置き直してよい。
+    置き直したら **ハブの右ボタン（▶）を押す** と、その軸が始まる
+  ・表示は日本語
+
+やり方（1 回ぶん）: 低い音 → 手前に 90° ゆっくり倒す（机から浮かせない）→ 手を離す → 高い音のあいだ触らない → 低い音で次へ
+1 つの軸で 8 回（4 面 × 2 周）。X → Y → Z の順。
+
+校正前の値（2026-09-17・Hub3）: bias (0.1389356, -1.317983, -0.2881232) / scale (360, 360, 360) /
+  acceleration (9806.65, -9806.65, 9806.65, -9806.65, 9806.65, -9806.65) / heading_correction 360
+
+【更新履歴】
+- 2026-09-17: 音と画面の合図で手順を案内するIMU校正スクリプトを新規追加した
+"""
+
+from pybricks.hubs import PrimeHub
+from pybricks.parameters import Axis, Button, Side
+from pybricks.tools import vector, wait
+
+hub = PrimeHub()
+print("# 校正前の imu.settings:", hub.imu.settings())
+
+
+def beep(freq, ms=100):
+    hub.speaker.beep(freq, ms)
+    wait(10)
+
+
+def melody():
+    for f in (600, 800, 1000, 1200):
+        beep(f, 120)
+
+
+def wait_for_stationary(side):
+    while not hub.imu.stationary() or hub.imu.up(calibrated=False) != side:
+        wait(10)
+
+
+up_sides = {
+    Side.FRONT: (0, 0),
+    Side.BACK: (1, 0),
+    Side.LEFT: (2, 1),
+    Side.RIGHT: (3, 1),
+    Side.TOP: (4, 2),
+    Side.BOTTOM: (5, 2),
+}
+
+gravity = [0] * 6
+bias = vector(0, 0, 0)
+
+STATIONARY_COUNT = 1000
+REPEAT = 2
+SIDE_COUNT = REPEAT * 2
+
+
+def roll_over_axis(axis, new_side, remaining):
+    global bias
+
+    hub.display.char(str(remaining))
+    print("  あと", remaining, "回: 手前に 90° ゆっくり倒す（机から浮かせない）")
+
+    angle_start = hub.imu.rotation(axis, calibrated=False)
+    while hub.imu.up(calibrated=False) != new_side or not hub.imu.stationary():
+        _, _, z = hub.imu.orientation() * axis
+        if abs(z) > 0.07:
+            print(hub.imu.orientation() * axis)
+            raise RuntimeError("持ち上がった（回す軸が 4° 以上かたむいた）。最初からやり直し")
+        wait(100)
+
+    uncalibrated_90_deg_rotation = abs(hub.imu.rotation(axis, calibrated=False) - angle_start)
+    if abs(uncalibrated_90_deg_rotation - 90) > 10:
+        raise RuntimeError("90° になっていない。最初からやり直し")
+
+    print("    測定中… 触らない")
+    beep(1000)
+
+    rotation_start = vector(
+        hub.imu.rotation(Axis.X, calibrated=False),
+        hub.imu.rotation(Axis.Y, calibrated=False),
+        hub.imu.rotation(Axis.Z, calibrated=False),
+    )
+
+    acceleration = vector(0, 0, 0)
+    for _ in range(STATIONARY_COUNT):
+        acceleration += hub.imu.acceleration(calibrated=False)
+        bias += hub.imu.angular_velocity(calibrated=False)
+        wait(1)
+    acceleration /= STATIONARY_COUNT
+
+    rotation_end = vector(
+        hub.imu.rotation(Axis.X, calibrated=False),
+        hub.imu.rotation(Axis.Y, calibrated=False),
+        hub.imu.rotation(Axis.Z, calibrated=False),
+    )
+    if abs(rotation_end - rotation_start) > 1:
+        raise RuntimeError("測定中に動いた。最初からやり直し")
+
+    side_index, axis_index = up_sides[new_side]
+    gravity[side_index] += acceleration[axis_index]
+
+    print("    OK（この 90° の読み:", round(uncalibrated_90_deg_rotation, 2), "度）")
+    beep(500)
+    return uncalibrated_90_deg_rotation
+
+
+def roll_hub(name, axis, message, start_side, sides):
+    # 軸の切りかえ: メロディ → 画面に軸の名前 → 置き直して右ボタンを待つ（この間は持ち上げてよい）
+    melody()
+    hub.display.char(name)
+    print()
+    print("=====", name, "軸 =====")
+    print(message)
+    print("置けたら、ハブの右ボタン（▶）を押してね")
+    while Button.RIGHT not in hub.buttons.pressed():
+        wait(20)
+    while Button.RIGHT in hub.buttons.pressed():
+        wait(20)
+    print("  手を離して、じっとしていてね…")
+    wait_for_stationary(start_side)
+    beep(500, 300)
+    rotation = 0
+    remaining = REPEAT * len(sides)
+    for _ in range(REPEAT):
+        for side in sides:
+            rotation += roll_over_axis(axis, side, remaining)
+            remaining -= 1
+    return rotation / REPEAT
+
+
+calibrate_x = "置き方: 画面を上・右側面（ポート B D F）を自分のほうへ"
+calibrate_y = "置き方: 画面を上・後ろの面（スピーカー）を自分のほうへ"
+calibrate_z = "置き方: 前の面（USB ポート）を上・左側面（ポート A C E）を自分のほうへ"
+
+rotation_x = roll_hub(
+    "X", Axis.X, calibrate_x, Side.TOP, [Side.LEFT, Side.BOTTOM, Side.RIGHT, Side.TOP]
+)
+rotation_y = roll_hub(
+    "Y", Axis.Y, calibrate_y, Side.TOP, [Side.FRONT, Side.BOTTOM, Side.BACK, Side.TOP]
+)
+rotation_z = roll_hub(
+    "Z", Axis.Z, calibrate_z, Side.FRONT, [Side.RIGHT, Side.BACK, Side.LEFT, Side.FRONT]
+)
+
+hub.imu.settings(
+    angular_velocity_bias=tuple(bias / SIDE_COUNT / STATIONARY_COUNT / 6),
+    angular_velocity_scale=(rotation_x, rotation_y, rotation_z),
+    acceleration_correction=[g / SIDE_COUNT for g in gravity],
+)
+
+melody()
+melody()
+hub.display.char("K")
+print()
+print("# 校正完了。1 周の読み X/Y/Z:", rotation_x, rotation_y, rotation_z)
+print("# 校正後の imu.settings:", hub.imu.settings())
+wait(2000)
