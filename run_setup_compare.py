@@ -34,6 +34,7 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 - 2026-09-17: 回転の回りすぎ打ち消し処理を一律で無効化しました
 - 2026-09-17: squareコースの1辺の長さを定数化し500mmに変更した。
 - 2026-09-17: 新設定時に旋回の回り足りなさ補正を適用するよう変更した
+- 2026-09-17: 回り足りなさの補正を無効化した。
 """
 
 from pybricks.hubs import PrimeHub
@@ -90,7 +91,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     comp = False   # 2026-09-17: 打ち消しは既定で使わない（続けて回るとズレは積み上がらず、打ち消すと逆にズレる）
     print("# 比較走行: SETTINGS =", SETTINGS, "/ COURSE =", COURSE, "/ 回転の打ち消し =", comp)
-    fix = SETTINGS in ("new", "new_short")   # ジャイロに見えない回り足りなさの補正は今年の設定だけ（old は昨年のまま）
+    fix = False   # ジャイロに見えない回り足りなさの補正は、係数が決まるまで使わない（2026-09-17）
     print("# 回り足りなさの補正 =", fix)
     if COURSE == "square":
         print("# square の 1 辺:", SQUARE_SIDE, "mm")
