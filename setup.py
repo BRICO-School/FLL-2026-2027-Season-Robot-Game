@@ -181,8 +181,10 @@ DEFAULT_CURVE_SETTINGS = {
 # Robot.turn() は小数の角度を受け取れない（Pybricks が整数に丸める）ので、命令角度を 1.01 倍する方法は使えない。
 DEFAULT_PROFILE = {"wheel": 62.32, "axle": 114.48, "heading_correction": None}
 ROBOT_PROFILES = {
-    # 本番機（ローバー型）。2026-09-17: 3 軸校正ずみ・モーター 5 周の読み 363.38〜363.86（n=6）
-    "Pybricks Hub3": {"wheel": 62.32, "axle": 114.48, "heading_correction": 363.7},
+    # 本番機（ローバー型）。2026-09-17: 3 軸校正ずみ。モーター 5 周の読み（本当の 1 周あたり）は
+    # 19:19〜19:47 の 11 回で 363.4 → 364.6 と時間とともに少しずつ上がった（原因未特定・ハブの温度かもしれない）。
+    # 真ん中の 364.0 を採る。残る誤差は ±0.15%（90° あたり ±0.15°）。本番機だけの期間の初日に測り直す。
+    "Pybricks Hub3": {"wheel": 62.32, "axle": 114.48, "heading_correction": 364.0},
 }
 _active_profile = DEFAULT_PROFILE
 
