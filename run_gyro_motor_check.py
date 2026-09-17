@@ -22,9 +22,10 @@
 - 2026-09-17: 旋回チェックで回転速度を指定できるようにした
 - 2026-09-17: 定規当て直し案内のライト点灯と待機時間の延長および当て直し忘れ警告を追加した
 - 2026-09-17: 旋回テストで角度補正の有無を指定できるようにした。
+- 2026-09-17: 動作前後のジャイロ情報や各軸の回転量を出力するログを追加した
 """
 
-from pybricks.parameters import Color
+from pybricks.parameters import Axis, Color
 from pybricks.tools import StopWatch, run_task, wait
 from setup import initialize_robot
 
@@ -40,6 +41,19 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     hub.imu.reset_heading(0)
     robot.reset()
     await wait(500)
+    # 手がかり集め: 走る前の傾き・静止時の角速度・軸ごとの回転
+    print("# imu.settings:", hub.imu.settings())
+    print(
+        "# 前: tilt",
+        hub.imu.tilt(),
+        "/ 角速度",
+        hub.imu.angular_velocity(),
+        "/ 加速度",
+        hub.imu.acceleration(),
+    )
+    rx0 = hub.imu.rotation(Axis.X)
+    ry0 = hub.imu.rotation(Axis.Y)
+    rz0 = hub.imu.rotation(Axis.Z)
     if MODE == "spin":
         await robot.turn(360 * TURNS, rate=RATE, correct=CORRECT)
     else:
@@ -48,6 +62,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
             await wait(300)
     await wait(1000)
     h1 = hub.imu.heading()
+    print("# 後: tilt", hub.imu.tilt(), "/ 角速度", hub.imu.angular_velocity())
+    print(
+        "# 軸ごとの回転 X/Y/Z:",
+        round(hub.imu.rotation(Axis.X) - rx0, 2),
+        round(hub.imu.rotation(Axis.Y) - ry0, 2),
+        round(hub.imu.rotation(Axis.Z) - rz0, 2),
+        "/ heading:",
+        round(h1, 2),
+    )
     robot.stop()  # モーターの力を抜く（手で回せるように）
     print(
         "# MODE:",
@@ -89,7 +112,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     print(
         "# モーターで回ったときのジャイロの 1 周の読み:",
         round(h2 / TURNS, 3),
-        "度（手で回したときは 361.8）",
+        "度（360 なら目盛りは合っている）",
     )
     print("# 電池:", hub.battery.voltage(), "mV")
 

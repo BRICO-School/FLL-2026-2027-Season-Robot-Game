@@ -164,6 +164,50 @@ DEFAULT_CURVE_SETTINGS = {
 }
 
 
+# ===== 機体（ハブ）ごとの校正表 =====
+# ジャイロの目盛りはハブごとに違い、車輪径も機体ごとに少し違う。ハブの名前で引いて、その機体の値を使う。
+# 表に無いハブは、ハブの設定に触らず、下の DEFAULT_PROFILE で動く（起動時に「未校正」と表示される）。
+#
+# 1 台を足す手順（約 15 分・道具はこのリポジトリにある）:
+#   1. ハブを機体から外して 3 軸校正: run_imu_calibrate_guided.py（結果はハブに保存される。ファームを入れ直すと消える）
+#   2. 機体に戻して、モーターで 5 周 → 手で定規に合わせ直し ×3: run_gyro_motor_check.py
+#      （この表にそのハブがまだ無い状態＝ heading_correction 360 で測る）
+#      「モーターで回ったときのジャイロの 1 周の読み」の平均を heading_correction に書く
+#   3. 1000mm 直進をものさしで測って wheel を補正する（任意）
+#
+# heading_correction は「モーターで回したとき、本当の 1 周でジャイロが何度と数えるか」。
+# 手で回したときの値（Hub3 は 359.7）ではなく、モーターで回したときの値（363.7）を入れる。
+# 理由は未特定だが、モーターで回すとジャイロは約 1% 多く数える（2026-09-17・速度を変えても同じ）。
+# Robot.turn() は小数の角度を受け取れない（Pybricks が整数に丸める）ので、命令角度を 1.01 倍する方法は使えない。
+DEFAULT_PROFILE = {"wheel": 62.32, "axle": 114.48, "heading_correction": None}
+ROBOT_PROFILES = {
+    # 本番機（ローバー型）。2026-09-17: 3 軸校正ずみ・モーター 5 周の読み 363.38〜363.86（n=6）
+    "Pybricks Hub3": {"wheel": 62.32, "axle": 114.48, "heading_correction": 363.7},
+}
+_active_profile = DEFAULT_PROFILE
+
+
+def apply_robot_profile(hub):
+    """ハブの名前で校正表を引き、ジャイロの目盛りをその機体の値に合わせる"""
+    global _active_profile
+    name = hub.system.name()
+    settings = hub.imu.settings()
+    if tuple(settings[3]) == (360.0, 360.0, 360.0):
+        print("! IMU の 3 軸校正がされていません（run_imu_calibrate_guided.py を実行してね）")
+    profile = ROBOT_PROFILES.get(name)
+    if profile is None:
+        _active_profile = DEFAULT_PROFILE
+        print("! ", name, "は校正表に無いハブです。回転が 90° あたり 1° くらいずれるかもしれません")
+        return
+    _active_profile = profile
+    target = profile["heading_correction"]
+    if target is not None and abs(settings[5] - target) > 0.05:
+        hub.imu.settings(heading_correction=target)
+        print("✓ ジャイロの目盛りを", name, "の値にしました:", target)
+    else:
+        print("✓ 機体の校正表:", name, profile)
+
+
 # ===== ハブの設定をする関数 =====
 def setup_hub():
     """
@@ -292,7 +336,9 @@ class Robot:
           そこへ打ち消しを入れると、逆に 1 回あたり約 0.8° ずつ回り足りなくなる
           （2026-09-17 マット上で確認: 90°×4 で −4.7°）。
           表は既定の速度・加速度で測ったもの。rate / acceleration を指定したときは打ち消さない。
-        - correct: True にしたときだけ、ジャイロに見えない「回り足りなさ」のぶんだけ大きい角度を命令する
+        - correct: 【使わないこと】Pybricks の turn() は角度を整数に丸めるので、90° のような小さい角度では効かない
+          （2026-09-17 に確認。いまは機体ごとの校正表 ROBOT_PROFILES の heading_correction で合わせる）。
+          True にしたときだけ、ジャイロに見えない「回り足りなさ」のぶんだけ大きい角度を命令する
           （GYRO_TURN_SCALE と TURN_STOP_OFFSET）。**既定は False**。係数は測定のばらつきが大きく
           まだ決まっていない（2026-09-17・90°×4 の 3 回で 5.6° / 5.0° / 1.4°）。
         """
@@ -448,8 +494,8 @@ def setup_robot_parameters(left_wheel, right_wheel):
     drivebase = DriveBase(
         left_wheel,  # 左タイヤのモーター
         right_wheel,  # 右タイヤのモーター
-        wheel_diameter=62.32,  # タイヤの直径（mm）【2026-09-17 確定値】
-        axle_track=114.48,  # 左右のタイヤの間隔（mm）【2026-09-17 確定値】
+        wheel_diameter=_active_profile["wheel"],  # タイヤの直径（mm）。機体ごとの校正表から
+        axle_track=_active_profile["axle"],  # 左右のタイヤの間隔（mm）。機体ごとの校正表から
     )
 
     # ----- デフォルトの速度・加速度を自動適用 -----
@@ -597,6 +643,7 @@ def initialize_robot():
 
     # ----- ステップ1: ハブの設定 -----
     hub = setup_hub()
+    apply_robot_profile(hub)
     print("✓ ハブ設定完了")
 
     # ----- ステップ2: モーターの設定 -----
