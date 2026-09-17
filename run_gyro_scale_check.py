@@ -13,12 +13,14 @@
 
 【更新履歴】
 - 2026-09-17: ジャイロの旋回角度のずれを確認するため５周旋回するスクリプトを追加した。
+- 2026-09-17: 連続旋回に加えて90度ずつ停止しながら旋回するモードを追加した
 """
 
 from pybricks.tools import run_task, wait
 from setup import initialize_robot
 
 TURNS = 5  # 何周まわるか
+MODE = "spin"  # "spin" = 止まらずに TURNS 周 / "steps" = 90° ずつ止まりながら TURNS 周（止まる回数 = TURNS×4）
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
@@ -27,15 +29,27 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     hub.imu.reset_heading(0)
     robot.reset()
     await wait(500)
-    await robot.turn(360 * TURNS)
+    if MODE == "spin":
+        await robot.turn(360 * TURNS, correct=False)
+    else:
+        for _ in range(TURNS * 4):
+            await robot.turn(90, correct=False)
+            await wait(300)
     await wait(1000)
-    print("# 命令:", 360 * TURNS, "度 / ジャイロの向き:", round(hub.imu.heading(), 2), "度")
+    print("# MODE:", MODE, "/ 命令:", 360 * TURNS, "度 / ジャイロの向き:", round(hub.imu.heading(), 2), "度")
     print("# imu.settings:", hub.imu.settings())
     print("# → 機体がスタートの向きから実際に何度（前と後ろで何 mm）ずれているかを測る")
     await wait(3000)
     robot.stop()
 
 
-if __name__ == "__main__":
+def main(mode=None):
+    global MODE
+    if mode is not None:
+        MODE = mode
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
     run_task(run(hub, robot, left_wheel, right_wheel, left_lift, right_lift))
+
+
+if __name__ == "__main__":
+    main()
