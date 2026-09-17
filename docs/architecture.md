@@ -224,7 +224,7 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 - **時間制限（timeout）の仕組み**: Pybricks には「○秒で打ち切る」標準機能がありません。
   そこで「動作だけ先に始めて、ストップウォッチで時間を見張り、超えたら止める」という
   方法で実現しています（`setup.py:199-208` ほか）。
-- デフォルト速度: 直進 400mm/s、回転 240deg/s、カーブ 240mm/s。
+- デフォルト速度: 直進 550mm/s、回転 250deg/s、カーブ 240mm/s（2026-09-17 更新）。
 
 ### 4.3 `NullMotor` — アームが無くても止まらない工夫
 
@@ -242,9 +242,9 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 |------|----|--------------|
 | ハブの向き | 上=Z軸 / 前=X軸 | ハブの取り付け向きを変えたとき |
 | タイヤの直径 | 62 mm | タイヤを別のものに替えたとき |
-| 左右タイヤの間隔 | 85 mm | 機体の幅（左右輪の間隔）を変えたとき |
-| 距離の PID | kp=1000, ki=50, kd=10 | 進む距離が安定しないとき |
-| 向きの PID | kp=2000, ki=50, kd=100 | まっすぐ／回転が安定しないとき |
+| 左右タイヤの間隔 | 114.48 mm | 機体の幅（左右輪の間隔）を変えたとき |
+| 距離の PID | Pybricks の既定（昨年値 kp=1000, ki=50, kd=10 は比較用に残置） | 進む距離が安定しないとき |
+| 向きの PID | Pybricks の既定（昨年値 kp=2000, ki=50, kd=100 は比較用に残置） | まっすぐ／回転が安定しないとき |
 
 > **PID とは？** ロボットを自動でまっすぐ・正確に動かすための調整機能です。
 > P・I・D の 3 つの数値（ゲイン＝調整の強さ）で効き具合が決まります。
@@ -265,8 +265,9 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 
 | 変数名 | 中身（キー = 値） | 何を設定しているか |
 |--------|-------------------|--------------------|
-| `DEFAULT_STRAIGHT_SETTINGS` | `straight_speed=400`, `straight_acceleration=500` | 直進のデフォルト速度(mm/s)・加速度(mm/s²) |
-| `DEFAULT_TURN_SETTINGS` | `turn_rate=240`, `turn_acceleration=850` | その場回転のデフォルト速度(deg/s)・加速度(deg/s²) |
+| `DEFAULT_STRAIGHT_SETTINGS` | `straight_speed=550`, `straight_acceleration=800` | 直進のデフォルト速度(mm/s)・加速度(mm/s²) |
+| `DEFAULT_TURN_SETTINGS` | `turn_rate=250`, `turn_acceleration=313` | その場回転のデフォルト速度(deg/s)・加速度(deg/s²) |
+| `TURN_OVERSHOOT_TABLE` | `(45, 2.65)`, `(60, 1.77)`, `(75, 1.26)`, `(90, 0.80)`, `(360, 0.14)` ほか | 回転の「回りすぎ」の打ち消し表（角度, 回りすぎ°）。`Robot.turn()` が間を直線でつないで使う【暫定】 |
 | `DEFAULT_CURVE_SETTINGS` | `straight_speed=240`, `straight_acceleration=800` | カーブのデフォルト速度(mm/s)・加速度(mm/s²) |
 
 #### ハブ・モーター・機体寸法（各 `setup_*` 関数の中）
@@ -277,15 +278,15 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 | `Port.F` / `Port.B` | `setup_motors()` | 左タイヤ／右タイヤのポート（※必須） |
 | `Port.E` / `Port.A` | `setup_motors()` | 左リフト／右リフトのポート（未接続なら `NullMotor`） |
 | `positive_direction=Direction.…` | `setup_motors()` | 各モーターの「正」とする回転方向 |
-| `wheel_diameter=62` | `setup_robot_parameters()` | タイヤの直径(mm) |
-| `axle_track=85` | `setup_robot_parameters()` | 左右タイヤの間隔(mm) |
+| `wheel_diameter=62.32` | `setup_robot_parameters()` | タイヤの直径(mm) |
+| `axle_track=114.48` | `setup_robot_parameters()` | 左右タイヤの間隔(mm) |
 
 #### PID ゲイン（`setup_pid_control()` の中のローカル変数）
 
 | 変数名 | 値 | 何を設定しているか |
 |--------|----|--------------------|
-| `DISTANCE_KP` / `DISTANCE_KI` / `DISTANCE_KD` | `1000` / `50` / `10` | 距離制御（進む距離）の P・I・D ゲイン |
-| `HEADING_KP` / `HEADING_KI` / `HEADING_KD` | `2000` / `50` / `100` | 方向制御（向き）の P・I・D ゲイン |
+| `DISTANCE_KP` / `DISTANCE_KI` / `DISTANCE_KD` | `1000` / `50` / `10` | 距離制御の昨年値（`USE_LAST_SEASON_PID = True` のときだけ使う。既定は Pybricks の値） |
+| `HEADING_KP` / `HEADING_KI` / `HEADING_KD` | `2000` / `50` / `100` | 方向制御の昨年値（同上） |
 
 > 💡 速度・加速度を**全ミッション共通で**変えたいなら冒頭の `DEFAULT_*` 辞書を、
 > **1回の動作だけ**変えたいなら呼び出し側で `robot.straight(200, speed=220)` のように

@@ -10,6 +10,7 @@
 
 【更新履歴】
 - 2026-05-20: robot.straight(500, speed=500) を追加
+- 2026-09-17: 直進と旋回のデフォルト速度および加速度の記載を更新した
 """
 
 from pybricks.hubs import PrimeHub
@@ -55,8 +56,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await wait(1000)                                     # 1秒待機
 
     === デフォルト速度設定（setup.pyで定義） ===
-    - straight: 400mm/s, 加速度500mm/s²
-    - turn: 240deg/s, 加速度850deg/s²
+    - straight: 550mm/s, 加速度800mm/s²
+    - turn: 250deg/s, 加速度313deg/s²（rate/acceleration を指定しなければ「回りすぎ」を自動で打ち消す）
     - curve: 240mm/s, 加速度800mm/s²
     """
 

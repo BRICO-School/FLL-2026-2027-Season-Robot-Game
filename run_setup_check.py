@@ -1,0 +1,56 @@
+"""
+【setup.py の確認用 run】（replication-study 指示書06 §11.2 / Step 8）
+新しい setup.py の値（速度・加速度・タイヤ径・トレッド・回転の打ち消し表）が
+本番の Robot クラスで効いているかを、競技マットの上で確かめます。
+
+【使い方】
+下の MODE を書きかえて実行する。速度の引数は書かない（新しい既定値が効いているかを見るため）。
+  "straight" : 1000mm 直進 → 3 秒待つ。5 回。毎回ものさしで距離と向きのズレを測る
+               合格: 5 回の平均が 1000 ± 10mm
+  "turn90"   : 90° × 4（合計 360°）→ 3 秒待つ。5 回。スタートの向きに戻るか（マットの線で ± 2° 以内）
+  "turn45"   : 45° × 8（合計 360°）→ 3 秒待つ。5 回。同上
+  "square"   : 直進 1000 → 右 90 を 4 回。3 回。終点がスタートから何 mm ずれるか（目安 ± 30mm）
+
+回転のたびに、ジャイロが読んだ向きを表示します（打ち消し表が合っているかの目安）。
+
+【更新履歴】
+- 2026-09-17: ロボットの走行設定値を実走で検証する確認用スクリプトを新規作成した
+"""
+
+from pybricks.tools import run_task, wait
+from setup import initialize_robot
+
+MODE = "straight"  # "straight" / "turn90" / "turn45" / "square"
+
+
+async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
+    if MODE == "straight":
+        await robot.straight(1000)
+        print("# 直進 1000 / ハブの距離:", robot.distance(), "mm / 向き:", hub.imu.heading(), "度")
+    elif MODE in ("turn90", "turn45"):
+        step = 90 if MODE == "turn90" else 45
+        for i in range(360 // step):
+            await robot.turn(step)
+            await wait(500)
+            print(
+                "# 回転",
+                i + 1,
+                "回目 / 目標:",
+                step * (i + 1),
+                "度 / ジャイロ:",
+                hub.imu.heading(),
+                "度",
+            )
+    elif MODE == "square":
+        for i in range(4):
+            await robot.straight(1000)
+            await robot.turn(90)
+            print("# 辺", i + 1, "/ ジャイロ:", hub.imu.heading(), "度")
+    await wait(3000)
+    robot.stop()
+    print("# 確認走行 完了 / 電池:", hub.battery.voltage(), "mV")
+
+
+if __name__ == "__main__":
+    hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
+    run_task(run(hub, robot, left_wheel, right_wheel, left_lift, right_lift))

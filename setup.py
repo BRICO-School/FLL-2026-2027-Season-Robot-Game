@@ -16,6 +16,15 @@
 すべての準備が自動的に完了します。
 """
 
+# ===== 2026-27 本番機（ローバー型）の確定値 =====
+# 反映日: 2026-09-17 / 測定: replication-study R班 r1（code/data/R/r1/trials.csv・groups/R/Step8-持ち込み値.md）
+# wheel 62.32 (straight() で 1000mm 実測 999.9〜1001.6mm) / axle 114.48 (360° 平均 360.38°)
+# turn 250 deg/s・acc 313【暫定】(45/60/75/90° 各 n=8 で SD 0.70〜1.13°・合格ライン 1.6°)
+# straight 550 mm/s (天井 547mm/s) / straight_acc 800 (n=10 実測平均 999.9mm 幅 4mm・2.93 秒)
+# heading PID 既定 / distance PID 既定（Pybricks の既定 7558-0-1889-4-8。KI を足しても良くならなかった）
+# short move: なし（200mm も 45° も同じ加速度） / 回転の打ち消し表: TURN_OVERSHOOT_TABLE【暫定・マット上で測り直す】
+# 昨年の値: old/setup_last_season_backup.py（上書き前の姿。編集しない）
+
 # ===== ライブラリのインポート =====
 # LEGOロボットを動かすために必要な道具を読み込みます
 from pybricks.hubs import PrimeHub  # ロボットの「脳みそ」（ハブ）を使うための道具
@@ -87,15 +96,43 @@ def _safe_motor(port, positive_direction, name):
 
 # 直進時の設定
 DEFAULT_STRAIGHT_SETTINGS = {
-    "straight_speed": 400,
-    "straight_acceleration": 500,
+    "straight_speed": 550,
+    "straight_acceleration": 800,
 }
 
 # 回転時の設定
 DEFAULT_TURN_SETTINGS = {
-    "turn_rate": 240,
-    "turn_acceleration": 850,
+    "turn_rate": 250,
+    "turn_acceleration": 313,
 }
+
+# 回転の「回りすぎ」の打ち消し表（命令した角度, 回りすぎの平均）。単位は度。
+# turn(45) と命令すると平均 47.65° 回るので、Robot.turn() が自動で少し小さい角度を命令します。
+# 表の間の角度は直線でつないで求めます（例: 58° → +1.89°）。45° 未満は未測定なので 0° で 0 になる直線で代用。
+# 測定: 既定 PID・回転加速度 313・各 n=8（2026-09-17）。【暫定】競技マットの上で測り直して入れ替える。
+TURN_OVERSHOOT_TABLE = (
+    (0, 0.0),
+    (45, 2.65),
+    (60, 1.77),
+    (75, 1.26),
+    (90, 0.80),
+    (360, 0.14),
+)
+
+
+def turn_overshoot(angle):
+    """命令したい角度（度）に対する「回りすぎ」の見込み（度・いつも 0 以上）を表から求める"""
+    a = abs(angle)
+    table = TURN_OVERSHOOT_TABLE
+    if a >= table[-1][0]:
+        return table[-1][1]
+    for i in range(len(table) - 1):
+        a0, e0 = table[i]
+        a1, e1 = table[i + 1]
+        if a <= a1:
+            return e0 + (e1 - e0) * (a - a0) / (a1 - a0)
+    return table[-1][1]
+
 
 # カーブ時の設定
 DEFAULT_CURVE_SETTINGS = {
@@ -214,7 +251,7 @@ class Robot:
         if speed is not None or acceleration is not None:
             self._robot.settings(**DEFAULT_STRAIGHT_SETTINGS)
 
-    async def turn(self, angle, rate=None, acceleration=None, timeout=None):
+    async def turn(self, angle, rate=None, acceleration=None, timeout=None, compensate=True):
         """
         その場で回転する（スピード・タイムアウト指定可能）
 
@@ -223,7 +260,15 @@ class Robot:
         - rate: 回転速度（deg/s）。省略時はデフォルト設定
         - acceleration: 回転加速度（deg/s²）。省略時はデフォルト設定
         - timeout: タイムアウト時間（ミリ秒）。省略時はタイムアウトなし
+        - compensate: True（既定）なら「回りすぎ」のぶんだけ小さい角度を命令する
+          （TURN_OVERSHOOT_TABLE）。表は既定の速度・加速度で測ったものなので、
+          rate / acceleration を自分で指定したときは打ち消さない。
         """
+        # 回りすぎの打ち消し（既定の速度・加速度のときだけ）
+        if compensate and rate is None and acceleration is None:
+            over = turn_overshoot(angle)
+            angle = angle - over if angle >= 0 else angle + over
+
         # スピード設定
         if rate is not None or acceleration is not None:
             self._robot.settings(
@@ -366,8 +411,8 @@ def setup_robot_parameters(left_wheel, right_wheel):
     drivebase = DriveBase(
         left_wheel,  # 左タイヤのモーター
         right_wheel,  # 右タイヤのモーター
-        wheel_diameter=62,  # タイヤの直径（mm）
-        axle_track=85,  # 左右のタイヤの間隔（mm）
+        wheel_diameter=62.32,  # タイヤの直径（mm）【2026-09-17 確定値】
+        axle_track=114.48,  # 左右のタイヤの間隔（mm）【2026-09-17 確定値】
     )
 
     # ----- デフォルトの速度・加速度を自動適用 -----
@@ -415,11 +460,16 @@ def setup_pid_control(robot):
     HEADING_KD = 100  # D（微分）ゲイン: 急な変化を抑える強さ
 
     # ----- ロボットにPIDゲインを設定 -----
-    # 距離制御のPIDゲインを設定
-    robot.distance_control().pid(kp=DISTANCE_KP, ki=DISTANCE_KI, kd=DISTANCE_KD)
+    # 【2026-09-17】今年の本番機は Pybricks の既定の PID（7558-0-1889）をそのまま使う。
+    # 測った結果、KI を足したり値を変えたりしても良くならなかったため（replication-study R班 Step 7）。
+    # 上の昨年の数値は、昨年設定との比較（Step 9）用に残してある。使うときだけ USE_LAST_SEASON_PID を True に。
+    USE_LAST_SEASON_PID = False
+    if USE_LAST_SEASON_PID:
+        # 距離制御のPIDゲインを設定
+        robot.distance_control().pid(kp=DISTANCE_KP, ki=DISTANCE_KI, kd=DISTANCE_KD)
 
-    # 方向制御のPIDゲインを設定
-    robot.heading_control().pid(kp=HEADING_KP, ki=HEADING_KI, kd=HEADING_KD)
+        # 方向制御のPIDゲインを設定
+        robot.heading_control().pid(kp=HEADING_KP, ki=HEADING_KI, kd=HEADING_KD)
 
 
 # ===== センサーを初期化する関数 =====
@@ -522,7 +572,7 @@ def initialize_robot():
 
     # ----- ステップ4: PID制御の設定 -----
     setup_pid_control(robot)
-    print("✓ PID制御設定完了")
+    print("✓ PID制御設定完了（Pybricks の既定値を使用）")
 
     # ----- ステップ5: センサーの初期化 -----
     initialize_sensors(hub, robot)
