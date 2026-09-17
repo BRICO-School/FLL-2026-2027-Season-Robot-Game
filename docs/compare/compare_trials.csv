@@ -19,3 +19,20 @@
 2026-09-17 13:46:57,old,turn,4,4.12,363.11,-5,8116,,,,,docs/logs/compare/20260917_134657_old_turn.log
 2026-09-17 13:47:28,new,turn,5,5.48,354.87,0,8114,,,,除外 回転の打ち消しあり(9/17 の旧仕様・既定を打ち消しなしに変更したため),docs/logs/compare/20260917_134728_new_turn.log
 2026-09-17 13:47:54,old,turn,5,4.25,363.46,-4,8114,,,,,docs/logs/compare/20260917_134754_old_turn.log
+2026-09-17 13:52:31,new,turn,6,,,,,,,,,docs/logs/compare/20260917_135231_new_turn.log
+2026-09-17 13:52:53,new,turn,7,5.5,358.76,0,8109,,,,,docs/logs/compare/20260917_135253_new_turn.log
+2026-09-17 13:53:16,new,turn,8,5.5,358.2,-1,8112,,,,,docs/logs/compare/20260917_135316_new_turn.log
+2026-09-17 13:53:37,new,turn,9,5.5,359.18,-1,8109,,,,,docs/logs/compare/20260917_135337_new_turn.log
+2026-09-17 13:54:04,new,turn,10,5.5,359.62,-1,8110,,,,,docs/logs/compare/20260917_135404_new_turn.log
+2026-09-17 13:55:20,new,turn,11,5.5,359.31,-1,8106,,,,,docs/logs/compare/20260917_135520_new_turn.log
+2026-09-17 14:02:49,new,square,1,13.24,359.25,2006,8102,,,,障害物にぶつかったので無効,docs/logs/compare/20260917_140249_new_square.log
+2026-09-17 14:04:09,new,square,2,13.26,360.46,2006,8094,,,,障害物にぶつかったので無効,docs/logs/compare/20260917_140409_new_square.log
+2026-09-17 14:05:10,new,square,3,13.25,360.54,2008,8087,,,,障害物にぶつかったので無効,docs/logs/compare/20260917_140510_new_square.log
+2026-09-17 14:06:28,new,square,4,13.25,360.21,2006,8087,,,50,,docs/logs/compare/20260917_140628_new_square.log
+2026-09-17 14:07:50,old,square,1,13.65,361.99,2003,8081,,,50,,docs/logs/compare/20260917_140750_old_square.log
+2026-09-17 14:08:36,new,square,5,13.29,360.39,2005,8081,,,42,,docs/logs/compare/20260917_140836_new_square.log
+2026-09-17 14:09:20,old,square,2,13.64,363.48,2003,8078,,,42,,docs/logs/compare/20260917_140920_old_square.log
+2026-09-17 14:10:01,new,square,6,13.31,359.8,2006,8078,,,44,,docs/logs/compare/20260917_141001_new_square.log
+2026-09-17 14:10:46,old,square,3,13.7,363.16,2003,8070,,,41,,docs/logs/compare/20260917_141046_old_square.log
+2026-09-17 14:26:44,new,turn,12,5.5,359.0,-1,8069,,,,,docs/logs/compare/20260917_142644_new_turn.log
+2026-09-17 15:31:30,new,turn,13,5.5,359.11,-1,8055,,,,,docs/logs/compare/20260917_153130_new_turn.log

@@ -106,6 +106,17 @@ DEFAULT_TURN_SETTINGS = {
     "turn_acceleration": 313,
 }
 
+# ===== ジャイロに見えない「回り足りなさ」の補正【暫定・2026-09-17 マット上の実測】 =====
+# 機体の左側面の前後 2 つの角（184mm 離れている）の動きから、本当の向きを測った。
+#   その場で 5 周（1800°）  : 本当は 10.3° 足りない。ジャイロが見ていたのは 1.7° だけ
+#   90° を 4 回（1 周）      : 本当は 5.9° 足りない（2 回測って 6.6° と 5.9°）。ジャイロが見ていたのは 0.5° だけ
+# → ジャイロに見えないズレ ＝ 1 周あたり約 1.5°（目盛りのズレ）＋ 止まるたびに約 0.95°
+# Robot.turn() は、このぶんだけ大きい角度を命令する（correct=False で切れる）。
+# 左回り・45° など他の角度・速度を変えたときにも同じ量かは未確認。
+GYRO_TURN_SCALE = 1.0042  # 命令角度に掛ける（1 周 361.5° ぶん回すと本当の 360°）
+TURN_STOP_OFFSET = 0.95  # 1 回の回転ごとに足す角度（度）
+
+
 # 回転の「回りすぎ」の打ち消し表（命令した角度, 回りすぎの平均）。単位は度。
 # 【2026-09-17 マット上の確認で「既定では使わない」に変更】プログラムの最初の 1 回だけ回る、のような
 # 単発の回転を測ると turn(45) は平均 47.65° 回る。ただし続けて動くときは Pybricks が命令の合計を目標に
@@ -253,7 +264,9 @@ class Robot:
         if speed is not None or acceleration is not None:
             self._robot.settings(**DEFAULT_STRAIGHT_SETTINGS)
 
-    async def turn(self, angle, rate=None, acceleration=None, timeout=None, compensate=False):
+    async def turn(
+        self, angle, rate=None, acceleration=None, timeout=None, compensate=False, correct=True
+    ):
         """
         その場で回転する（スピード・タイムアウト指定可能）
 
@@ -269,7 +282,14 @@ class Robot:
           そこへ打ち消しを入れると、逆に 1 回あたり約 0.8° ずつ回り足りなくなる
           （2026-09-17 マット上で確認: 90°×4 で −4.7°）。
           表は既定の速度・加速度で測ったもの。rate / acceleration を指定したときは打ち消さない。
+        - correct: True（既定）なら、ジャイロに見えない「回り足りなさ」のぶんだけ大きい角度を命令する
+          （GYRO_TURN_SCALE と TURN_STOP_OFFSET。2026-09-17 にマット上で実測・暫定）。
         """
+        # ジャイロに見えない回り足りなさの補正
+        if correct and angle != 0:
+            extra = abs(angle) * (GYRO_TURN_SCALE - 1) + TURN_STOP_OFFSET
+            angle = angle + extra if angle > 0 else angle - extra
+
         # 回りすぎの打ち消し（既定の速度・加速度のときだけ）
         if compensate and rate is None and acceleration is None:
             over = turn_overshoot(angle)

@@ -33,6 +33,7 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 - 2026-09-17: 設定値の取得元を内部のDriveBaseに変更した。
 - 2026-09-17: 回転の回りすぎ打ち消し処理を一律で無効化しました
 - 2026-09-17: squareコースの1辺の長さを定数化し500mmに変更した。
+- 2026-09-17: 新設定時に旋回の回り足りなさ補正を適用するよう変更した
 """
 
 from pybricks.hubs import PrimeHub
@@ -89,6 +90,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     comp = False   # 2026-09-17: 打ち消しは既定で使わない（続けて回るとズレは積み上がらず、打ち消すと逆にズレる）
     print("# 比較走行: SETTINGS =", SETTINGS, "/ COURSE =", COURSE, "/ 回転の打ち消し =", comp)
+    fix = SETTINGS in ("new", "new_short")   # ジャイロに見えない回り足りなさの補正は今年の設定だけ（old は昨年のまま）
+    print("# 回り足りなさの補正 =", fix)
     if COURSE == "square":
         print("# square の 1 辺:", SQUARE_SIDE, "mm")
     print("# settings:", robot._robot.settings())  # Robot.settings() は値を返さないので中の DriveBase から読む
@@ -109,14 +112,14 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         await robot.straight(1000)          # 速度の引数は書かない（既定値の効きを見る）
     elif COURSE == "turn":
         for i in range(4):
-            await robot.turn(90, compensate=comp)
+            await robot.turn(90, compensate=comp, correct=fix)
             await wait(300)
             print("#  回転", i + 1, "回目のあと ジャイロ:", round(hub.imu.heading(), 2), "度")
     elif COURSE == "square":
         for _ in range(4):
             await robot.straight(SQUARE_SIDE)
             await wait(300)
-            await robot.turn(90, compensate=comp)
+            await robot.turn(90, compensate=comp, correct=fix)
             await wait(300)
     elif COURSE == "mission":
         short = SETTINGS == "new_short"
@@ -131,7 +134,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
             if short:
                 await robot.turn(90, acceleration=SHORT_TURN_ACC)
             else:
-                await robot.turn(90, compensate=comp)
+                await robot.turn(90, compensate=comp, correct=fix)
             await wait(200)
     else:
         print("! COURSE が不正:", COURSE)
