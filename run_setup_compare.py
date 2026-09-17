@@ -30,6 +30,7 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 
 【更新履歴】
 - 2026-09-17: 新旧の走行設定による性能を比較検証するスクリプトを新規作成した。
+- 2026-09-17: 設定値の取得元を内部のDriveBaseに変更した。
 """
 
 from pybricks.hubs import PrimeHub
@@ -84,7 +85,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     comp = SETTINGS in ("new", "new_short")   # 回りすぎの打ち消しは今年の設定のときだけ
     print("# 比較走行: SETTINGS =", SETTINGS, "/ COURSE =", COURSE, "/ 回転の打ち消し =", comp)
-    print("# settings:", robot.settings())
+    print("# settings:", robot._robot.settings())  # Robot.settings() は値を返さないので中の DriveBase から読む
     print("# heading pid:", robot.heading_control().pid())
     print("# distance pid:", robot.distance_control().pid())
 
