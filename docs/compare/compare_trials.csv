@@ -1,0 +1,21 @@
+﻿日時,設定,コース,試行,所要時間_秒,ジャイロ_度,ハブ距離_mm,電池_mV,実測距離_mm,向きのズレ_度,終点のズレ_mm,メモ,ログ
+2026-09-17 13:33:10,new,straight,1,2.57,0.05,1005,8148,1001,,,,docs/logs/compare/20260917_133310_new_straight.log
+2026-09-17 13:34:05,old,straight,1,3.31,-0.55,1000,8147,996,,,,docs/logs/compare/20260917_133405_old_straight.log
+2026-09-17 13:34:52,new,straight,2,2.57,0.25,1002,8144,999,,,,docs/logs/compare/20260917_133452_new_straight.log
+2026-09-17 13:35:34,old,straight,2,3.32,-0.32,1000,8144,997,,,,docs/logs/compare/20260917_133534_old_straight.log
+2026-09-17 13:36:16,new,straight,3,2.56,-0.08,1004,8143,1000,,,,docs/logs/compare/20260917_133616_new_straight.log
+2026-09-17 13:37:02,old,straight,3,3.32,-0.75,999,8140,996,,,,docs/logs/compare/20260917_133702_old_straight.log
+2026-09-17 13:37:38,new,straight,4,2.56,-0.25,1002,8137,999,,,,docs/logs/compare/20260917_133738_new_straight.log
+2026-09-17 13:38:14,old,straight,4,3.34,-0.3,1000,8138,998,,,,docs/logs/compare/20260917_133814_old_straight.log
+2026-09-17 13:38:51,new,straight,5,2.57,-0.17,1005,8134,1001,,,,docs/logs/compare/20260917_133851_new_straight.log
+2026-09-17 13:39:23,old,straight,5,3.31,-0.39,999,8136,996,,,,docs/logs/compare/20260917_133923_old_straight.log
+2026-09-17 13:42:58,new,turn,1,5.48,355.71,-1,8132,,,,除外 回転の打ち消しあり(9/17 の旧仕様・既定を打ち消しなしに変更したため),docs/logs/compare/20260917_134258_new_turn.log
+2026-09-17 13:43:55,old,turn,1,4.11,363.14,-5,8125,,,,,docs/logs/compare/20260917_134355_old_turn.log
+2026-09-17 13:44:34,new,turn,2,5.48,355.51,-1,8123,,,,除外 回転の打ち消しあり(9/17 の旧仕様・既定を打ち消しなしに変更したため),docs/logs/compare/20260917_134434_new_turn.log
+2026-09-17 13:45:02,old,turn,2,4.18,363.12,-5,8120,,,,,docs/logs/compare/20260917_134502_old_turn.log
+2026-09-17 13:45:32,new,turn,3,5.48,355.3,0,8124,,,,除外 回転の打ち消しあり(9/17 の旧仕様・既定を打ち消しなしに変更したため),docs/logs/compare/20260917_134532_new_turn.log
+2026-09-17 13:45:59,old,turn,3,4.24,363.4,-5,8119,,,,,docs/logs/compare/20260917_134559_old_turn.log
+2026-09-17 13:46:26,new,turn,4,5.48,355.07,-1,8119,,,,除外 回転の打ち消しあり(9/17 の旧仕様・既定を打ち消しなしに変更したため),docs/logs/compare/20260917_134626_new_turn.log
+2026-09-17 13:46:57,old,turn,4,4.12,363.11,-5,8116,,,,,docs/logs/compare/20260917_134657_old_turn.log
+2026-09-17 13:47:28,new,turn,5,5.48,354.87,0,8114,,,,除外 回転の打ち消しあり(9/17 の旧仕様・既定を打ち消しなしに変更したため),docs/logs/compare/20260917_134728_new_turn.log
+2026-09-17 13:47:54,old,turn,5,4.25,363.46,-4,8114,,,,,docs/logs/compare/20260917_134754_old_turn.log

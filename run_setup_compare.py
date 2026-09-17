@@ -31,6 +31,7 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 【更新履歴】
 - 2026-09-17: 新旧の走行設定による性能を比較検証するスクリプトを新規作成した。
 - 2026-09-17: 設定値の取得元を内部のDriveBaseに変更した。
+- 2026-09-17: 回転の回りすぎ打ち消し処理を一律で無効化しました
 """
 
 from pybricks.hubs import PrimeHub
@@ -83,7 +84,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     elif SETTINGS == "old_full":
         robot = build_old_full(hub, left_wheel, right_wheel)
 
-    comp = SETTINGS in ("new", "new_short")   # 回りすぎの打ち消しは今年の設定のときだけ
+    comp = False   # 2026-09-17: 打ち消しは既定で使わない（続けて回るとズレは積み上がらず、打ち消すと逆にズレる）
     print("# 比較走行: SETTINGS =", SETTINGS, "/ COURSE =", COURSE, "/ 回転の打ち消し =", comp)
     print("# settings:", robot._robot.settings())  # Robot.settings() は値を返さないので中の DriveBase から読む
     print("# heading pid:", robot.heading_control().pid())

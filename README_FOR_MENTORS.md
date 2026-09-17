@@ -135,7 +135,7 @@ FLL-2026-2027-Season-Robot-Game/
 - **DriveBase の物理パラメータ**: `wheel_diameter=62.32mm`, `axle_track=114.48mm`（2026-09-17 に本番機で測って確定。根拠は replication-study の `groups/R/Step8-持ち込み値.md`）。
   子どもがロボットを作り直した場合はここを要更新（ロボット本体変更時の落とし穴）。
 - **PID ゲイン**: 今年は **Pybricks の既定値（7558, 0, 1889）をそのまま使う**（2026-09-17。KI を足しても良くならなかった）。昨年値 `distance_control` = (1000, 50, 10)、`heading_control` = (2000, 50, 100) は `setup_pid_control()` に比較用として残してあり、`USE_LAST_SEASON_PID = True` で有効になる。
-- **回転の打ち消し**: `Robot.turn()` は `TURN_OVERSHOOT_TABLE` から「回りすぎ」を求めて、そのぶん小さい角度を命令する（`rate` / `acceleration` を指定したとき・`compensate=False` のときは打ち消さない）。表は暫定で、競技マット上で測り直す。
+- **回転の打ち消し**: 既定では**使わない**。Pybricks は 1 つのプログラムの中で「命令した角度の合計」を目標の向きとして保つので、回転のズレは積み上がらない（2026-09-17 マット上で確認。打ち消しを入れると 90°×4 で −4.7° ずれた）。`Robot.turn(…, compensate=True)` のときだけ `TURN_OVERSHOOT_TABLE` を使う。
   チューニング手順は `docs/how_to_reduce_SD.md` 参照。
 
 ### 3.2 エントリポイント: `selector.py`

@@ -22,7 +22,7 @@
 # turn 250 deg/s・acc 313【暫定】(45/60/75/90° 各 n=8 で SD 0.70〜1.13°・合格ライン 1.6°)
 # straight 550 mm/s (天井 547mm/s) / straight_acc 800 (n=10 実測平均 999.9mm 幅 4mm・2.93 秒)
 # heading PID 既定 / distance PID 既定（Pybricks の既定 7558-0-1889-4-8。KI を足しても良くならなかった）
-# short move: なし（200mm も 45° も同じ加速度） / 回転の打ち消し表: TURN_OVERSHOOT_TABLE【暫定・マット上で測り直す】
+# short move: なし（200mm も 45° も同じ加速度） / 回転の打ち消し: 既定では使わない（表 TURN_OVERSHOOT_TABLE は compensate=True のときだけ）
 # 昨年の値: old/setup_last_season_backup.py（上書き前の姿。編集しない）
 
 # ===== ライブラリのインポート =====
@@ -107,7 +107,9 @@ DEFAULT_TURN_SETTINGS = {
 }
 
 # 回転の「回りすぎ」の打ち消し表（命令した角度, 回りすぎの平均）。単位は度。
-# turn(45) と命令すると平均 47.65° 回るので、Robot.turn() が自動で少し小さい角度を命令します。
+# 【2026-09-17 マット上の確認で「既定では使わない」に変更】プログラムの最初の 1 回だけ回る、のような
+# 単発の回転を測ると turn(45) は平均 47.65° 回る。ただし続けて動くときは Pybricks が命令の合計を目標に
+# 向きを保つのでズレは積み上がらず、打ち消すと逆にズレる。使うときだけ turn(…, compensate=True)。
 # 表の間の角度は直線でつないで求めます（例: 58° → +1.89°）。45° 未満は未測定なので 0° で 0 になる直線で代用。
 # 測定: 既定 PID・回転加速度 313・各 n=8（2026-09-17）。【暫定】競技マットの上で測り直して入れ替える。
 TURN_OVERSHOOT_TABLE = (
@@ -251,7 +253,7 @@ class Robot:
         if speed is not None or acceleration is not None:
             self._robot.settings(**DEFAULT_STRAIGHT_SETTINGS)
 
-    async def turn(self, angle, rate=None, acceleration=None, timeout=None, compensate=True):
+    async def turn(self, angle, rate=None, acceleration=None, timeout=None, compensate=False):
         """
         その場で回転する（スピード・タイムアウト指定可能）
 
@@ -260,9 +262,13 @@ class Robot:
         - rate: 回転速度（deg/s）。省略時はデフォルト設定
         - acceleration: 回転加速度（deg/s²）。省略時はデフォルト設定
         - timeout: タイムアウト時間（ミリ秒）。省略時はタイムアウトなし
-        - compensate: True（既定）なら「回りすぎ」のぶんだけ小さい角度を命令する
-          （TURN_OVERSHOOT_TABLE）。表は既定の速度・加速度で測ったものなので、
-          rate / acceleration を自分で指定したときは打ち消さない。
+        - compensate: True にしたときだけ「回りすぎ」のぶんだけ小さい角度を命令する
+          （TURN_OVERSHOOT_TABLE）。**既定は False（打ち消さない）**。
+          Pybricks は 1 つのプログラムの中では「命令した角度の合計」を目標の向きとして
+          覚えていて、回転のズレは次の動きで自動的に取り戻される（積み上がらない）。
+          そこへ打ち消しを入れると、逆に 1 回あたり約 0.8° ずつ回り足りなくなる
+          （2026-09-17 マット上で確認: 90°×4 で −4.7°）。
+          表は既定の速度・加速度で測ったもの。rate / acceleration を指定したときは打ち消さない。
         """
         # 回りすぎの打ち消し（既定の速度・加速度のときだけ）
         if compensate and rate is None and acceleration is None:
