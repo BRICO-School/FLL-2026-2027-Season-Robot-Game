@@ -148,7 +148,8 @@ def main():
     row["メモ"] = input("  メモ（なければ Enter・外すときは「除外 理由」）: ").strip()
 
     new_file = not os.path.exists(csv_path)
-    with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
+    # BOM は新規作成のときだけ付ける（追記で utf-8-sig を使うと行の途中に BOM が入る）
+    with open(csv_path, "a", encoding="utf-8-sig" if new_file else "utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         if new_file:
             w.writeheader()
