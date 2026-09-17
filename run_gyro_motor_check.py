@@ -21,6 +21,7 @@
 - 2026-09-17: ビープ音の呼び出しを周波数と長さを指定した非同期処理に変更した。
 - 2026-09-17: 旋回チェックで回転速度を指定できるようにした
 - 2026-09-17: 定規当て直し案内のライト点灯と待機時間の延長および当て直し忘れ警告を追加した
+- 2026-09-17: 旋回テストで角度補正の有無を指定できるようにした。
 """
 
 from pybricks.parameters import Color
@@ -29,6 +30,7 @@ from setup import initialize_robot
 
 TURNS = 5
 MODE = "spin"  # "spin" / "steps"
+CORRECT = False  # True なら Robot.turn() の回り足りなさの補正（角度×GYRO_TURN_SCALE）を入れて回る
 RATE = None  # 回転速度 (deg/s)。None なら setup.py の既定（250）
 
 
@@ -39,19 +41,31 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     robot.reset()
     await wait(500)
     if MODE == "spin":
-        await robot.turn(360 * TURNS, rate=RATE)
+        await robot.turn(360 * TURNS, rate=RATE, correct=CORRECT)
     else:
         for _ in range(TURNS * 4):
-            await robot.turn(90, rate=RATE)
+            await robot.turn(90, rate=RATE, correct=CORRECT)
             await wait(300)
     await wait(1000)
     h1 = hub.imu.heading()
     robot.stop()  # モーターの力を抜く（手で回せるように）
     print(
-        "# MODE:", MODE, "/ 回転速度:", RATE, "/ 命令:", 360 * TURNS, "度 / 止まった時のジャイロ h1:", round(h1, 2), "度"
+        "# MODE:",
+        MODE,
+        "/ 回転速度:",
+        RATE,
+        "/ 補正:",
+        CORRECT,
+        "/ 命令:",
+        360 * TURNS,
+        "度 / 止まった時のジャイロ h1:",
+        round(h1, 2),
+        "度",
     )
     hub.light.on(Color.GREEN)  # 音が聞こえなくても分かるように、ハブのライトを緑にする
-    print("# ★いま★ ライトが緑になったら（ピーと鳴ったら）、手で定規にぴったり当て直して、手を離してね")
+    print(
+        "# ★いま★ ライトが緑になったら（ピーと鳴ったら）、手で定規にぴったり当て直して、手を離してね"
+    )
     hub.speaker.volume(100)
     await hub.speaker.beep(frequency=500, duration=600)
 
@@ -80,8 +94,10 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     print("# 電池:", hub.battery.voltage(), "mV")
 
 
-def main(mode=None, rate=None):
-    global MODE, RATE
+def main(mode=None, rate=None, correct=None):
+    global MODE, RATE, CORRECT
+    if correct is not None:
+        CORRECT = correct
     if rate is not None:
         RATE = rate
     if mode is not None:
