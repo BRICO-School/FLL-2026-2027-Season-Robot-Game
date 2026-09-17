@@ -1,0 +1,58 @@
+=== 実行ログ ===
+スクリプト: run_gyro_motor_check_slow.py
+実行日時 : 2026-09-17 17:19:22
+ハブ     : --name Pybricks Hub3
+==================================================
+
+Traceback (most recent call last):
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\bleak\backends\winrt\client.py", line 428, in connect
+    self.services = await self._get_services(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\bleak\backends\winrt\client.py", line 698, in _get_services
+    result = await FutureLike(self._requester.get_gatt_services_async())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\bleak\backends\winrt\client.py", line 1193, in __await__
+    yield self  # This tells Task to wait for completion.
+    ^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\bleak\backends\winrt\client.py", line 1127, in result
+    raise asyncio.CancelledError
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\__main__.py", line 9, in <module>
+    main()
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\cli\__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\cli\__init__.py", line 236, in run
+    await hub.connect()
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\connections\pybricks.py", line 303, in connect
+    await self._client_connect()
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\connections\pybricks.py", line 851, in _client_connect
+    await self._client.connect()
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\bleak\__init__.py", line 660, in connect
+    await self._backend.connect(self._pair_before_connect, **kwargs)
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\bleak\backends\winrt\client.py", line 384, in connect
+    async with async_timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+Searching for Pybricks Hub3...
+
+==================================================
+終了コード: 1
+終了日時  : 2026-09-17 17:19:53
+実行時間  : 30.8 秒
