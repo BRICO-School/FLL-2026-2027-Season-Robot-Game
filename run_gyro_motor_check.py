@@ -18,6 +18,7 @@
 
 【更新履歴】
 - 2026-09-17: 旋回時のズレとジャイロ精度を定規で測定するスクリプトを追加した
+- 2026-09-17: ビープ音の呼び出しを周波数と長さを指定した非同期処理に変更した。
 """
 
 from pybricks.tools import StopWatch, run_task, wait
@@ -46,7 +47,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         "# MODE:", MODE, "/ 命令:", 360 * TURNS, "度 / 止まった時のジャイロ h1:", round(h1, 2), "度"
     )
     print("# ピッと鳴ったら、手で定規にぴったり当て直して、手を離してね")
-    hub.speaker.beep()
+    await hub.speaker.beep(frequency=880, duration=200)
 
     total = StopWatch()
     still = StopWatch()
@@ -59,7 +60,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
             break
         await wait(20)
     h2 = hub.imu.heading()
-    hub.speaker.beep()
+    await hub.speaker.beep(frequency=880, duration=200)
     print("# 定規に合わせ直した時のジャイロ h2:", round(h2, 2), "度")
     print("# 本当のズレ（＋は回り足りない）:", round(h2 - h1, 2), "度（ジャイロの目盛りで）")
     print(
