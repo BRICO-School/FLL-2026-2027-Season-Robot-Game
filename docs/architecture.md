@@ -267,7 +267,7 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 |--------|-------------------|--------------------|
 | `DEFAULT_STRAIGHT_SETTINGS` | `straight_speed=550`, `straight_acceleration=800` | 直進のデフォルト速度(mm/s)・加速度(mm/s²) |
 | `DEFAULT_TURN_SETTINGS` | `turn_rate=250`, `turn_acceleration=313` | その場回転のデフォルト速度(deg/s)・加速度(deg/s²) |
-| `TURN_OVERSHOOT_TABLE` | `(45, 2.65)`, `(60, 1.77)`, `(75, 1.26)`, `(90, 0.80)`, `(360, 0.14)` ほか | 回転の「回りすぎ」の打ち消し表（角度, 回りすぎ°）。`Robot.turn()` が間を直線でつないで使う【暫定】 |
+| `TURN_OVERSHOOT_TABLE` | `(45, 2.65)`, `(60, 1.77)`, `(75, 1.26)`, `(90, 0.80)`, `(360, 0.14)` ほか | 回転の「回りすぎ」の打ち消し表（角度, 回りすぎ°）。`Robot.turn(…, compensate=True)` のときだけ使う（既定は使わない。続けて動くとズレは積み上がらないため・2026-09-17） |
 | `DEFAULT_CURVE_SETTINGS` | `straight_speed=240`, `straight_acceleration=800` | カーブのデフォルト速度(mm/s)・加速度(mm/s²) |
 
 #### ハブ・モーター・機体寸法（各 `setup_*` 関数の中）
