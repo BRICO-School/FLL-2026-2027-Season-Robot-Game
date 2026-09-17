@@ -278,8 +278,9 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 | `Port.F` / `Port.B` | `setup_motors()` | 左タイヤ／右タイヤのポート（※必須） |
 | `Port.E` / `Port.A` | `setup_motors()` | 左リフト／右リフトのポート（未接続なら `NullMotor`） |
 | `positive_direction=Direction.…` | `setup_motors()` | 各モーターの「正」とする回転方向 |
-| `wheel_diameter=62.32` | `setup_robot_parameters()` | タイヤの直径(mm) |
-| `axle_track=114.48` | `setup_robot_parameters()` | 左右タイヤの間隔(mm) |
+| `ROBOT_PROFILES` / `DEFAULT_PROFILE` | ファイル冒頭（`apply_robot_profile()` が起動時に適用） | 機体（ハブ名）ごとの `wheel`（タイヤ径 62.32）・`axle`（トレッド 114.48）・`heading_correction`（ジャイロの目盛り。Hub3 は 364.0）。表に無いハブは触らず警告 |
+| `wheel_diameter=_active_profile["wheel"]` | `setup_robot_parameters()` | タイヤの直径(mm)。校正表から |
+| `axle_track=_active_profile["axle"]` | `setup_robot_parameters()` | 左右タイヤの間隔(mm)。校正表から |
 
 #### PID ゲイン（`setup_pid_control()` の中のローカル変数）
 

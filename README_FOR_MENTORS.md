@@ -132,9 +132,20 @@ FLL-2026-2027-Season-Robot-Game/
   ダミー実装。`angle()` / `run_angle(..., wait=True|False)` / `control.done()` などを提供。
   → ハードウェアが揃っていない状態でも子どもたちがコードを書き進められるようにする意図。
   **タイヤ（`Port.B` / `Port.F`）は必須** で、未接続なら素直に例外になります。
-- **DriveBase の物理パラメータ**: `wheel_diameter=62.32mm`, `axle_track=114.48mm`（2026-09-17 に本番機で測って確定。根拠は replication-study の `groups/R/Step8-持ち込み値.md`）。
+- **DriveBase の物理パラメータ**: `wheel_diameter=62.32mm`, `axle_track=114.48mm`（値は `ROBOT_PROFILES` / `DEFAULT_PROFILE` に持つ。2026-09-17 に本番機で測って確定。根拠は replication-study の `groups/R/Step8-持ち込み値.md`）。
   子どもがロボットを作り直した場合はここを要更新（ロボット本体変更時の落とし穴）。
 - **PID ゲイン**: 今年は **Pybricks の既定値（7558, 0, 1889）をそのまま使う**（2026-09-17。KI を足しても良くならなかった）。昨年値 `distance_control` = (1000, 50, 10)、`heading_control` = (2000, 50, 100) は `setup_pid_control()` に比較用として残してあり、`USE_LAST_SEASON_PID = True` で有効になる。
+- **機体ごとの校正表 `ROBOT_PROFILES`（2026-09-17 追加）**: `setup.py` がハブの名前で表を引き、その機体の車輪径・トレッドと、
+  ジャイロの目盛り `heading_correction` を適用する。**表に無いハブは設定に触らず、起動時に「校正表に無いハブです」と警告するだけ**。
+  - なぜ要るか: ジャイロの目盛りはハブごとに違い、この本番機（Hub3）は校正前、`turn(90)` が本当は約 88.7° しか回っていなかった（ジャイロは気づかない）。
+    公式の 3 軸校正＋ heading_correction 364.0 で、90° あたりのズレは約 0.2° になった。
+  - **1 台を表に足す手順（約 15 分）**: ①ハブを機体から外して `uv run pybricksdev run ble run_imu_calibrate_guided.py --name "<ハブ名>"`
+    （メロディ → 画面の軸名の向きに置いて右ボタン → 手前に 90° ゆっくり倒すを 8 回 × 3 軸）②機体に戻し、固定した定規に左側面を当てて
+    `uv run python run_with_log.py run_gyro_motor_check.py --name "<ハブ名>" --no-trial` を 3 回（モーターで 5 周 → ライトが緑になったら手で定規に当て直す）
+    → ログの「1 周の読み」の平均を `heading_correction` に書く ③書いたあと同じ確認を 3 回（5 周で ±5° 以内なら合格）。
+  - **ファームを入れ直すと 3 軸校正は消える**（起動時に警告が出る）。ハブの交換・位置の変更・重い常設アタッチメントのあとは ② をやり直す。
+  - `turn()` / `straight()` は**引数を整数に丸める**。`turn(42.5)` のような小数は効かない。
+  - 詳しい経緯と測り方は replication-study の `06-本番機セットアップ確定の指示書.md` §3.5。
 - **回転の打ち消し**: 既定では**使わない**。Pybricks は 1 つのプログラムの中で「命令した角度の合計」を目標の向きとして保つので、回転のズレは積み上がらない（2026-09-17 マット上で確認。打ち消しを入れると 90°×4 で −4.7° ずれた）。`Robot.turn(…, compensate=True)` のときだけ `TURN_OVERSHOOT_TABLE` を使う。
   チューニング手順は `docs/how_to_reduce_SD.md` 参照。
 
