@@ -110,11 +110,14 @@ def main():
     trial = next_trial(csv_path, setting, course)
 
     print(f"📝 比較走行: {setting} / {course} / この組の {trial} 本目 / ハブ: {hub_name}\n")
-    cmd = [sys.executable, "-m", "pybricksdev", "run", "ble", run_file, "--name", hub_name]
+    # -u と PYTHONUNBUFFERED: パイプにつなぐと pybricksdev の出力がまとめて届き、走行中の「★測って★」を拾えない（2026-09-18）
+    cmd = [sys.executable, "-u", "-m", "pybricksdev", "run", "ble", run_file, "--name", hub_name]
+    env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
     lines = []
     answered = {}  # 走行の途中でターミナルに入れてもらった値（square / mission の終点のズレ）
     process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+        encoding="utf-8", errors="replace", env=env,
     )
     try:
         for line in process.stdout:
