@@ -37,3 +37,49 @@
 2026-09-17 14:26:44,new,turn,12,5.5,359.0,-1,8069,,,,,docs/logs/compare/20260917_142644_new_turn.log
 2026-09-17 15:31:30,new,turn,13,5.5,359.11,-1,8055,,,,,docs/logs/compare/20260917_153130_new_turn.log
 2026-09-17 15:34:25,new,turn,14,5.5,359.53,0,8045,,,,,docs/logs/compare/20260917_153425_new_turn.log
+2026-09-18 12:24:16,new,turn,15,5.5,360.4,-1,8064,,,,,docs/logs/compare/20260918_122416_new_turn.log
+2026-09-18 12:25:14,old,turn,6,4.22,363.01,-5,8061,,,,,docs/logs/compare/20260918_122514_old_turn.log
+2026-09-18 12:29:51,new,turn,16,5.5,360.17,0,8060,,-1.36,,,docs/logs/compare/20260918_122951_new_turn.log
+2026-09-18 12:30:25,old,turn,7,4.19,362.84,-5,8052,,0.6,,,docs/logs/compare/20260918_123025_old_turn.log
+2026-09-18 12:30:53,new,turn,17,5.5,359.17,-1,8053,,-1.79,,,docs/logs/compare/20260918_123053_new_turn.log
+2026-09-18 12:31:20,old,turn,8,4.13,364.46,-4,8052,,3.0,,,docs/logs/compare/20260918_123120_old_turn.log
+2026-09-18 12:31:48,new,turn,18,5.5,359.6,-1,8047,,3.49,,,docs/logs/compare/20260918_123148_new_turn.log
+2026-09-18 12:32:14,old,turn,9,4.2,362.95,-4,8047,,0.88,,,docs/logs/compare/20260918_123214_old_turn.log
+2026-09-18 12:32:45,new,turn,19,5.5,359.7,0,8049,,-1.93,,,docs/logs/compare/20260918_123245_new_turn.log
+2026-09-18 12:33:15,old,turn,10,4.18,363.67,-5,8043,,2.12,,,docs/logs/compare/20260918_123315_old_turn.log
+2026-09-18 12:33:40,new,turn,20,5.5,359.87,0,8046,,-2.46,,,docs/logs/compare/20260918_123340_new_turn.log
+2026-09-18 12:34:07,old,turn,11,4.19,364.31,-5,8043,,3.34,,,docs/logs/compare/20260918_123407_old_turn.log
+2026-09-18 12:36:17,new,square,7,,,,,,,,除外 試走・障害物にぶつかった（1 辺 500）,docs/logs/compare/20260918_123617_new_square.log
+2026-09-18 12:37:25,new,square,8,13.27,359.49,2005,8032,,-1.84,,除外 試走（1 辺 500）,docs/logs/compare/20260918_123725_new_square.log
+2026-09-18 12:39:58,new,square,9,,,,,,,,除外 試走・走り切らず,docs/logs/compare/20260918_123958_new_square.log
+2026-09-18 12:42:03,new,square,10,14.72,358.56,2809,8026,,3.78,,除外 試走（1 辺 700 の確認）,docs/logs/compare/20260918_124203_new_square.log
+2026-09-18 12:43:28,new,square,11,14.71,360.74,2810,8018,,-0.75,,除外 試走（1 辺 700 の確認）,docs/logs/compare/20260918_124328_new_square.log
+2026-09-18 12:44:36,new,square,12,14.74,361.11,2809,8016,,-0.05,,除外 測れなかった,docs/logs/compare/20260918_124436_new_square.log
+2026-09-18 12:46:09,new,square,13,14.7,359.5,2810,8011,,-0.06,7,"左前が後ろへ5mm,右へ5mm",docs/logs/compare/20260918_124609_new_square.log
+2026-09-18 12:53:28,new,straight,6,,,,,,,,除外 コース違い・初期化直後に停止,docs/logs/compare/20260918_125328_new_straight.log
+2026-09-18 12:55:48,new,square,14,,,,,,,,除外 途中で止めた,docs/logs/compare/20260918_125548_new_square.log
+2026-09-18 12:59:01,new,square,15,14.74,360.44,2810,7994,,-0.5,1.3,,docs/logs/compare/20260918_125901_new_square.log
+2026-09-18 13:00:10,old,square,4,15.66,363.83,2806,7990,,8.37,9,,docs/logs/compare/20260918_130010_old_square.log
+2026-09-18 13:02:04,new,square,16,14.72,358.8,2810,7982,,,,除外 うまく測れず中止,docs/logs/compare/20260918_130204_new_square.log
+2026-09-18 13:04:45,new,square,17,14.68,360.61,2810,7980,,-1.77,22,,docs/logs/compare/20260918_130445_new_square.log
+2026-09-18 13:05:46,old,square,5,15.68,363.41,2807,7978,,2.15,7,,docs/logs/compare/20260918_130546_old_square.log
+2026-09-18 13:06:39,new,square,18,14.7,360.57,2810,7975,,3.42,35,,docs/logs/compare/20260918_130639_new_square.log
+2026-09-18 13:07:37,old,square,6,15.78,363.18,2807,7973,,7.2,,,docs/logs/compare/20260918_130737_old_square.log
+2026-09-18 13:08:38,new,square,19,14.77,360.92,2810,7966,,-1.27,22,,docs/logs/compare/20260918_130838_new_square.log
+2026-09-18 13:09:29,old,square,7,15.74,363.85,2807,7968,,2.24,8,,docs/logs/compare/20260918_130929_old_square.log
+2026-09-18 13:10:21,new,square,20,14.7,359.25,2810,7963,,-3.88,20,,docs/logs/compare/20260918_131021_new_square.log
+2026-09-18 13:11:10,old,square,8,15.72,364.61,2808,7964,,4.57,13,,docs/logs/compare/20260918_131110_old_square.log
+2026-09-18 13:12:00,new,square,21,14.7,359.83,2810,7962,,-1.94,10,,docs/logs/compare/20260918_131200_new_square.log
+2026-09-18 13:12:56,old,square,9,15.68,363.42,2808,7957,,1.72,11,,docs/logs/compare/20260918_131256_old_square.log
+2026-09-18 13:13:44,new,square,22,14.7,360.94,2810,7953,,0.04,23,,docs/logs/compare/20260918_131344_new_square.log
+2026-09-18 13:14:33,old,square,10,15.72,363.44,2808,7952,,1.7,13,,docs/logs/compare/20260918_131433_old_square.log
+2026-09-18 13:21:29,new,mission,1,21.7,720.25,2406,7940,,,,除外 障害物にぶつかった,docs/logs/compare/20260918_132129_new_mission.log
+2026-09-18 13:22:29,new,mission,2,21.67,719.69,2407,7936,,-3.6,12,,docs/logs/compare/20260918_132229_new_mission.log
+2026-09-18 13:23:41,old,mission,1,21.95,723.83,2405,7932,,1.07,28,,docs/logs/compare/20260918_132341_old_mission.log
+2026-09-18 13:24:50,new,mission,3,21.67,721.32,2407,7923,,-0.71,10,,docs/logs/compare/20260918_132450_new_mission.log
+2026-09-18 13:25:47,old,mission,2,21.88,723.62,2405,7924,,-0.98,22,,docs/logs/compare/20260918_132547_old_mission.log
+2026-09-18 13:26:41,new,mission,4,21.67,721.25,2407,7918,,10.35,54,,docs/logs/compare/20260918_132641_new_mission.log
+2026-09-18 13:27:48,old,mission,3,21.94,722.86,2405,7919,,-0.45,18,,docs/logs/compare/20260918_132748_old_mission.log
+2026-09-18 13:35:10,new,square,23,14.73,359.88,2809,7915,,0.9700001,5,,docs/logs/compare/20260918_133510_new_square.log
+2026-09-18 13:35:57,new,square,24,14.71,358.68,2810,7912,,4.29,56,,docs/logs/compare/20260918_133557_new_square.log
+2026-09-18 13:37:14,new,square,25,14.7,359.79,2810,7910,,0.26,6,,docs/logs/compare/20260918_133714_new_square.log

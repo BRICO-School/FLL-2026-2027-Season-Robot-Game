@@ -278,7 +278,8 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 | `Port.F` / `Port.B` | `setup_motors()` | 左タイヤ／右タイヤのポート（※必須） |
 | `Port.E` / `Port.A` | `setup_motors()` | 左リフト／右リフトのポート（未接続なら `NullMotor`） |
 | `positive_direction=Direction.…` | `setup_motors()` | 各モーターの「正」とする回転方向 |
-| `ROBOT_PROFILES` / `DEFAULT_PROFILE` | ファイル冒頭（`apply_robot_profile()` が起動時に適用） | 機体（ハブ名）ごとの `wheel`（タイヤ径 62.32）・`axle`（トレッド 114.48）・`heading_correction`（ジャイロの目盛り。Hub3 は 364.0）。表に無いハブは触らず警告 |
+| `ROBOT_PROFILES` / `DEFAULT_PROFILE` | ファイル冒頭（`apply_robot_profile()` が起動時に適用） | 機体（ハブ名）ごとの `wheel`（タイヤ径 62.32）・`axle`（トレッド 114.48）・`heading_correction`（ジャイロの目盛り。Hub3 は 365.8・2026-09-18 暫定。ジャイロは「1 周 約 365 と数える状態 A」と「約 360 の状態 B」を行き来し、多数派の A に合わせた値）。表に無いハブは触らず警告 |
+| `DRIVE_SETTINGS` | ファイル冒頭（`initialize_robot(drive_settings=…)` でも指定可） | `"new"`（今年の速度・加速度・Pybricks 既定 PID）／`"old"`（昨年の速度・加速度・PID）。開発中は両方でミッションを走らせて成功率で決める（2026-09-18） |
 | `wheel_diameter=_active_profile["wheel"]` | `setup_robot_parameters()` | タイヤの直径(mm)。校正表から |
 | `axle_track=_active_profile["axle"]` | `setup_robot_parameters()` | 左右タイヤの間隔(mm)。校正表から |
 
@@ -286,7 +287,7 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 
 | 変数名 | 値 | 何を設定しているか |
 |--------|----|--------------------|
-| `DISTANCE_KP` / `DISTANCE_KI` / `DISTANCE_KD` | `1000` / `50` / `10` | 距離制御の昨年値（`USE_LAST_SEASON_PID = True` のときだけ使う。既定は Pybricks の値） |
+| `DISTANCE_KP` / `DISTANCE_KI` / `DISTANCE_KD` | `1000` / `50` / `10` | 距離制御の昨年値（`DRIVE_SETTINGS = "old"` のときだけ使う。既定は Pybricks の値） |
 | `HEADING_KP` / `HEADING_KI` / `HEADING_KD` | `2000` / `50` / `100` | 方向制御の昨年値（同上） |
 
 > 💡 速度・加速度を**全ミッション共通で**変えたいなら冒頭の `DEFAULT_*` 辞書を、

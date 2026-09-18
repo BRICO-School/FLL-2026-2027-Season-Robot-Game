@@ -106,6 +106,18 @@ DEFAULT_TURN_SETTINGS = {
     "turn_acceleration": 313,
 }
 
+# ===== new / old の切りかえ（2026-09-18・オーナー方針） =====
+# 本番機の開発中は、今年の値 (new) と昨年の値 (old) を使い分けて、ミッションの成功率で見きわめる。
+#   new … 上の DEFAULT_*（直進 550・800 / 回転 250・313）＋ Pybricks 既定の PID
+#   old … 昨年の速度・加速度（直進 400・500 / 回転 240・850）＋ 昨年の PID（方向 2000/50/100・距離 1000/50/10）
+#   寸法（wheel/axle）と校正表はどちらも今年の値（機体は同じなので）。
+# Step 9 の比較（2026-09-18・replication-study groups/R/progress.md）: 直進の精度・回転のばらつき・時間は new、
+#   square の終点は old（10mm 対 22mm）→ 校正表を 365.8 にして new は 5〜6mm に縮んだ（状態 A のとき）。
+# 切りかえ方: ここを書きかえるか、run ファイルで initialize_robot(drive_settings="old") と呼ぶ。起動時に画面に出る。
+DRIVE_SETTINGS = "new"   # "new" / "old"
+LAST_SEASON_STRAIGHT_SETTINGS = {"straight_speed": 400, "straight_acceleration": 500}
+LAST_SEASON_TURN_SETTINGS = {"turn_rate": 240, "turn_acceleration": 850}
+
 # ===== ジャイロに見えない「回り足りなさ」の補正【暫定・2026-09-17 マット上の実測】 =====
 # 【2026-09-17 夜の結論】Hub3 の IMU を公式手順で 3 軸校正した（手で回すと 1 周 359.7° と正しく数える）。
 #   それでもモーターで回ると 1 周を 363.6° と数える（＝機体は 1 周あたり約 3.6°・90° あたり約 0.9° 回り足りない）。
@@ -551,7 +563,8 @@ def setup_pid_control(robot):
     # 【2026-09-17】今年の本番機は Pybricks の既定の PID（7558-0-1889）をそのまま使う。
     # 測った結果、KI を足したり値を変えたりしても良くならなかったため（replication-study R班 Step 7）。
     # 上の昨年の数値は、昨年設定との比較（Step 9）用に残してある。使うときだけ USE_LAST_SEASON_PID を True に。
-    USE_LAST_SEASON_PID = False
+    # 2026-09-18: DRIVE_SETTINGS が "old" のときは昨年の PID も入れる（new/old の使い分け）。
+    USE_LAST_SEASON_PID = DRIVE_SETTINGS == "old"
     if USE_LAST_SEASON_PID:
         # 距離制御のPIDゲインを設定
         robot.distance_control().pid(kp=DISTANCE_KP, ki=DISTANCE_KI, kd=DISTANCE_KD)
@@ -613,9 +626,11 @@ def reset_motor_angles(left_wheel, right_wheel, left_lift, right_lift):
 
 
 # ===== ロボット全体を初期化する関数（メイン関数） =====
-def initialize_robot():
+def initialize_robot(drive_settings=None):
     """
     ロボットを使う準備を全部まとめて行う関数
+
+    drive_settings: "new"（今年の値）/ "old"（昨年の速度・加速度・PID）。省略時は DRIVE_SETTINGS（2026-09-18）
 
     【説明】
     この関数は、上で定義した5つの関数をすべて実行して、
@@ -644,7 +659,17 @@ def initialize_robot():
     他のプログラムから以下のように使います：
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
     """
+    global DRIVE_SETTINGS
+    if drive_settings is not None:
+        DRIVE_SETTINGS = drive_settings
+    if DRIVE_SETTINGS == "old":
+        DEFAULT_STRAIGHT_SETTINGS.update(LAST_SEASON_STRAIGHT_SETTINGS)
+        DEFAULT_TURN_SETTINGS.update(LAST_SEASON_TURN_SETTINGS)
+    elif DRIVE_SETTINGS != "new":
+        print("! DRIVE_SETTINGS が不正:", DRIVE_SETTINGS, "→ new で動きます")
+        DRIVE_SETTINGS = "new"
     print("=== ロボット初期化開始 ===")
+    print("★ 走行設定:", DRIVE_SETTINGS, "（new＝今年の値 / old＝昨年の速度・加速度・PID）")
 
     # ----- ステップ1: ハブの設定 -----
     hub = setup_hub()
@@ -661,7 +686,10 @@ def initialize_robot():
 
     # ----- ステップ4: PID制御の設定 -----
     setup_pid_control(robot)
-    print("✓ PID制御設定完了（Pybricks の既定値を使用）")
+    if DRIVE_SETTINGS == "old":
+        print("✓ PID制御設定完了（昨年の値 方向 2000/50/100・距離 1000/50/10）")
+    else:
+        print("✓ PID制御設定完了（Pybricks の既定値を使用）")
 
     # ----- ステップ5: センサーの初期化 -----
     initialize_sensors(hub, robot)
