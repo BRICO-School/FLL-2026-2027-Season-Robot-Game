@@ -12,7 +12,7 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 
   COURSE = "straight"   … 直進 1000 mm → 3 秒待つ。ものさしで距離と向きのズレを測る
   COURSE = "turn"       … 90° 右回転 ×4（合計 360°）→ 3 秒待つ。スタートの向きに戻るか（マットの線で測る）
-  COURSE = "square"     … 直進 1000 → 右 90° を 4 回（1 m 四方）。終点がスタートから何 mm ずれるか測る
+  COURSE = "square"     … 直進 SQUARE_SIDE → 右 90° を 4 回（2026-09-18 から 700 mm 四方）。終点がスタートから何 mm ずれるか測る
   COURSE = "mission"    … ミッション模擬: 直進 300 → 右 90° を 4 回で 300 mm 四方を 2 周（直進 8・回転 8）。
                           短い移動の連続なので加速度の差が時間にいちばん出る。終点のズレと所要時間を見る
 
@@ -42,9 +42,11 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 - 2026-09-17: squareコースの1辺の長さを定数化し500mmに変更した。
 - 2026-09-17: 新設定時に旋回の回り足りなさ補正を適用するよう変更した
 - 2026-09-17: 回り足りなさの補正を無効化した。
+- 2026-09-18: square の 1 辺を 700 mm に（500 だと障害物に当たる）。
 - 2026-09-18: turn / square / mission の最後に「手で定規に当て直す」段を追加。当て直す前後のジャイロの差から
               本当の向きのズレを出す（ものさしで角度を測らなくてよい。run_gyro_motor_check.py と同じ測り方）。
 - 2026-09-18: 走行後に定規へ当て直したジャイロ差から向きのズレを計測する処理を追加した
+- 2026-09-18: squareコースの1辺の長さを500mmから700mmに変更した
 """
 
 from pybricks.hubs import PrimeHub
@@ -59,7 +61,7 @@ SETTINGS = "new"        # "new" / "old" / "old_full" / "new_short"
 COURSE = "straight"     # "straight" / "turn" / "square" / "mission"
 # ============================
 
-SQUARE_SIDE = 500       # square コースの 1 辺（mm）。指示書は 1000 だが、場所が取れないので 500（2026-09-17）
+SQUARE_SIDE = 700       # square コースの 1 辺（mm）。指示書は 1000 だが場所が取れず 500（2026-09-17）→ 500 だと障害物に当たるため 700（2026-09-18）
 
 # 短い動き用の加速度（Step 6-2 で決めた setup_R.py の値をここに写す。new_short のときだけ使う）
 SHORT_STRAIGHT_ACC = None   # mm/s²  例: 1100
