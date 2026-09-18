@@ -28,8 +28,10 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 出力: 所要時間（秒）・ジャイロの向き（°）・エンコーダの距離（mm）。ものさし実測は人が測って表に書く。
 
 【2026-09-18 追記・向きのズレは当て直しで測る】
-- turn / square / mission は、走り終わって止まったあとライトが緑になりピーと鳴る。そうしたら
-  機体の左側面を、スタートで当てていた定規にぴったり当て直して手を離す（square / mission は終点のズレを先に測ってから）。
+- turn は、走り終わって止まったあとライトが緑になりピーと鳴る。そうしたら
+  機体の左側面を、スタートで当てていた定規にぴったり当て直して手を離す。
+- square / mission は、止まるとライトが黄色になる。その間に終点のズレ (mm) を測ってターミナルに入れ、
+  ハブの右ボタン（▶）を押すとライトが緑になるので、そこで当て直す。
 - 止まった時のジャイロ h1 と当て直した後のジャイロ h2 の差が本当の向きのズレ。「右に回りすぎが＋」= h1 − h2。
   compare.py はこの行を自動で拾うので、turn ではターミナルで角度を聞かれない。
 - 当て直しを忘れて終わった回は「向きの実測ズレ」がほぼ 0 になり警告が出る。その回は除外にする。
@@ -43,14 +45,16 @@ run_setup_compare.py — 昨年の setup.py と今年の setup.py の性能を�
 - 2026-09-17: 新設定時に旋回の回り足りなさ補正を適用するよう変更した
 - 2026-09-17: 回り足りなさの補正を無効化した。
 - 2026-09-18: square の 1 辺を 700 mm に（500 だと障害物に当たる）。
+- 2026-09-18: square / mission は「終点を測る → ターミナルに入れる → ハブの右ボタン（▶）→ 当て直し」の順にした（同時にやるのは難しい）。
 - 2026-09-18: turn / square / mission の最後に「手で定規に当て直す」段を追加。当て直す前後のジャイロの差から
               本当の向きのズレを出す（ものさしで角度を測らなくてよい。run_gyro_motor_check.py と同じ測り方）。
 - 2026-09-18: 走行後に定規へ当て直したジャイロ差から向きのズレを計測する処理を追加した
 - 2026-09-18: squareコースの1辺の長さを500mmから700mmに変更した
+- 2026-09-18: 特定コースで終点の計測後にボタンを押して当て直す手順に変更した。
 """
 
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Port, Axis, Direction, Color, Stop
+from pybricks.parameters import Port, Axis, Direction, Color, Stop, Button
 from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, multitask, run_task, StopWatch
@@ -174,12 +178,21 @@ async def realign_and_report(hub, robot):
     """
     h1 = hub.imu.heading()
     robot.stop()  # モーターの力を抜く（手で回せるように）
-    hub.light.on(Color.GREEN)
-    if COURSE in ("square", "mission"):
-        print("# ★いま★ 先に終点のズレ (mm) を測ってから、機体の左側面を定規にぴったり当て直して、手を離してね")
-    else:
-        print("# ★いま★ ライトが緑になったら（ピーと鳴ったら）、機体の左側面を定規にぴったり当て直して、手を離してね")
     hub.speaker.volume(100)
+    if COURSE in ("square", "mission"):
+        # 測る → ターミナルに入れる → ハブの右ボタン（▶）→ 当て直し、の順（2026-09-18 オーナー指示。同時にやるのは難しい）
+        hub.light.on(Color.YELLOW)
+        await hub.speaker.beep(frequency=300, duration=300)
+        print("# ★測って★ 終点のズレ (mm) を測ってターミナルに入れてね。入れ終わったらハブの右ボタン（▶）を押すと当て直しに進むよ")
+        while Button.RIGHT not in hub.buttons.pressed():
+            await wait(20)
+        while Button.RIGHT in hub.buttons.pressed():
+            await wait(20)
+        # h1 は止まった時の読みのまま使う。測っている間に機体が少し動いてもジャイロが追っているので、h2 − h1 は変わらない
+        if abs(hub.imu.heading() - h1) > 0.3:
+            print("# （測っている間に機体が", round(hub.imu.heading() - h1, 2), "度動いたけど、ジャイロが追っているので結果はそのまま使える）")
+    hub.light.on(Color.GREEN)
+    print("# ★いま★ ライトが緑になったら（ピーと鳴ったら）、機体の左側面を定規にぴったり当て直して、手を離してね")
     await hub.speaker.beep(frequency=500, duration=600)
 
     total = StopWatch()

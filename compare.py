@@ -112,6 +112,7 @@ def main():
     print(f"📝 比較走行: {setting} / {course} / この組の {trial} 本目 / ハブ: {hub_name}\n")
     cmd = [sys.executable, "-m", "pybricksdev", "run", "ble", run_file, "--name", hub_name]
     lines = []
+    answered = {}  # 走行の途中でターミナルに入れてもらった値（square / mission の終点のズレ）
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
     )
@@ -119,6 +120,14 @@ def main():
         for line in process.stdout:
             print(line, end="")
             lines.append(line)
+            if "# ★測って★" in line:
+                # 2026-09-18: ハブは右ボタン（▶）が押されるまで待っている。ここで測った値を入れてもらう
+                print("\n━━━ いま測って入れてね（ハブは黄色で待っています）━━━")
+                for key, label in QUESTIONS[course]:
+                    if key == "向きのズレ_度":
+                        continue  # 向きは当て直しで自動
+                    answered[key] = ask_number(label)
+                print("  ✓ 入れました。ハブの右ボタン（▶）を押して、ライトが緑になったら当て直してね\n")
     except KeyboardInterrupt:
         print("\n⏹ 停止しました")
         lines.append("\n[Ctrl+C で停止]\n")
@@ -134,6 +143,7 @@ def main():
 
     row = dict.fromkeys(FIELDS, "")
     row.update(parse_output(text))
+    row.update({k: v for k, v in answered.items() if v != ""})
     row.update(
         {
             "日時": start.strftime("%Y-%m-%d %H:%M:%S"),
