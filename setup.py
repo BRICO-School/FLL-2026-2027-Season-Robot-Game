@@ -188,8 +188,8 @@ DEFAULT_CURVE_SETTINGS = {
 #   3. 1000mm 直進をものさしで測って wheel を補正する（任意）
 #
 # heading_correction は「モーターで回したとき、本当の 1 周でジャイロが何度と数えるか」。
-# 手で回したときの値（Hub3 は 359.7）ではなく、モーターで回したときの値（363.7）を入れる。
-# 理由は未特定だが、モーターで回すとジャイロは約 1% 多く数える（2026-09-17・速度を変えても同じ）。
+# 測るときは、プログラムを始めてから 1 秒以上止まったあとの回転で測る（下の GYRO_SETTLE_MS と 2026-09-19 の注記）。
+# 始めてすぐの回転は約 1.4% 多く数える（理由は未特定・速度を変えても同じ）ので、校正に使わない。
 # Robot.turn() は小数の角度を受け取れない（Pybricks が整数に丸める）ので、命令角度を 1.01 倍する方法は使えない。
 DEFAULT_PROFILE = {"wheel": 62.32, "axle": 114.48, "heading_correction": None}
 ROBOT_PROFILES = {
@@ -199,8 +199,19 @@ ROBOT_PROFILES = {
     # 364.0（9/17・2 状態の間）では状態 A のとき 90° あたり 0.45° 回り足りず、square の終点が 22mm ずれた
     # （turn/square の当て直し測定で同じ大きさ）。状態 A に合わせて 365.8 に上げる（暫定・オーナー判断 9/18）。
     # 状態 B のときは 90° あたり 1.45° 回りすぎになる。状態を分ける条件が分かったら見直す。
-    "Pybricks Hub3": {"wheel": 62.32, "axle": 114.48, "heading_correction": 365.8},
+    # 2026-09-19: 条件が分かった（暫定）。状態 A は「プログラムを始めてすぐ（約 1 秒以内）に回り始めたとき」だけ出る。
+    # 待たずに回すと 1 回目の 5 周だけ A（5 本とも 364.7〜364.8）・1 / 3 / 10 秒止まってからなら 1 回目から B（6 本とも）・
+    # 2 回目以降は全部 B。セレクターはボタン待ちで止まっているので、大会形式の走行は B になる見こみ。
+    # → initialize_robot() の終わりで GYRO_SETTLE_MS だけ止まって待ち、校正表は B に合わせる:
+    #   B の 1 周の読み 20 回の平均 360.11（SD 0.13・359.89〜360.38）→ 360.1（暫定・オーナー判断 9/19。365.8 は取り下げ）
+    "Pybricks Hub3": {"wheel": 62.32, "axle": 114.48, "heading_correction": 360.1},
 }
+
+# プログラムを始めてすぐの回転は、ジャイロが約 1.4% 多く数える（上の 2026-09-19 の注記）。
+# initialize_robot() の終わりで、ハブが「静止」と判定しつづける時間がこれだけたまるまで待ってから走り出す。
+# 1 秒で足りた（1 本）が、余裕をみて 2 秒。機体を置いて手を離してから数え始まる。
+GYRO_SETTLE_MS = 2000
+GYRO_SETTLE_TIMEOUT_MS = 10000  # 手で持ったままなどで静止にならないとき、あきらめて進むまでの時間
 _active_profile = DEFAULT_PROFILE
 
 
@@ -596,6 +607,20 @@ def initialize_sensors(hub, robot):
     robot.reset()  # ロボットの走行距離や回転角度をリセット
 
 
+def wait_gyro_settle(hub):
+    """ジャイロの目盛りが落ち着くまで、機体が止まったまま GYRO_SETTLE_MS 待つ関数"""
+    total = StopWatch()
+    still = StopWatch()
+    while still.time() < GYRO_SETTLE_MS:
+        if not (hub.imu.ready() and hub.imu.stationary()):
+            still.reset()  # 動いたら数え直し
+        if total.time() > GYRO_SETTLE_TIMEOUT_MS:
+            print("⚠ ジャイロの待ち: 機体が止まらないまま", GYRO_SETTLE_TIMEOUT_MS, "ms たちました。回転が約 1.4% ずれるかもしれません")
+            return
+        wait(20)
+    print("✓ ジャイロの待ち完了:", total.time(), "ms（止まったまま", GYRO_SETTLE_MS, "ms）")
+
+
 # ===== モーターの角度をリセットする関数 =====
 def reset_motor_angles(left_wheel, right_wheel, left_lift, right_lift):
     """
@@ -692,6 +717,7 @@ def initialize_robot(drive_settings=None):
         print("✓ PID制御設定完了（Pybricks の既定値を使用）")
 
     # ----- ステップ5: センサーの初期化 -----
+    wait_gyro_settle(hub)  # 始めてすぐの回転はジャイロが多く数えるので、止まったまま少し待つ（2026-09-19）
     initialize_sensors(hub, robot)
     print("✓ センサー初期化完了")
 
