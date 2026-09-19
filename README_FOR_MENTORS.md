@@ -163,7 +163,7 @@ FLL-2026-2027-Season-Robot-Game/
   ハブ LED で選択・実行される。各モジュールは
   `async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift)`
   シグネチャを満たす必要があります。
-- ボタン: LEFT/RIGHT で選択、フォースセンサー（Port.C）で実行。
+- ボタン: LEFT/RIGHT で選択、フォースセンサー（Port.D）で実行。
 - `reset_robot()` が前後に走り、`hub.imu.reset_heading(0)` と `robot.reset()` で
   プログラム間の状態漏れを防ぎます。
 
