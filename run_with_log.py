@@ -30,6 +30,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
   docs/logs/<スクリプト名>/<YYYYMMDD_HHMMSS>.log   … 実行ログ
   docs/trials/trials.csv                            … 試行の記録（1 行 = 1 走行）
   docs/trials/snapshots/<code_hash>/                … 走行したコードのコピー
+  docs/trials/dashboard.html                        … 集計ダッシュボード（記録のたびに作り直す。git には入れない）
 
 ※ このファイルは PC 側だけで動く。ハブへ送るコード（setup.py / run_*.py）には
    一切手を入れないので、ロボットの動きには影響しない。
@@ -40,6 +41,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 - 2026-09-09: Ctrl+Cによる中断時にプロセスを安全に終了する処理を追加。
 - 2026-09-19: サブフォルダのスクリプト実行時にルートの設定ファイルを同梱して転送する処理を追加
 - 2026-09-19: 使い方の説明にあるテストスクリプトのパスを更新した
+- 2026-09-19: 走行記録時に集計ダッシュボードを自動更新する処理を追加した
 """
 
 import csv
@@ -306,7 +308,20 @@ def write_trial(
     ok, total = today_tally(root, date, mission)
     name = mission or script_base
     print(f"📊 記録しました: {name} {result}（今日 {name}: {ok}/{total} 成功）")
+    refresh_dashboard(root)
     print(f"📊 コード: {snap_rel}")
+
+
+def refresh_dashboard(root):
+    """docs/trials/dashboard.html を作り直す（scripts/trial_dashboard.py）。失敗しても走行の記録には影響させない。"""
+    try:
+        sys.path.insert(0, os.path.join(root, "scripts"))
+        import trial_dashboard
+
+        trial_dashboard.build()
+        print("📊 ダッシュボード: docs/trials/dashboard.html（ブラウザで開いて F5）")
+    except Exception as e:
+        print(f"⚠ ダッシュボードを作り直せませんでした: {e}")
 
 
 def print_header(label):

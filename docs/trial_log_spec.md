@@ -151,6 +151,21 @@ scripts/trial_report.py（プレゼン前に手で実行）
 
 ---
 
+## 5a. ダッシュボード `scripts/trial_dashboard.py`（2026-09-19 追加）
+
+`docs/trials/trials.csv` から、ブラウザで開ける 1 枚の HTML（`docs/trials/dashboard.html`）を作る。
+外部ライブラリなし・ネット接続なし。`run_with_log.py` が成否を記録するたびに自動で作り直すので、
+ふだんはブラウザで開いたまま再読みこみ（F5）するだけでよい。手で作るときは:
+
+```
+uv run python scripts/trial_dashboard.py --open
+```
+
+見られるもの: 全体の成功率・試行数・今日の試行／ミッションごとの 成功・途中まで・失敗（横の積み上げバー＋成功率）／
+日ごとの成功率と試行数／メンバーごとの表／最近の 30 本（メモ・ログへのリンク）。期間・ミッション・メンバー・ハブでしぼりこめる。
+成功率の分母は 成功＋途中まで＋失敗（「動かなかった」はチェックを入れたときだけ数える）。
+`dashboard.html` は生成物なので **git には入れない**（`.gitignore`）。プレゼン用の表と PNG は下の `trial_report.py`。
+
 ## 5. 集計・可視化 `scripts/trial_report.py`
 
 ```

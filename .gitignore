@@ -11,3 +11,6 @@ Thumbs.db
 
 # run_with_log.py がサブフォルダのスクリプトをハブへ送る前に写す場所
 .hub_stage/
+
+# scripts/trial_dashboard.py が trials.csv から作る生成物（記録のたびに作り直す）
+docs/trials/dashboard.html

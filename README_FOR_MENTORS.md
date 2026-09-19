@@ -92,7 +92,7 @@ FLL-2026-2027-Season-Robot-Game/
 │   ├── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先
 │   ├── trial_log_spec.md       # 試行記録の仕様
 │   └── trials/                 # 試行記録 CSV・コードのスナップショット・集計レポート
-└── scripts/                    # PC 側の道具（変更履歴 hook・試行レポート・gyro_trace_summary.py）
+└── scripts/                    # PC 側の道具（変更履歴 hook・試行レポート trial_report.py・ダッシュボード trial_dashboard.py → docs/trials/dashboard.html・gyro_trace_summary.py）
 ```
 
 ### 命名規則
