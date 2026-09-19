@@ -19,6 +19,7 @@
 
 【更新履歴】
 - 2026-09-19: 台上で車輪を空転させ振動によるジャイロへの影響を検証する処理を追加した
+- 2026-09-19: タイヤ接地時の回転検知による中止処理を追加し変数の初期化を修正した
 """
 
 from pybricks.parameters import Axis, Color
@@ -27,6 +28,7 @@ from setup import initialize_robot
 
 TURNS = 5
 SAMPLE_MS = 20  # 静止判定と角速度を見る間隔 (ms)
+FLOOR_LIMIT_DEG = 45  # ジャイロの向きがこれより動いたら「タイヤが浮いていない」とみなして止める (度)。振動だけなら 5 周ぶんでも約 25 度まで
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
@@ -50,10 +52,11 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     clock = StopWatch()
     samples = 0
     stationary_samples = 0  # 回転中に「静止」と判定された回数（ファームの向き推定の手がかり）
-    wz_min = 0  # Z 軸の角速度の最小・最大 (deg/s)。機体は回らないので、振れ幅＝振動の大きさ
-    wz_max = 0
-    h_min = 0  # 回転中のジャイロの向きの最小・最大 (度)
-    h_max = 0
+    # 0 ではなく 0.0 で始める（MicroPython は整数の round(x, 1) ができず NotImplementedError になる）
+    wz_min = 0.0  # Z 軸の角速度の最小・最大 (deg/s)。機体は回らないので、振れ幅＝振動の大きさ
+    wz_max = 0.0
+    h_min = 0.0  # 回転中のジャイロの向きの最小・最大 (度)
+    h_max = 0.0
     while not drivebase.done():
         samples += 1
         if hub.imu.stationary():
@@ -64,6 +67,14 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         h = hub.imu.heading()
         h_min = min(h_min, h)
         h_max = max(h_max, h)
+        if abs(h) > FLOOR_LIMIT_DEG:
+            # 機体が本当に回っている＝タイヤが床か台に触れている。この実験にならないので止める
+            drivebase.stop()
+            robot.use_gyro(True)
+            hub.light.on(Color.RED)
+            print("# ！中止！ 機体が", round(h, 1), "度回りました。タイヤが床や台に触れています。")
+            print("# タイヤを完全に浮かせてから、もう一度実行してください（この回は無効）")
+            return
         await wait(SAMPLE_MS)
     run_ms = clock.time()
     h_stop = hub.imu.heading()  # モーターが止まった瞬間
