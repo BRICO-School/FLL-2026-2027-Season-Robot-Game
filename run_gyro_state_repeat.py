@@ -21,6 +21,7 @@ B の回は、同じジャイロの角度に対してモーターが約 1.5〜2%
 【更新履歴】
 - 2026-09-19: 連続旋回時のジャイロとエンコーダ比率を記録する検証スクリプトを追加した
 - 2026-09-19: 最後ではなく回転ごとに定規へ当て直してズレを計測するよう変更した
+- 2026-09-19: 開始前の待機と静止判定処理および関連する引数を追加した
 """
 
 from pybricks.parameters import Axis, Color
@@ -30,6 +31,7 @@ from setup import initialize_robot
 TURNS = 5
 REPEATS = 6
 DIRECTION = 1  # 1 = 右回り / -1 = 左回り
+START_WAIT_MS = 0  # 最初の 5 周の前に、さわらずに待つ時間 (ms)。「始めてすぐの 1 回だけ A」かを見るため
 WHEEL_MM = 62.32  # setup.py の ROBOT_PROFILES と同じ（比率の計算だけに使う）
 AXLE_MM = 114.48
 # 加速・減速のところはタイヤのすべり方が違うので、比率は 1 周目の終わり〜4 周目の終わりで取る
@@ -67,6 +69,20 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     print("# imu.settings:", hub.imu.settings())
     print("# 前: tilt", hub.imu.tilt(), "/ 電池:", hub.battery.voltage(), "mV")
     drivebase = robot._robot  # 回転中も測るので、中の DriveBase を直接使う
+
+    if START_WAIT_MS > 0:
+        # 9/19 11:30 の 1 本は「1 回目だけ A・2〜6 回目は B」だった。始めてからの時間（静止していた時間）で決まるのかを見る
+        hub.light.on(Color.YELLOW)
+        waited = StopWatch()
+        still_count = 0
+        count = 0
+        while waited.time() < START_WAIT_MS:
+            count += 1
+            if hub.imu.stationary():
+                still_count += 1
+            await wait(20)
+        print("# 最初に待った時間:", START_WAIT_MS, "ms / そのうち静止と判定:", still_count, "/", count, "回")
+        hub.light.on(Color.BLUE)
 
     for i in range(REPEATS):
         h0 = hub.imu.heading()
@@ -127,8 +143,12 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     print("# 電池:", hub.battery.voltage(), "mV")
 
-def main(direction=None):
-    global DIRECTION
+def main(direction=None, start_wait_ms=None, repeats=None):
+    global DIRECTION, START_WAIT_MS, REPEATS
+    if start_wait_ms is not None:
+        START_WAIT_MS = start_wait_ms
+    if repeats is not None:
+        REPEATS = repeats
     if direction is not None:
         DIRECTION = direction
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
