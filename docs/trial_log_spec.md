@@ -101,7 +101,7 @@ scripts/trial_report.py（プレゼン前に手で実行）
 - **記録処理で例外が起きてもプロセスの終了コードは pybricksdev のものを返す。**
   記録失敗は警告表示のみ（changelog フックと同じ思想）。
 - `--no-trial` オプション、または環境変数 `TRIAL_LOG=0` で成否入力を丸ごとスキップ
-  （`run_lift_motor_test.py` のような機構テストや、繰り返しループ用）。
+  （`verification/run_lift_motor_test.py` のような機構テストや、繰り返しループ用）。
 - `exit_code != 0`（BLE が見つからない等）のときは既定値を `e` にして、Enter だけで
   記録できるようにする。
 - 入力待ちに **タイムアウトは設けない**。ただし Ctrl+C で抜けたら「記録しない」扱い。

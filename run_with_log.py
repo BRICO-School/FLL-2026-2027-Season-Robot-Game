@@ -11,7 +11,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 
 【使い方（コマンドライン）】
   python run_with_log.py run_M01_kidachi.py --name "Pybricks Hub4"
-  python run_with_log.py run_lift_motor_test.py --name "Pybricks Hub4" --no-trial
+  python run_with_log.py verification/run_lift_motor_test.py --name "Pybricks Hub4" --no-trial
       ↑ 機構テストなど、成否を記録したくないときは --no-trial
         （環境変数 TRIAL_LOG=0 でも同じ）
 
@@ -39,6 +39,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 - 2026-09-09: セレクター経由のプログラム実行ログの記録に対応した
 - 2026-09-09: Ctrl+Cによる中断時にプロセスを安全に終了する処理を追加。
 - 2026-09-19: サブフォルダのスクリプト実行時にルートの設定ファイルを同梱して転送する処理を追加
+- 2026-09-19: 使い方の説明にあるテストスクリプトのパスを更新した
 """
 
 import csv

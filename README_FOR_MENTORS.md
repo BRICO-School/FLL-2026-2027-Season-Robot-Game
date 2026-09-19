@@ -67,8 +67,7 @@ FLL-2026-2027-Season-Robot-Game/
 ├── run_template.py             # 新しい run を作るテンプレート
 ├── run_with_log.py             # pybricksdev ラッパー（ログ自動保存 + 走行後の成否記録。サブフォルダのスクリプトは .hub_stage/ に写して送る）
 ├── run_<ミッション>_<名前>.py   # 今シーズン（BIOGLOW）のミッション別プログラム（これから作る。ルート直下に置く）
-├── run_left_arm_test.py / run_lift_motor_test.py   # アームの機構テスト
-├── verification/               # 検証用コード（ジャイロ・IMU 校正・setup の確認・新旧比較 compare.py と cmp_*.py）
+├── verification/               # 検証用コード（ジャイロ・IMU 校正・setup の確認・新旧比較 compare.py と cmp_*.py・アームの機構テスト run_left_arm_test / run_lift_motor_test）
 │                               #   走らせ方: uv run python run_with_log.py verification/<ファイル> --name "<ハブ名>" --no-trial
 │                               #   比較走行: uv run python verification/compare.py new square --name "<ハブ名>"
 ├── archive/
