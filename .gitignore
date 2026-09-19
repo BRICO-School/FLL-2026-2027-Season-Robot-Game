@@ -17,3 +17,6 @@ docs/trials/dashboard.html
 
 # Python のキャッシュ
 __pycache__/
+
+# make-html スキルへの symlink（実体は ../html-effectiveness。端末ごとに張る）
+.claude/skills/make-html

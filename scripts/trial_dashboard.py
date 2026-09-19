@@ -1,35 +1,40 @@
 """
 【試行記録のダッシュボード】
-docs/trials/trials.csv（run_with_log.py が貯める記録）から、ブラウザで開ける 1 枚の HTML を作る。
+docs/trials/trials.csv（run_with_log.py が貯める記録）から、ブラウザや Obsidian で開ける 1 枚の HTML を作る。
 PC 側だけで動く。ハブには関係ない。外部のライブラリもネット接続もいらない。
+
+答える問い: 「いま何点取れそうで、次にどのミッションに手を入れるか」
 
 【使い方】
   uv run python scripts/trial_dashboard.py          # docs/trials/dashboard.html を作る
   uv run python scripts/trial_dashboard.py --open   # 作ってからブラウザで開く
+  uv run python scripts/trial_dashboard.py --include-error   # 「動かなかった (error)」も試行に数える
 
-run_with_log.py で成否を記録するたびに自動で作り直されるので、ふだんは
-docs/trials/dashboard.html をブラウザで開いて、再読みこみ（F5）するだけでよい。
+run_with_log.py で成否を記録するたびに自動で作り直されるので、ふだんは開いたまま再読みこみするだけでよい。
 
-【見られるもの】（開発の進め方「① run ファイルで要素開発 → ② セレクターから通し」に合わせてある）
-  ・いまの見こみ点（満点 × 直近 10 本の成功率 の合計）と、ミッションの進み
-  ・点数マップ: 15 ミッションの満点・段階（未着手／要素開発中／単体で安定／通しに入れた／通しで安定）・成功率・見こみ点
-  ・① 要素開発: run ファイルごとの成功率・平均秒・コードの版の数・直近の成否の並び
-  ・② 通し: セレクターで続けて走らせた 1 回ごとの見こみ点と時間（試合は 150 秒）
-  ・日ごとの成功率と試行数／メンバーごと／最近の試行の一覧（メモ・ログの場所つき）
-  期間・走らせ方（単体／通し）・ミッション・メンバー・ハブでしぼりこめる。
-  点数の表は scripts/bioglow_missions.py（公式の採点表とルールブックから。合計 530 点）。
+【作り】（2026-09-19 見直し）
+  ・数字はぜんぶこの Python で計算し、出てくる HTML にはスクリプトが 1 行も無い
+    （Obsidian の HTML ビューアーの Safe モードでもそのまま読める。計算は関数ごとに分けてあり、単体で確かめられる）
+  ・見た目は make-html スキルの weekly 型（html-effectiveness の ja/11-status-report.html）。
+    CSS は scripts/dashboard_style.css に見本のまま写してあり、足した部品は下の EXTRA_CSS だけ
+  ・点数の表は scripts/bioglow_missions.py（公式の採点表とルールブックから。合計 530 点）
 
-成功率の分母は 成功 + 途中まで + 失敗。「動かなかった (error)」は、チェックを入れたときだけ数える。
-dashboard.html は生成物なので git には入れない（.gitignore）。表とグラフの PNG が要るときは trial_report.py。
+【節の並び】（開発の進め方「① run ファイルで要素開発 → ② セレクターから通し」に合わせてある）
+  数字 4 つ → ハイライト → 点数マップ（15 ミッション）→ ① 要素開発（run ファイルごと）→ ② 通し（セレクター）
+  → 日ごとの試行 → メンバーごと → 最近の試行 → 次に手を入れるところ
+
+成功率の分母は 成功 + 途中まで + 失敗。見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安。
+dashboard.html は生成物なので git には入れない（.gitignore）。プレゼン用の表と PNG は trial_report.py。
 """
 
 import argparse
 import csv
-import json
 import os
 import sys
 import webbrowser
-from datetime import datetime
+from collections import OrderedDict
+from datetime import datetime, timedelta
+from html import escape
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bioglow_missions as bm  # noqa: E402
@@ -37,436 +42,705 @@ import bioglow_missions as bm  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
 OUT_HTML = os.path.join(ROOT, "docs", "trials", "dashboard.html")
-
-FIELDS = (
-    "trial_id",
-    "date",
-    "time",
-    "script",
-    "mission",
-    "member",
-    "hub",
-    "result",
-    "elapsed_sec",
-    "commit",
-    "note",
-    "log_path",
-    "code_hash",
-    "via",
+STYLE_CSS = os.path.join(ROOT, "scripts", "dashboard_style.css")
+SCORESHEET_URL = (
+    "https://firstinspires.blob.core.windows.net/fll/challenge/2026-27/"
+    "fll-challenge-bioglow-software-scoresheet.pdf"
 )
 
+COUNTED = ("success", "partial", "fail")  # 成功率の分母に入れる結果
+RESULT_LABEL = {"success": "成功", "partial": "途中まで", "fail": "失敗", "error": "動かなかった"}
+RESULT_DOT = {"success": "low", "partial": "med", "fail": "high", "error": "none"}
 
-def load_rows(csv_path):
+RECENT_N = 10  # 「直近」の本数
+STABLE_RATE = 80  # 安定とみなす成功率 (%)
+STABLE_MIN = 5  # 安定とみなすのに要る本数
+ROUND_GAP_SEC = 90  # 通しの途中でこれ以上あいたら、次の回として数える (秒)
+STRIP_N = 10  # 「直近の並び」に出す本数
+CHART_DAYS = 14  # グラフに出す日数
+RECENT_ROWS = 20  # 「最近の試行」に出す本数
+ROUND_ROWS = 10  # 「通し」に出す回数
+
+STAGES = OrderedDict(
+    [
+        ("none", ("未着手", "none")),
+        ("dev", ("要素開発中", "med")),
+        ("stable", ("単体で安定", "low")),
+        ("sel", ("通しに入れた", "med")),
+        ("selstable", ("通しで安定", "low")),
+    ]
+)
+
+# 見本に無い部品のぶんだけ足す CSS（色は見本の変数だけを使う）
+EXTRA_CSS = """
+  /* ---------- 足した部品（trial_dashboard.py） ---------- */
+  .table-wrap { overflow-x: auto; }
+  table.shipped td.num, table.shipped th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.shipped thead th { white-space: nowrap; padding: 11px 10px; }
+  table.shipped tbody td { white-space: nowrap; padding: 11px 10px; }
+  table.shipped tbody td.note { white-space: normal; min-width: 12em; color: var(--gray-700); font-size: 13px; }
+  table.shipped tbody tr.idle td { color: var(--gray-500); }
+  .mission-en { display: block; color: var(--gray-500); font-size: 11px; }
+  .risk-dot.none { background: var(--gray-300); }
+  .stat-num small { font-size: 16px; color: var(--gray-500); }
+  .stat-delta.down { color: var(--rust); }
+  .meter { display: inline-block; width: 72px; height: 7px; border-radius: 4px; background: var(--gray-100);
+           vertical-align: middle; margin-right: 8px; overflow: hidden; }
+  .meter b { display: block; height: 100%; background: var(--olive); }
+  .meter.over b { background: var(--rust); }
+  .strip i { display: inline-block; width: 7px; height: 13px; border-radius: 2px; margin-right: 2px; vertical-align: middle; }
+  .strip .low { background: var(--olive); } .strip .med { background: var(--clay); }
+  .strip .high { background: var(--rust); } .strip .none { background: var(--gray-300); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: -8px 0 14px; }
+  details { margin-top: 12px; } summary { cursor: pointer; color: var(--gray-500); font-size: 13px; }
+  .lead { color: var(--gray-700); font-size: 14px; margin: -10px 0 16px; }
+  .gap { height: 14px; }
+"""
+
+
+# ===== 読みこみ =====
+def load_rows(csv_path, include_error=False):
+    """trials.csv を読んで、数える行だけを時刻の順に返す。"""
     if not os.path.exists(csv_path):
         return []
     rows = []
     with open(csv_path, encoding="utf-8-sig", newline="") as f:
         for r in csv.DictReader(f):
-            if r.get("date") and r.get("result"):
-                rows.append({k: (r.get(k) or "") for k in FIELDS})
+            result = r.get("result") or ""
+            if not r.get("date") or not (
+                result in COUNTED or (include_error and result == "error")
+            ):
+                continue
+            rows.append({k: (v or "") for k, v in r.items() if k})
+    rows.sort(key=stamp)
     return rows
 
 
-def build(csv_path=TRIALS_CSV, out_path=OUT_HTML):
-    """trials.csv を読んで dashboard.html を書き出し、書き出した行数を返す。"""
-    rows = load_rows(csv_path)
-    data = {
-        "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "today": datetime.now().strftime("%Y-%m-%d"),
-        "rows": rows,
-        "missions": [
-            {"id": m["id"], "name": m["name"], "en": m["en"], "max": m["max"], "items": m["items"]}
+def stamp(row):
+    return row["date"] + " " + row.get("time", "")
+
+
+def missions_of(row):
+    """'M07+M09' → ['M07', 'M09']"""
+    return [m for m in row.get("mission", "").split("+") if m]
+
+
+def is_selector(row):
+    return row.get("via", "").startswith("selector")
+
+
+def seconds_of(row):
+    try:
+        return float(row.get("elapsed_sec") or 0)
+    except ValueError:
+        return 0.0
+
+
+# ===== 集計 =====
+def tally(rows):
+    t = {"n": len(rows), "success": 0, "partial": 0, "fail": 0, "error": 0}
+    for r in rows:
+        t[r["result"]] = t.get(r["result"], 0) + 1
+    t["rate"] = round(100 * t["success"] / t["n"]) if t["n"] else None
+    return t
+
+
+def recent(rows):
+    return tally(rows[-RECENT_N:])
+
+
+def mean_seconds(rows):
+    ok = [seconds_of(r) for r in rows if r["result"] == "success" and seconds_of(r) > 0]
+    return sum(ok) / len(ok) if ok else None
+
+
+def members_of(rows):
+    return "・".join(OrderedDict((r["member"], 1) for r in rows if r.get("member")))
+
+
+def score_map(rows):
+    """15 ミッションぶんの 段階・成功率・見こみ点。"""
+    out = []
+    for m in bm.MISSIONS:
+        mine = [r for r in rows if m["id"] in missions_of(r)]
+        t, rec = tally(mine), recent(mine)
+        stable = rec["n"] >= STABLE_MIN and rec["rate"] >= STABLE_RATE
+        in_selector = any(is_selector(r) for r in mine)
+        if not mine:
+            stage = "none"
+        elif in_selector:
+            stage = "selstable" if stable else "sel"
+        else:
+            stage = "stable" if stable else "dev"
+        expected = m["max"] * rec["rate"] / 100 if rec["n"] else 0.0
+        out.append({"m": m, "rows": mine, "t": t, "rec": rec, "stage": stage, "expected": expected})
+    return out
+
+
+def gain_of(x):
+    """そのミッションが安定したら、見こみ点があと何点ふえるか。"""
+    return x["m"]["max"] - x["expected"]
+
+
+def script_table(rows):
+    """① 要素開発: 単体で走らせた run ファイルごと（新しく走らせた順）。"""
+    groups = OrderedDict()
+    for r in rows:
+        if not is_selector(r):
+            groups.setdefault(r["script"], []).append(r)
+    return sorted(groups.items(), key=lambda kv: stamp(kv[1][-1]), reverse=True)
+
+
+def to_rounds(rows):
+    """② 通し: セレクターの記録を「通し 1 回」にまとめる。
+
+    同じログ（＝セレクターを 1 回起動したあいだ）の中で、同じプログラムがもう一度出たとき、
+    または前のゴールから ROUND_GAP_SEC より長くあいたときに、次の回として数える。
+    """
+    max_of = {m["id"]: m["max"] for m in bm.MISSIONS}
+    by_log = OrderedDict()
+    for r in rows:
+        if is_selector(r):
+            by_log.setdefault(r.get("log_path") or r["date"], []).append(r)
+    rounds = []
+    for runs in by_log.values():
+        current, last_end = None, None
+        for r in runs:
+            start = datetime.strptime(stamp(r), "%Y-%m-%d %H:%M:%S")
+            end = start + timedelta(seconds=seconds_of(r))
+            repeated = current is not None and any(
+                x["script"] == r["script"] for x in current["rows"]
+            )
+            gap = last_end is not None and (start - last_end).total_seconds() > ROUND_GAP_SEC
+            if current is None or repeated or gap:
+                current = {"rows": [], "start": start}
+                rounds.append(current)
+            current["rows"].append(r)
+            current["end"] = end
+            last_end = end
+    for x in rounds:
+        x["t"] = tally(x["rows"])
+        x["sec"] = round((x["end"] - x["start"]).total_seconds())
+        done = {m for r in x["rows"] if r["result"] == "success" for m in missions_of(r)}
+        x["points"] = sum(max_of.get(m, 0) for m in done)
+    rounds.sort(key=lambda x: x["start"])
+    return rounds
+
+
+def daily(rows):
+    days = OrderedDict()
+    for r in rows:
+        days.setdefault(r["date"], []).append(r)
+    return [(d, tally(v)) for d, v in days.items()][-CHART_DAYS:]
+
+
+def member_table(rows):
+    groups = OrderedDict()
+    for r in rows:
+        groups.setdefault(r.get("member") or "（なし）", []).append(r)
+    return sorted(groups.items(), key=lambda kv: len(kv[1]), reverse=True)
+
+
+def window_rate(rows, today, first_day_ago, last_day_ago):
+    """today から数えて first_day_ago〜last_day_ago 日前（両端ふくむ）の集計。"""
+    lo = (today - timedelta(days=first_day_ago)).strftime("%Y-%m-%d")
+    hi = (today - timedelta(days=last_day_ago)).strftime("%Y-%m-%d")
+    return tally([r for r in rows if lo <= r["date"] <= hi])
+
+
+# ===== 部品 =====
+def pct(t):
+    return "–" if t["rate"] is None else f"{t['rate']}%"
+
+
+def dot(kind, label):
+    return f'<span class="risk"><span class="risk-dot {kind}"></span>{escape(label)}</span>'
+
+
+def meter(rate, over=False):
+    if rate is None:
+        return ""
+    cls = "meter over" if over else "meter"
+    return f'<span class="{cls}"><b style="width:{min(rate, 100):.0f}%"></b></span>'
+
+
+def strip(rows):
+    cells = "".join(
+        f'<i class="{RESULT_DOT.get(r["result"], "none")}" '
+        f'title="{escape(r["date"])} {escape(r.get("time", "")[:5])} {RESULT_LABEL.get(r["result"], "")}"></i>'
+        for r in rows[-STRIP_N:]
+    )
+    return f'<span class="strip">{cells}</span>'
+
+
+def table(heads, rows, num_cols=(), row_classes=None):
+    th = "".join(
+        f'<th class="{"num" if i in num_cols else ""}">{h}</th>' for i, h in enumerate(heads)
+    )
+    body = []
+    for ri, r in enumerate(rows):
+        cls = row_classes[ri] if row_classes else ""
+        tds = "".join(
+            f'<td class="{"num" if i in num_cols else "note" if heads[i] == "メモ" else ""}">{c}</td>'
+            for i, c in enumerate(r)
+        )
+        body.append(f'<tr class="{cls}">{tds}</tr>')
+    return (
+        '<div class="table-wrap"><table class="shipped"><thead><tr>'
+        + th
+        + "</tr></thead><tbody>"
+        + "".join(body)
+        + "</tbody></table></div>"
+    )
+
+
+def bar_chart(points, label, unit="", y_max=None):
+    """見本（ベロシティ）と同じ棒グラフ。points = [(x の字, 値, 補足)]。いちばん高い棒だけ色を変える。"""
+    if not points:
+        return ""
+    base_y, top_y, left, right = 140, 20, 48, 620
+    top = y_max or max(v for _, v, _ in points) or 1
+    slot = (right - left) / len(points)
+    bar_w = min(56, slot * 0.7)
+    peak = max(range(len(points)), key=lambda i: points[i][1])
+    text = '<text x="{x:.1f}" y="{y:.1f}" text-anchor="{a}" font-family="system-ui" font-size="11" fill="{f}"{w}>{s}</text>'
+    out = [f'<svg viewBox="0 0 640 180" role="img" aria-label="{escape(label)}">']
+    for frac in (0, 1 / 3, 2 / 3, 1):
+        y = base_y - (base_y - top_y) * frac
+        color, width = ("#D1CFC5", 1.5) if frac == 0 else ("#F0EEE6", 1)
+        out.append(
+            f'<line x1="{left}" y1="{y:.0f}" x2="{right}" y2="{y:.0f}" stroke="{color}" stroke-width="{width}"/>'
+        )
+        out.append(text.format(x=40, y=y + 4, a="end", f="#87867F", w="", s=f"{top * frac:.0f}"))
+    for i, (x_label, value, note) in enumerate(points):
+        cx = left + slot * (i + 0.5)
+        h = (base_y - top_y) * value / top
+        fill, ink, weight = (
+            ("#D97757", "#3D3D3A", ' font-weight="600"')
+            if i == peak
+            else ("#E3DACC", "#87867F", "")
+        )
+        out.append(
+            f'<rect x="{cx - bar_w / 2:.1f}" y="{base_y - h:.1f}" width="{bar_w:.1f}" height="{h:.1f}" rx="6" fill="{fill}">'
+            f"<title>{escape(note)}</title></rect>"
+        )
+        out.append(
+            text.format(x=cx, y=base_y - h - 6, a="middle", f=ink, w=weight, s=f"{value:.0f}{unit}")
+        )
+        out.append(text.format(x=cx, y=158, a="middle", f="#87867F", w="", s=escape(x_label)))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def chart_panel(chart, caption):
+    return f'<div class="chart-panel">{chart}<div class="chart-caption">{caption}</div></div>'
+
+
+def section(title, inner, lead=""):
+    lead_html = f'<p class="lead">{lead}</p>' if lead else ""
+    return f'<section><h2>{title}</h2><hr class="rule">{lead_html}{inner}</section>'
+
+
+def mission_name(m):
+    return f'<strong>{m["id"]}</strong> {escape(m["name"])} <span class="mission-en">{escape(m["en"])}</span>'
+
+
+def short_date(d):
+    return d[5:].replace("-", "/")
+
+
+def round_labels(rounds):
+    """通しの回の短い名前。同じ日に何回もあるので「09/19 ②」のように、その日の何回目かを添える。"""
+    seen, labels = {}, []
+    for x in rounds:
+        day = x["start"].strftime("%m/%d")
+        seen[day] = seen.get(day, 0) + 1
+        labels.append(f"{day} {'①②③④⑤⑥⑦⑧⑨⑩'[min(seen[day], 10) - 1]}")
+    return labels
+
+
+# ===== 節 =====
+def render_summary(rows, smap, today):
+    expected = round(sum(x["expected"] for x in smap))
+    started = sum(1 for x in smap if x["t"]["n"])
+    stable = sum(1 for x in smap if x["stage"] in ("stable", "selstable"))
+    in_selector = sum(1 for x in smap if x["stage"] in ("sel", "selstable"))
+    this_week, last_week = window_rate(rows, today, 6, 0), window_rate(rows, today, 13, 7)
+    today_t = tally([r for r in rows if r["date"] == today.strftime("%Y-%m-%d")])
+    if this_week["rate"] is None or last_week["rate"] is None:
+        delta, delta_cls = "前の 7 日の記録なし", "flat"
+    else:
+        diff = this_week["rate"] - last_week["rate"]
+        delta = f"前の 7 日より {diff:+d} ポイント"
+        delta_cls = "up" if diff > 0 else "down" if diff < 0 else "flat"
+    today_note = f"成功 {today_t['success']} 本" if today_t["n"] else "まだ記録なし"
+    cards = [
+        (
+            f"{expected}<small> / {bm.MISSION_MAX_TOTAL}</small>",
+            "いまの見こみ点",
+            f"満点は合計 {bm.GRAND_TOTAL} 点",
+            "flat",
+        ),
+        (
+            f"{started}<small> / {len(smap)}</small>",
+            "着手したミッション",
+            f"安定 {stable}・通しに入れた {in_selector}",
+            "flat",
+        ),
+        (pct(this_week), "この 7 日の成功率", delta, delta_cls),
+        (str(today_t["n"]), "今日の試行", today_note, "flat"),
+    ]
+    inner = "".join(
+        f'<div class="stat-card{" warn" if cls == "down" else ""}"><div class="stat-num">{num}</div>'
+        f'<div class="stat-label">{label}</div><div class="stat-delta {cls}">{sub}</div></div>'
+        for num, label, sub, cls in cards
+    )
+    return f'<section><div class="summary-band">{inner}</div></section>'
+
+
+def render_highlights(rows, smap, rounds):
+    items = []
+    if not rows:
+        items.append(
+            "<strong>まだ記録がない。</strong> 「📝 Robot N + Log」で run ファイルを走らせ、成否を 1 キーで入れると、ここに集計が出る。"
+        )
+    growing = [x for x in smap if x["stage"] in ("dev", "sel")]
+    if growing:
+        x = max(growing, key=gain_of)
+        items.append(
+            f"<strong>{x['m']['id']} {escape(x['m']['name'])} がいちばんのびしろが大きい。</strong> "
+            f"直近の成功率は {pct(x['rec'])} で、安定すれば見こみ点が {round(gain_of(x))} 点ふえる。"
+        )
+    ready = [x for x in smap if x["stage"] == "stable"]
+    if ready:
+        names = "・".join(x["m"]["id"] for x in ready)
+        items.append(
+            f"<strong>{names} は単体で安定した。</strong> セレクターに入れて、通しで確かめる段階に来ている。"
+        )
+    if rounds:
+        x = rounds[-1]
+        fit = "をこえている" if x["sec"] > bm.MATCH_SECONDS else "に収まっている"
+        items.append(
+            f"<strong>最新の通しは見こみ {x['points']} 点。</strong> "
+            f"かかった時間は {x['sec']} 秒で、試合の {bm.MATCH_SECONDS} 秒{fit}。"
+        )
+    if not items:
+        return ""
+    return section(
+        "ハイライト", '<ul class="highlights">' + "".join(f"<li>{i}</li>" for i in items) + "</ul>"
+    )
+
+
+def render_score_map(smap):
+    legend = (
+        '<div class="legend">'
+        + "".join(dot(kind, label) for label, kind in STAGES.values())
+        + "</div>"
+    )
+    body, classes = [], []
+    for x in smap:
+        t, rec = x["t"], x["rec"]
+        sec = mean_seconds(x["rows"])
+        label, kind = STAGES[x["stage"]]
+        body.append(
+            [
+                mission_name(x["m"]),
+                x["m"]["max"],
+                dot(kind, label),
+                t["n"] or "",
+                meter(rec["rate"]) + f"{pct(rec)}（{rec['success']}/{rec['n']}）"
+                if rec["n"]
+                else "",
+                round(x["expected"]) if t["n"] else "",
+                f"{sec:.1f}" if sec else "",
+                escape(members_of(x["rows"])),
+                strip(x["rows"]),
+            ]
+        )
+        classes.append("" if t["n"] else "idle")
+    heads = [
+        "ミッション",
+        "満点",
+        "段階",
+        "試行",
+        f"直近 {RECENT_N} 本",
+        "見こみ点",
+        "平均秒",
+        "担当",
+        "並び",
+    ]
+    conditions = table(
+        ["ミッション", "条件", "点"],
+        [
+            [mission_name(m) if i == 0 else "", escape(cond), pts]
             for m in bm.MISSIONS
+            for i, (cond, pts) in enumerate(m["items"])
         ],
-        "missionMax": bm.MISSION_MAX_TOTAL,
-        "inspection": bm.EQUIPMENT_INSPECTION,
-        "tokensMax": bm.PRECISION_TOKENS[6],
-        "grandTotal": bm.GRAND_TOTAL,
-        "matchSec": bm.MATCH_SECONDS,
-    }
-    # </script> で HTML が切れないように "<" を逃がす
-    payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        num_cols=(2,),
+    )
+    lead = f"見こみ点は 満点 × 直近 {RECENT_N} 本の成功率。安定は 直近 {STABLE_MIN} 本以上で {STABLE_RATE}% 以上。"
+    inner = legend + table(heads, body, num_cols=(1, 3, 5, 6), row_classes=classes)
+    inner += f"<details><summary>採点の条件を見る</summary>{conditions}</details>"
+    return section("点数マップ", inner, lead)
+
+
+def render_scripts(rows):
+    groups = script_table(rows)
+    if not groups:
+        return ""
+    body = []
+    for script, runs in groups:
+        t, rec, sec = tally(runs), recent(runs), mean_seconds(runs)
+        versions = len({r["code_hash"] for r in runs if r.get("code_hash")})
+        body.append(
+            [
+                f'<span class="pr-link">{escape(script)}</span>',
+                escape(runs[-1].get("mission", "")),
+                f'<span class="author">{escape(runs[-1].get("member", ""))}</span>',
+                t["n"],
+                meter(rec["rate"]) + pct(rec),
+                pct(t),
+                f"{sec:.1f}" if sec else "",
+                versions or "",
+                short_date(runs[-1]["date"]),
+                strip(runs),
+            ]
+        )
+    heads = [
+        "run ファイル",
+        "ミッション",
+        "担当",
+        "試行",
+        f"直近 {RECENT_N} 本",
+        "通算",
+        "平均秒",
+        "版",
+        "最後の日",
+        "並び",
+    ]
+    legend = (
+        '<div class="legend">'
+        + "".join(dot(RESULT_DOT[k], RESULT_LABEL[k]) for k in COUNTED)
+        + "</div>"
+    )
+    lead = "run ファイルを 1 本ずつ走らせた記録。並びは左が古く右が新しい。"
+    return section("① 要素開発", legend + table(heads, body, num_cols=(3, 5, 6, 7)), lead)
+
+
+def render_rounds(rounds):
+    if not rounds:
+        return ""
+    shown = rounds[-ROUND_ROWS:]
+    body = []
+    for x in reversed(shown):
+        over = x["sec"] > bm.MATCH_SECONDS
+        order = "　".join(
+            dot(RESULT_DOT.get(r["result"], "none"), r.get("mission") or r["script"])
+            for r in x["rows"]
+        )
+        body.append(
+            [
+                x["start"].strftime("%m/%d %H:%M"),
+                x["t"]["n"],
+                x["t"]["success"],
+                x["points"],
+                meter(100 * x["sec"] / bm.MATCH_SECONDS, over)
+                + f"{x['sec']} 秒"
+                + ("・オーバー" if over else ""),
+                order,
+            ]
+        )
+    chart = bar_chart(
+        [
+            (
+                label,
+                x["points"],
+                f"{x['start']:%m/%d %H:%M} 成功 {x['t']['success']} / {x['t']['n']} 本・{x['sec']} 秒",
+            )
+            for label, x in zip(round_labels(rounds)[-ROUND_ROWS:], shown, strict=True)
+        ],
+        "通しの 1 回ごとの見こみ点",
+    )
+    best = max(rounds, key=lambda x: x["points"])
+    caption = f"通しの 1 回ごとの見こみ点。これまでの最高は {best['start'].strftime('%m/%d %H:%M')} の回である。"
+    lead = f"セレクターから続けて走らせた記録。時間は最初のスタートから最後のゴールまでで、試合は {bm.MATCH_SECONDS} 秒。"
+    heads = ["はじめた時刻", "本数", "成功", "見こみ点", "時間", "走らせた順"]
+    inner = (
+        chart_panel(chart, caption)
+        + '<div class="gap"></div>'
+        + table(heads, body, num_cols=(1, 2, 3))
+    )
+    return section("② 通し", inner, lead)
+
+
+def render_daily(rows):
+    days = daily(rows)
+    if not days:
+        return ""
+
+    def note(d, t):
+        return f"{d} 成功 {t['success']}・途中まで {t['partial']}・失敗 {t['fail']}"
+
+    counts = bar_chart([(short_date(d), t["n"], note(d, t)) for d, t in days], "日ごとの試行数")
+    rates = bar_chart(
+        [(short_date(d), t["rate"], note(d, t)) for d, t in days],
+        "日ごとの成功率",
+        unit="%",
+        y_max=100,
+    )
+    busiest = max(days, key=lambda x: x[1]["n"])
+    best = max(days, key=lambda x: x[1]["rate"])
+    panels = chart_panel(
+        counts, f"日ごとの試行数。いちばん多く走らせたのは {short_date(busiest[0])} である。"
+    )
+    panels += '<div class="gap"></div>'
+    panels += chart_panel(
+        rates, f"日ごとの成功率。いちばん高かったのは {short_date(best[0])} である。"
+    )
+    return section("日ごとの試行", panels)
+
+
+def render_members(rows):
+    groups = member_table(rows)
+    if not groups:
+        return ""
+    body = []
+    for name, runs in groups:
+        t, rec = tally(runs), recent(runs)
+        missions = len({m for r in runs for m in missions_of(r)})
+        body.append(
+            [
+                f'<span class="author">{escape(name)}</span>',
+                t["n"],
+                t["success"],
+                pct(t),
+                meter(rec["rate"]) + pct(rec),
+                missions,
+            ]
+        )
+    heads = ["メンバー", "試行", "成功", "通算の成功率", f"直近 {RECENT_N} 本", "ミッションの数"]
+    return section("メンバーごと", table(heads, body, num_cols=(1, 2, 3, 5)))
+
+
+def render_recent(rows):
+    if not rows:
+        return ""
+    body = []
+    for r in reversed(rows[-RECENT_ROWS:]):
+        log = (
+            f'<a class="pr-link" href="../../{escape(r["log_path"])}">ログ</a>'
+            if r.get("log_path")
+            else ""
+        )
+        body.append(
+            [
+                f"{short_date(r['date'])} {r.get('time', '')[:5]}",
+                "② 通し" if is_selector(r) else "① 単体",
+                f'<span class="pr-link">{escape(r["script"])}</span>',
+                escape(r.get("mission", "")),
+                f'<span class="author">{escape(r.get("member", ""))}</span>',
+                dot(
+                    RESULT_DOT.get(r["result"], "none"), RESULT_LABEL.get(r["result"], r["result"])
+                ),
+                r.get("elapsed_sec", ""),
+                escape(r.get("note", "")),
+                log,
+            ]
+        )
+    heads = ["日時", "走らせ方", "スクリプト", "ミッション", "担当", "結果", "秒", "メモ", "ログ"]
+    return section("最近の試行", table(heads, body, num_cols=(6,)))
+
+
+def render_next(smap, rounds):
+    """見本の「持ち越し」にあたる節。次に手を入れるところを、のびしろの大きい順に出す。"""
+    items = []
+    growing = sorted((x for x in smap if x["stage"] in ("dev", "sel")), key=gain_of, reverse=True)
+    for x in growing[:2]:
+        body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 直近の成功率は {pct(x['rec'])}。安定すれば {round(gain_of(x))} 点ふえる。"
+        items.append(("のびしろ", body, members_of(x["rows"])))
+    for x in [x for x in smap if x["stage"] == "stable"][:2]:
+        body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 単体で安定した。セレクターの programs に足す。"
+        items.append(("通しへ", body, members_of(x["rows"])))
+    if rounds and rounds[-1]["sec"] > bm.MATCH_SECONDS:
+        items.append(
+            (
+                "時間",
+                f"最新の通しは {rounds[-1]['sec']} 秒かかった。走らせる順とホームでのつけかえを見直す。",
+                "",
+            )
+        )
+    idle = sorted(
+        (x for x in smap if x["stage"] == "none"), key=lambda x: x["m"]["max"], reverse=True
+    )
+    for x in idle[:2]:
+        items.append(
+            (
+                "未着手",
+                f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 満点 {x['m']['max']} 点。まだ記録がない。",
+                "",
+            )
+        )
+    if not items:
+        return ""
+    inner = "".join(
+        f'<div class="carry-item"><span class="carry-tag">{tag}</span><div class="carry-body">{body}'
+        + (f' <span class="who">&middot; {escape(who)}</span>' if who else "")
+        + "</div></div>"
+        for tag, body, who in items
+    )
+    return section("次に手を入れるところ", f'<div class="carryover">{inner}</div>')
+
+
+# ===== 組み立て =====
+def build(csv_path=TRIALS_CSV, out_path=OUT_HTML, include_error=False, now=None):
+    """trials.csv を読んで dashboard.html を書き出し、数えた行数を返す。"""
+    now = now or datetime.now()
+    rows = load_rows(csv_path, include_error)
+    smap, rounds = score_map(rows), to_rounds(rows)
+    period = (
+        f"{rows[0]['date']} 〜 {rows[-1]['date']}・{len(rows)} 本"
+        if rows
+        else "記録はまだありません"
+    )
+    commit = next((r["commit"] for r in reversed(rows) if r.get("commit")), "")
+    repo = os.path.basename(ROOT) + (f" @ {commit}" if commit else "")
+    sources = " &middot; ".join(
+        [
+            escape(os.path.abspath(csv_path)),
+            escape(os.path.join(ROOT, "scripts", "bioglow_missions.py")),
+            SCORESHEET_URL,
+        ]
+    )
+    body = "".join(
+        [
+            '<header><div class="header-top"><h1>ロボットゲームの試行記録</h1><span class="auto-pill">自動生成</span></div>'
+            f'<div class="date-range">{escape(period)} &nbsp;&middot;&nbsp; <span class="repo">{escape(repo)}</span></div></header>',
+            render_summary(rows, smap, now),
+            render_highlights(rows, smap, rounds),
+            render_score_map(smap),
+            render_scripts(rows),
+            render_rounds(rounds),
+            render_daily(rows),
+            render_members(rows),
+            render_recent(rows),
+            render_next(smap, rounds),
+            f"<footer>出典: {sources} &nbsp;&mdash;&nbsp; {now.strftime('%Y年%m月%d日 %H:%M')} 生成"
+            f"{'（「動かなかった」も数えた）' if include_error else ''}</footer>",
+        ]
+    )
+    with open(STYLE_CSS, encoding="utf-8") as f:
+        css = f.read()
+    html = (
+        '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="UTF-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        "<title>ロボットゲームの試行記録</title>\n"
+        "<!-- make-html weekly 型（見本 ja/11-status-report.html）。scripts/trial_dashboard.py が trials.csv から生成 -->\n"
+        f'<style>\n{css}{EXTRA_CSS}</style>\n</head>\n<body>\n  <div class="page">\n{body}\n  </div>\n</body>\n</html>\n'
+    )
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(TEMPLATE.replace("/*__DATA__*/null", payload))
+        f.write(html)
     return len(rows)
-
-
-TEMPLATE = r"""<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>試行記録ダッシュボード</title>
-<style>
-:root {
-  color-scheme: light;
-  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
-  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
-  --series: #2a78d6; --track: #cde2fb; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --neutral: #c3c2b7;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
-    --series: #3987e5; --track: #104281; --neutral: #52514e;
-  }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink);
-  font-family: system-ui, -apple-system, "Segoe UI", "Yu Gothic UI", "Hiragino Sans", sans-serif; font-size: 14px; line-height: 1.6; }
-main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
-h1 { font-size: 22px; margin: 0 0 2px; }
-h2 { font-size: 16px; margin: 0 0 2px; }
-h2 small { font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 6px; }
-.sub { color: var(--ink2); font-size: 12.5px; margin: 0 0 10px; }
-.filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 16px 0;
-  padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-.filters label { color: var(--ink2); font-size: 12.5px; display: flex; gap: 6px; align-items: center; }
-select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 6px; }
-.kpis { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
-@media (max-width: 760px) { .kpis { grid-template-columns: 1fr 1fr; } }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
-.kpi { margin: 0; }
-.kpi .label { color: var(--ink2); font-size: 12.5px; }
-.kpi .value { font-size: 30px; font-weight: 600; line-height: 1.25; }
-.kpi .value small { font-size: 15px; font-weight: 400; color: var(--muted); }
-.kpi.hero .value { font-size: 48px; }
-.kpi .note { color: var(--muted); font-size: 12px; }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink2); font-size: 12.5px; margin: 2px 0 8px; }
-.legend i, .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
-svg { display: block; width: 100%; height: auto; overflow: visible; }
-svg text { fill: var(--ink2); font-size: 11.5px; }
-svg text.val { fill: var(--ink); }
-svg .hit { fill: transparent; }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; vertical-align: middle; }
-th { color: var(--ink2); font-weight: 600; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-td.wrap { white-space: normal; min-width: 12em; }
-tr.idle td { color: var(--muted); }
-.meter { display: inline-block; width: 90px; height: 8px; border-radius: 4px; background: var(--track); vertical-align: middle; margin-right: 8px; overflow: hidden; }
-.meter b { display: block; height: 100%; background: var(--series); border-radius: 4px 0 0 4px; }
-.meter.over b { background: var(--critical); }
-.strip i { display: inline-block; width: 8px; height: 14px; border-radius: 2px; margin-right: 2px; vertical-align: middle; }
-.empty { color: var(--muted); padding: 14px 0; }
-#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); padding: 6px 9px; border-radius: 6px;
-  font-size: 12px; line-height: 1.5; opacity: 0; transition: opacity .08s; z-index: 10; max-width: 300px; }
-details summary { cursor: pointer; color: var(--ink2); font-size: 12.5px; margin-top: 8px; }
-.how { color: var(--ink2); font-size: 12.5px; margin: 8px 0 0; }
-</style>
-</head>
-<body>
-<main>
-  <h1>試行記録ダッシュボード <small style="font-size:13px;font-weight:400;color:var(--muted)">BIOGLOW 2026-27</small></h1>
-  <p class="sub">走らせるたびに記録した 成功・失敗 のまとめ。作成: <span id="gen"></span> ／ もとのデータ: docs/trials/trials.csv</p>
-
-  <div class="filters">
-    <label>期間 <select id="f-period">
-      <option value="all">ぜんぶ</option><option value="today">今日</option>
-      <option value="7">この 7 日</option><option value="30">この 30 日</option></select></label>
-    <label>走らせ方 <select id="f-via">
-      <option value="">ぜんぶ</option><option value="single">① 単体（run ファイル）</option><option value="selector">② 通し（セレクター）</option></select></label>
-    <label>ミッション <select id="f-mission"></select></label>
-    <label>メンバー <select id="f-member"></select></label>
-    <label>ハブ <select id="f-hub"></select></label>
-    <label><input type="checkbox" id="f-error"> 「動かなかった」も数える</label>
-  </div>
-
-  <div class="kpis" id="kpis"></div>
-
-  <div class="card">
-    <h2>点数マップ <small>15 ミッションのどこまで来たか</small></h2>
-    <p class="sub">見こみ点 ＝ 満点 × 直近 10 本の成功率。点の高いミッションで成功率を上げるほど、合計がのびる。</p>
-    <div class="legend" id="legend-stage"></div>
-    <div class="scroll" id="table-score"></div>
-    <details><summary>採点の条件を見る（採点表の 1 行ずつ）</summary><div class="scroll" id="table-items"></div></details>
-    <p class="how">段階の決め方: 記録なし＝未着手 ／ 単体の記録だけ＝要素開発中 ／ 直近 10 本（5 本以上）で 80% 以上＝単体で安定 ／ セレクターから走らせた記録あり＝通しに入れた（80% 以上なら 通しで安定）。
-      見こみ点は、成功＝満点・それ以外＝0 点で数えた目安（ボーナスだけ取れた・一部だけ取れた、は数えていない）。</p>
-  </div>
-
-  <div class="card">
-    <h2>① 要素開発 <small>run ファイルを 1 本ずつ走らせた記録</small></h2>
-    <p class="sub">「直近の並び」は左が古く右が新しい。緑がつづいたら、セレクターに入れるころあい。</p>
-    <div class="legend" id="legend-result"></div>
-    <div class="scroll" id="table-scripts"></div>
-  </div>
-
-  <div class="card">
-    <h2>② 通し <small>セレクターから続けて走らせた記録</small></h2>
-    <p class="sub">通し 1 回 ＝ セレクターで続けて走らせたひとまとまり（同じプログラムをもう一度走らせたとき、または 90 秒あいたときに、次の回として数える）。
-      時間は、最初のスタートから最後のゴールまで（ホームでのつけかえの時間をふくむ）。試合は 150 秒。</p>
-    <div id="chart-rounds"></div>
-    <div class="scroll" id="table-rounds"></div>
-  </div>
-
-  <div class="grid2">
-    <div class="card"><h2>日ごとの成功率</h2><p class="sub">その日の 成功 ÷ 試行（%）。</p><div id="chart-rate"></div></div>
-    <div class="card"><h2>日ごとの試行数</h2><p class="sub">その日に記録した本数。</p><div id="chart-count"></div></div>
-  </div>
-
-  <div class="card"><h2>メンバーごと</h2><p class="sub">たくさん試した人ほど、ロボットのくせが分かる。</p><div class="scroll" id="table-member"></div></div>
-  <div class="card"><h2>最近の試行 <small>新しい順・30 本まで</small></h2><div class="scroll" id="table-recent"></div></div>
-</main>
-<div id="tip"></div>
-
-<script>
-const DATA = /*__DATA__*/null;
-const RESULTS = [
-  { key: "success", label: "成功", color: "var(--good)" },
-  { key: "partial", label: "途中まで", color: "var(--warning)" },
-  { key: "fail", label: "失敗", color: "var(--critical)" },
-  { key: "error", label: "動かなかった", color: "var(--neutral)" },
-];
-const RES = Object.fromEntries(RESULTS.map(r => [r.key, r]));
-const STAGES = [
-  { key: "none", label: "未着手", color: "var(--neutral)" },
-  { key: "dev", label: "要素開発中", color: "var(--warning)" },
-  { key: "stable", label: "単体で安定", color: "var(--series)" },
-  { key: "sel", label: "通しに入れた", color: "var(--series)", ring: true },
-  { key: "selstable", label: "通しで安定", color: "var(--good)" },
-];
-const STAGE = Object.fromEntries(STAGES.map(s => [s.key, s]));
-const RECENT_N = 10, STABLE_RATE = 80, STABLE_MIN = 5, ROUND_GAP_SEC = 90;
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const NS = "http://www.w3.org/2000/svg";
-
-function svgEl(tag, attrs, parent, text) {
-  const e = document.createElementNS(NS, tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
-  if (text != null) e.textContent = text;
-  if (parent) parent.appendChild(e);
-  return e;
-}
-const tip = $("tip");
-function bindTip(el, html) {
-  el.addEventListener("mousemove", ev => {
-    tip.innerHTML = html; tip.style.opacity = 1;
-    const x = Math.min(ev.clientX + 12, window.innerWidth - tip.offsetWidth - 8);
-    tip.style.left = x + "px"; tip.style.top = (ev.clientY + 14) + "px";
-  });
-  el.addEventListener("mouseleave", () => { tip.style.opacity = 0; });
-}
-function fillSelect(id, values, allLabel) {
-  $(id).innerHTML = `<option value="">${allLabel}</option>` + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
-}
-const uniq = key => [...new Set(DATA.rows.map(r => r[key]).filter(Boolean))].sort();
-const missionsOf = r => (r.mission || "").split("+").filter(Boolean);
-const isSelector = r => (r.via || "").startsWith("selector");
-const stamp = r => r.date + " " + r.time;
-const byTime = (a, b) => (stamp(a) < stamp(b) ? -1 : 1);
-function daysAgo(n) {
-  const d = new Date(DATA.today + "T00:00:00"); d.setDate(d.getDate() - (n - 1));
-  return d.toISOString().slice(0, 10);
-}
-function filtered() {
-  const p = $("f-period").value, via = $("f-via").value, m = $("f-mission").value, mem = $("f-member").value, hub = $("f-hub").value;
-  const counted = $("f-error").checked ? ["success", "partial", "fail", "error"] : ["success", "partial", "fail"];
-  const from = p === "all" ? "" : p === "today" ? DATA.today : daysAgo(+p);
-  return DATA.rows.filter(r => counted.includes(r.result) && (!from || r.date >= from) &&
-    (!via || (via === "selector") === isSelector(r)) &&
-    (!m || missionsOf(r).includes(m) || (m === "（なし）" && !r.mission)) && (!mem || r.member === mem) && (!hub || r.hub === hub)).sort(byTime);
-}
-function tally(rows) {
-  const t = { n: rows.length, success: 0, partial: 0, fail: 0, error: 0 };
-  rows.forEach(r => { t[r.result]++; });
-  t.rate = t.n ? Math.round(100 * t.success / t.n) : null;
-  return t;
-}
-function groupBy(rows, fn) {
-  const m = new Map();
-  rows.forEach(r => { const k = fn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
-  return m;
-}
-const pct = t => t.rate == null ? "–" : t.rate + "%";
-const recent = rows => tally(rows.slice(-RECENT_N));
-function meanSec(rows) {
-  const ok = rows.filter(r => r.result === "success" && +r.elapsed_sec > 0);
-  return ok.length ? (ok.reduce((a, r) => a + +r.elapsed_sec, 0) / ok.length).toFixed(1) : "–";
-}
-const meter = (rate, cls) => rate == null ? "" : `<span class="meter ${cls || ""}"><b style="width:${Math.min(rate, 100)}%"></b></span>`;
-const dotStyle = s => s.ring ? `background:transparent;box-shadow:inset 0 0 0 2px ${s.color}` : `background:${s.color}`;
-const stageCell = k => `<span class="dot" style="${dotStyle(STAGE[k])}"></span>${STAGE[k].label}`;
-const resCell = k => `<span class="dot" style="background:${(RES[k] || {}).color || "var(--neutral)"}"></span>${(RES[k] || { label: k }).label}`;
-function strip(rows) {
-  return '<span class="strip">' + rows.slice(-20).map(r =>
-    `<i style="background:${(RES[r.result] || {}).color}" title="${r.date} ${r.time.slice(0, 5)} ${(RES[r.result] || {}).label}"></i>`).join("") + "</span>";
-}
-function table(heads, rows, numCols, rowClass) {
-  numCols = numCols || [];
-  return "<table><thead><tr>" + heads.map((h, i) => `<th class="${numCols.includes(i) ? "num" : ""}">${h}</th>`).join("") +
-    "</tr></thead><tbody>" + rows.map((r, ri) => `<tr class="${rowClass ? rowClass(ri) : ""}">` + r.map((c, i) =>
-      `<td class="${numCols.includes(i) ? "num" : ""}${heads[i] === "メモ" ? " wrap" : ""}">${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
-}
-
-// ===== 点数マップ =====
-function scoreMap(rows) {
-  return DATA.missions.map(m => {
-    const mine = rows.filter(r => missionsOf(r).includes(m.id));
-    const t = tally(mine), rec = recent(mine), sel = mine.some(isSelector);
-    const stable = rec.n >= STABLE_MIN && rec.rate >= STABLE_RATE;
-    const stage = !t.n ? "none" : sel ? (stable ? "selstable" : "sel") : stable ? "stable" : "dev";
-    return { m, mine, t, rec, stage, expected: rec.n ? m.max * rec.rate / 100 : 0 };
-  });
-}
-function renderKpis(rows, map) {
-  const all = tally(rows), today = tally(rows.filter(r => r.date === DATA.today));
-  const expected = Math.round(map.reduce((a, x) => a + x.expected, 0));
-  const started = map.filter(x => x.t.n).length, stable = map.filter(x => x.stage === "stable" || x.stage === "selstable").length;
-  const inSel = map.filter(x => x.stage === "sel" || x.stage === "selstable").length;
-  const tiles = [
-    ["いまの見こみ点（ミッション）", `${expected} <small>/ ${DATA.missionMax} 点</small>`,
-      `ほかに 装備の点検 ${DATA.inspection} 点・精密トークン 最大 ${DATA.tokensMax} 点（合計 ${DATA.grandTotal} 点）`, true],
-    ["ミッションの進み", `${started} <small>/ ${map.length} に着手</small>`, `安定 ${stable}・通しに入れた ${inSel}`],
-    ["成功率", pct(all), `成功 ${all.success} ／ 試行 ${all.n}（途中まで ${all.partial}・失敗 ${all.fail}）`],
-    ["今日の試行", today.n, today.n ? `成功率 ${pct(today)}` : "まだ記録なし"],
-  ];
-  $("kpis").innerHTML = tiles.map(([l, v, n, hero]) =>
-    `<div class="card kpi${hero ? " hero" : ""}"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
-}
-function renderScore(map) {
-  $("legend-stage").innerHTML = STAGES.map(s => `<span><i style="${dotStyle(s)}"></i>${s.label}</span>`).join("");
-  $("table-score").innerHTML = table(
-    ["ミッション", "満点", "段階", "試行", "成功 / 途中 / 失敗", `直近 ${RECENT_N} 本の成功率`, "見こみ点", "平均秒", "担当", "直近の並び"],
-    map.map(x => [`<b>${x.m.id}</b> ${esc(x.m.name)} <span style="color:var(--muted)">${esc(x.m.en)}</span>`, x.m.max, stageCell(x.stage), x.t.n || "",
-      x.t.n ? `${x.t.success} / ${x.t.partial} / ${x.t.fail}` : "", x.rec.n ? meter(x.rec.rate) + pct(x.rec) + `（${x.rec.success}/${x.rec.n}）` : "",
-      x.t.n ? Math.round(x.expected) : "", x.t.n ? meanSec(x.mine) : "", esc([...new Set(x.mine.map(r => r.member).filter(Boolean))].join("・")), strip(x.mine)]),
-    [1, 3, 6, 7], i => map[i].t.n ? "" : "idle");
-  $("table-items").innerHTML = table(["ミッション", "条件", "点"],
-    DATA.missions.flatMap(m => m.items.map(([c, p], i) => [i ? "" : `<b>${m.id}</b> ${esc(m.name)}`, esc(c), p])), [2]);
-}
-
-// ===== ① 要素開発 =====
-function renderScripts(rows) {
-  $("legend-result").innerHTML = RESULTS.filter(r => r.key !== "error" || $("f-error").checked)
-    .map(r => `<span><i style="background:${r.color}"></i>${r.label}</span>`).join("");
-  const g = [...groupBy(rows.filter(r => !isSelector(r)), r => r.script)].map(([k, v]) => [k, v])
-    .sort((a, b) => (stamp(b[1][b[1].length - 1]) < stamp(a[1][a[1].length - 1]) ? -1 : 1));
-  $("table-scripts").innerHTML = g.length ? table(
-    ["run ファイル", "ミッション", "担当", "試行", `直近 ${RECENT_N} 本`, "通算", "平均秒", "コードの版", "最後の日", "直近の並び"],
-    g.map(([k, v]) => { const t = tally(v), rec = recent(v); return [esc(k), esc(v[v.length - 1].mission), esc(v[v.length - 1].member), t.n,
-      meter(rec.rate) + pct(rec), pct(t), meanSec(v), new Set(v.map(r => r.code_hash).filter(Boolean)).size || "", v[v.length - 1].date.slice(5).replace("-", "/"), strip(v)]; }),
-    [3, 5, 6, 7]) : '<p class="empty">単体で走らせた記録はまだありません。「📝 Robot N + Log」で run ファイルを走らせると、ここに出ます。</p>';
-}
-
-// ===== ② 通し =====
-function toRounds(rows) {
-  const rounds = [];
-  [...groupBy(rows.filter(isSelector), r => r.log_path || r.date)].forEach(([, v]) => {
-    let cur = null, lastEnd = 0;
-    v.sort(byTime).forEach(r => {
-      const start = new Date(r.date + "T" + r.time).getTime() / 1000, end = start + (+r.elapsed_sec || 0);
-      if (!cur || cur.rows.some(x => x.script === r.script) || start - lastEnd > ROUND_GAP_SEC) { cur = { rows: [], start }; rounds.push(cur); }
-      cur.rows.push(r); cur.end = end; lastEnd = end;
-    });
-  });
-  const maxOf = Object.fromEntries(DATA.missions.map(m => [m.id, m.max]));
-  rounds.forEach(x => {
-    x.t = tally(x.rows); x.sec = Math.round(x.end - x.start);
-    const okMissions = new Set(x.rows.filter(r => r.result === "success").flatMap(missionsOf));
-    x.points = [...okMissions].reduce((a, id) => a + (maxOf[id] || 0), 0);
-    x.label = x.rows[0].date.slice(5).replace("-", "/") + " " + x.rows[0].time.slice(0, 5);
-  });
-  return rounds.sort((a, b) => a.start - b.start);
-}
-function renderRounds(rows) {
-  const rounds = toRounds(rows);
-  if (!rounds.length) {
-    $("chart-rounds").innerHTML = "";
-    $("table-rounds").innerHTML = '<p class="empty">通しの記録はまだありません。selector.py を「📝 Robot N + Log」で走らせると、プログラムごとに成否を聞かれて、ここに出ます。</p>';
-    return;
-  }
-  drawSeries($("chart-rounds"), rounds.map(x => ({ label: x.label, value: x.points,
-    tip: `<b>${x.label}</b><br>見こみ点 ${x.points} 点<br>成功 ${x.t.success} / ${x.t.n} 本・${x.sec} 秒` })),
-    { yMax: DATA.missionMax, unit: " 点", height: 200, width: 1000 });
-  $("table-rounds").innerHTML = table(["はじめた時刻", "走らせた本数", "成功", "見こみ点", `時間（試合は ${DATA.matchSec} 秒）`, "走らせた順（結果）", "ハブ"],
-    [...rounds].reverse().slice(0, 20).map(x => [x.label, x.t.n, x.t.success, x.points,
-      meter(100 * x.sec / DATA.matchSec, x.sec > DATA.matchSec ? "over" : "") + x.sec + " 秒" + (x.sec > DATA.matchSec ? "（オーバー）" : ""),
-      x.rows.map(r => `<span title="${esc(r.script)}">${resCell(r.result).replace(/<\/span>.*/, "</span>")}${esc(r.mission || r.script)}</span>`).join("　"), esc(x.rows[0].hub)]),
-    [1, 2, 3]);
-}
-
-// ===== 日ごと =====
-function niceTicks(max) {
-  const step = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].find(s => max / s <= 5) || 2000;
-  const out = []; for (let v = 0; v < max + step; v += step) out.push(v);
-  return out;
-}
-function drawSeries(box, pts, opt) {
-  const W = opt.width || 520, H = opt.height || 230, left = 40, right = 56, top = 14, bottom = 28;
-  const plotW = W - left - right, plotH = H - top - bottom;
-  const ticks = opt.ticks || niceTicks(opt.yMax || Math.max(...pts.map(p => p.value), 1));
-  const yMax = ticks[ticks.length - 1];
-  const xOf = i => left + (pts.length === 1 ? plotW / 2 : plotW * (0.03 + 0.94 * i / (pts.length - 1)));
-  const yOf = v => top + plotH * (1 - v / yMax);
-  box.innerHTML = "";
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, box);
-  ticks.forEach(t => {
-    svgEl("line", { x1: left, x2: W - right, y1: yOf(t), y2: yOf(t), stroke: t ? "var(--grid)" : "var(--axis)", "stroke-width": 1 }, svg);
-    svgEl("text", { x: left - 6, y: yOf(t) + 4, "text-anchor": "end" }, svg, t + (opt.unit === "%" ? "%" : ""));
-  });
-  const every = Math.ceil(pts.length / (W > 600 ? 10 : 6)), last = pts.length - 1;
-  pts.forEach((p, i) => {
-    if ((i % every === 0 && last - i >= Math.max(every, 2)) || i === last) svgEl("text", { x: xOf(i), y: H - 8, "text-anchor": "middle" }, svg, p.label);
-  });
-  if (opt.bars) {
-    const bw = Math.min(24, plotW / pts.length * 0.6);
-    pts.forEach((p, i) => {
-      const h = plotH * p.value / yMax, r = Math.min(4, bw / 2, h), x = xOf(i) - bw / 2, y = yOf(p.value);
-      svgEl("path", { d: `M${x},${y + h}v${-(h - r)}a${r},${r} 0 0 1 ${r},${-r}h${bw - 2 * r}a${r},${r} 0 0 1 ${r},${r}v${h - r}z`, fill: "var(--series)" }, svg);
-    });
-    const pi = pts.reduce((a, p, i) => (p.value > pts[a].value ? i : a), 0);
-    svgEl("text", { x: xOf(pi), y: yOf(pts[pi].value) - 6, "text-anchor": "middle", class: "val" }, svg, pts[pi].value);
-  } else {
-    const xy = pts.map((p, i) => [xOf(i), yOf(p.value)]);
-    if (xy.length > 1) svgEl("path", { d: "M" + xy.map(p => p.join(",")).join("L"), fill: "none", stroke: "var(--series)",
-      "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
-    xy.forEach(p => svgEl("circle", { cx: p[0], cy: p[1], r: 4, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 2 }, svg));
-    svgEl("text", { x: xy[last][0] + 8, y: xy[last][1] + 4, class: "val" }, svg, pts[last].value + (opt.unit || ""));
-  }
-  const slot = pts.length === 1 ? plotW : plotW * 0.94 / (pts.length - 1);
-  pts.forEach((p, i) => bindTip(svgEl("rect", { x: xOf(i) - slot / 2, y: top, width: slot, height: plotH, class: "hit" }, svg), p.tip));
-}
-function renderDaily(rows) {
-  const days = [...groupBy(rows, r => r.date)].map(([d, v]) => [d, tally(v)]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
-  if (!days.length) { ["chart-rate", "chart-count"].forEach(id => { $(id).innerHTML = '<p class="empty">記録はまだありません。</p>'; }); return; }
-  const tipOf = (d, t) => `<b>${d}</b><br>成功率 ${pct(t)}<br>成功 ${t.success}・途中まで ${t.partial}・失敗 ${t.fail}（試行 ${t.n}）`;
-  const lab = d => d.slice(5).replace("-", "/");
-  drawSeries($("chart-rate"), days.map(([d, t]) => ({ label: lab(d), value: t.rate, tip: tipOf(d, t) })), { ticks: [0, 25, 50, 75, 100], unit: "%" });
-  drawSeries($("chart-count"), days.map(([d, t]) => ({ label: lab(d), value: t.n, tip: tipOf(d, t) })), { bars: true });
-}
-
-function renderMembers(rows) {
-  const g = [...groupBy(rows, r => r.member || "（なし）")].map(([k, v]) => [k, tally(v), recent(v), new Set(v.flatMap(missionsOf)).size])
-    .sort((a, b) => b[1].n - a[1].n);
-  $("table-member").innerHTML = g.length ? table(["メンバー", "試行", "成功", "途中まで", "失敗", "通算の成功率", `直近 ${RECENT_N} 本`, "ミッションの数"],
-    g.map(([k, t, rec, m]) => [esc(k), t.n, t.success, t.partial, t.fail, pct(t), meter(rec.rate) + pct(rec), m]), [1, 2, 3, 4, 5, 7]) : '<p class="empty">記録はまだありません。</p>';
-}
-function renderRecent(rows) {
-  const r = [...rows].reverse().slice(0, 30);
-  $("table-recent").innerHTML = r.length ? table(["日時", "走らせ方", "スクリプト", "ミッション", "メンバー", "ハブ", "結果", "秒", "メモ", "ログ"],
-    r.map(x => [`${x.date} ${x.time.slice(0, 5)}`, isSelector(x) ? "② 通し" : "① 単体", esc(x.script), esc(x.mission), esc(x.member), esc(x.hub),
-      resCell(x.result), x.elapsed_sec, esc(x.note), x.log_path ? `<a href="../../${esc(x.log_path)}">ログ</a>` : ""]), [7]) : '<p class="empty">記録はまだありません。</p>';
-}
-
-function render() {
-  const rows = filtered(), map = scoreMap(rows);
-  renderKpis(rows, map); renderScore(map); renderScripts(rows); renderRounds(rows); renderDaily(rows); renderMembers(rows); renderRecent(rows);
-}
-$("gen").textContent = DATA.generated + "（ぜんぶで " + DATA.rows.length + " 行）";
-fillSelect("f-mission", DATA.missions.map(m => m.id).concat(DATA.rows.some(r => !r.mission) ? ["（なし）"] : []), "ぜんぶ");
-fillSelect("f-member", uniq("member"), "ぜんぶ");
-fillSelect("f-hub", uniq("hub"), "ぜんぶ");
-["f-period", "f-via", "f-mission", "f-member", "f-hub", "f-error"].forEach(id => $(id).addEventListener("change", render));
-render();
-</script>
-</body>
-</html>
-"""
 
 
 def main():
@@ -477,9 +751,12 @@ def main():
         "--csv", default=TRIALS_CSV, help="読みこむ CSV（省略時は docs/trials/trials.csv）"
     )
     ap.add_argument("--out", default=OUT_HTML, help="書き出す HTML")
+    ap.add_argument(
+        "--include-error", action="store_true", help="「動かなかった (error)」も試行に数える"
+    )
     ap.add_argument("--open", action="store_true", help="作ったあとブラウザで開く")
     args = ap.parse_args()
-    n = build(args.csv, args.out)
+    n = build(args.csv, args.out, args.include_error)
     print(f"📊 ダッシュボードを作りました: {args.out}（{n} 行）")
     if n == 0:
         print("   記録がまだありません。「📝 Robot N + Log」で走らせて成否を入れると行が増えます。")
