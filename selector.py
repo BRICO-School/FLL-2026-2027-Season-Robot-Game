@@ -29,6 +29,7 @@ from pybricks.tools import StopWatch, multitask, run_task, wait  # 待機、並�
 
 # ----- 競技プログラムのインポート -----
 # 各ミッションのプログラムを読み込みます（今シーズンのプログラムができたら、ここに足す）
+import run_gyro_check  # 検証用（ジャイロの状態の確かめ・5 周まわる）。確かめが済んだら外す
 import run_template  # ひな形（500mm 直進するだけ）。最初のプログラムができたら入れかえる
 from setup import initialize_robot  # ロボットを初期化する関数をインポート
 
@@ -52,6 +53,7 @@ hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
 # ※ 各モジュールには「run」という名前の関数が必要です
 programs = [
     {"module": run_template, "display_number": 1},
+    {"module": run_gyro_check, "display_number": 9},  # 検証用。確かめが済んだら外す
 ]
 
 # ===== フォースセンサーの初期化 =====
