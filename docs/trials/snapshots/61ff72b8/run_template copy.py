@@ -4,14 +4,17 @@
 コピーして使用してください。
 
 【使い方】
-1. このファイルをコピーして、新しい名前をつける（例: run2_M04_M05.py）
+1. このファイルをコピーして、新しい名前をつける（例: run_M04_kanna.py。run_ で始めると変更の記録が自動で付く）
 2. run() 関数内にロボットの動作を記述する
 3. selector.py の programs リストに追加する
 
 【更新履歴】
 - 2026-05-20: robot.straight(500, speed=500) を追加
-- 2026-08-28: 左アームの動作テスト用スクリプトを新規追加した。
-- 2026-09-09: 左リフトの回転数を30回転から24回転に変更した
+- 2026-09-17: 直進と旋回のデフォルト速度および加速度の記載を更新した
+- 2026-09-17: 旋回設定のコメントから回りすぎに関する補足を削除した。
+- 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
+- 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
+- 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 """
 
 from pybricks.hubs import PrimeHub
@@ -23,12 +26,9 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-
-    await left_lift.run_angle(1000, 360 * 24)
-    await left_lift.run_angle(1000, 360 * -24)
-
     """
-    ロボットの動作を記述する関数54
+    ロボットの動作を記述する関数
+
     【使用可能なメソッド】
 
     === 移動系（speedとtimeoutを指定可能） ===
@@ -57,14 +57,17 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await wait(1000)                                     # 1秒待機
 
     === デフォルト速度設定（setup.pyで定義） ===
-    - straight: 400mm/s, 加速度500mm/s²
-    - turn: 240deg/s, 加速度850deg/s²
+    - straight: 550mm/s, 加速度800mm/s²
+    - turn: 250deg/s, 加速度313deg/s²
     - curve: 240mm/s, 加速度800mm/s²
     """
 
     #######################################
     # ここにロボットの動作を記述してください
-    #######################################
+    await robot.straight(200, speed=190)  # 500mm/sで200mm直進
+    await robot.straight(-100, speed=190)  #######################################
+
+    # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
 
     # ロボットを停止
     robot.stop()
@@ -73,5 +76,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
 # ===== 単体テスト用（このファイルを直接実行した場合） =====
 if __name__ == "__main__":
+    # 昨年の速度・加速度・PID で走らせて成功率を比べるときは initialize_robot(drive_settings="old")（2026-09-18・setup.py の DRIVE_SETTINGS）
+    # initialize_robot() は、機体が止まったまま 2 秒待ってから進む（2026-09-19・ジャイロは始めてすぐの回転だけ約 1.4% 多く数えるため）。
+    # 機体を置いて手を離してから実行する。
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
     run_task(run(hub, robot, left_wheel, right_wheel, left_lift, right_lift))

@@ -319,11 +319,11 @@ left_motor = Motor(Port.B)
 right_motor = Motor(Port.C)
 
 # --- ロボットのサイズ設定（実際に測って入れる） ---
-WHEEL_DIAMETER = 56    # タイヤの直径 (mm)
-AXLE_TRACK = 120       # 左右タイヤの中心間距離 (mm) ← ものさしで測る！
+WHEEL_DIAMETER = 56  # タイヤの直径 (mm)
+AXLE_TRACK = 120  # 左右タイヤの中心間距離 (mm) ← ものさしで測る！
 
 # --- ★ 変えられるところ（設計変数） ★ ---
-DRIVE_SPEED = 100      # 走行速度 (mm/秒) ← ここを変える！
+DRIVE_SPEED = 100  # 走行速度 (mm/秒) ← ここを変える！
 
 # --- ドライブベースの作成 ---
 robot = DriveBase(left_motor, right_motor, WHEEL_DIAMETER, AXLE_TRACK)
@@ -561,10 +561,10 @@ left_motor = Motor(Port.B)
 right_motor = Motor(Port.C)
 
 WHEEL_DIAMETER = 56
-AXLE_TRACK = 120       # ← 自分のトレッドに合わせる
+AXLE_TRACK = 120  # ← 自分のトレッドに合わせる
 
 # ★ 変えられるところ ★
-DRIVE_SPEED = 100      # 走行速度 (mm/秒)
+DRIVE_SPEED = 100  # 走行速度 (mm/秒)
 
 robot = DriveBase(left_motor, right_motor, WHEEL_DIAMETER, AXLE_TRACK)
 watch = StopWatch()
@@ -1667,14 +1667,14 @@ left_motor = Motor(Port.B)
 right_motor = Motor(Port.C)
 
 WHEEL_DIAMETER = 56
-AXLE_TRACK = 120       # ← 自分のトレッドに合わせる
+AXLE_TRACK = 120  # ← 自分のトレッドに合わせる
 
 # ★★★ 変えられるところ（設計変数） ★★★
-DRIVE_SPEED = 100      # 走行速度 (mm/秒)    ← ④ 変えてみよう
-P_GAIN = 3.0           # 反応の強さ (Pゲイン) ← ⑦ 変えてみよう
+DRIVE_SPEED = 100  # 走行速度 (mm/秒)    ← ④ 変えてみよう
+P_GAIN = 3.0  # 反応の強さ (Pゲイン) ← ⑦ 変えてみよう
 
 # --- 目標の向き ---
-TARGET_HEADING = 0     # まっすぐ = 0度
+TARGET_HEADING = 0  # まっすぐ = 0度
 
 robot = DriveBase(left_motor, right_motor, WHEEL_DIAMETER, AXLE_TRACK)
 watch = StopWatch()
@@ -1713,13 +1713,15 @@ while robot.distance() < COURSE_DISTANCE:
         dist = robot.distance()
         l_spd = left_motor.speed()
         r_spd = right_motor.speed()
-        print("t=" + str(t) + "s",
-              "dist=" + str(dist) + "mm",
-              "heading=" + str(round(heading, 1)) + "度",
-              "error=" + str(round(error, 1)),
-              "turn=" + str(round(-turn_rate, 1)),
-              "L_spd=" + str(l_spd),
-              "R_spd=" + str(r_spd))
+        print(
+            "t=" + str(t) + "s",
+            "dist=" + str(dist) + "mm",
+            "heading=" + str(round(heading, 1)) + "度",
+            "error=" + str(round(error, 1)),
+            "turn=" + str(round(-turn_rate, 1)),
+            "L_spd=" + str(l_spd),
+            "R_spd=" + str(r_spd),
+        )
 
     wait(10)  # 10ミリ秒ごとにループ
 
