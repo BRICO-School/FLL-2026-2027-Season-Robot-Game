@@ -1,1 +1,6 @@
 trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit,note,log_path,code_hash,snapshot,via
+20260919_141604,2026-09-19,14:16:04,run_coach_test.py,,coach,Pybricks Hub3,fail,11.0,0,450d37a,,docs/logs/run_coach_test/20260919_141604.log,2b2e670c,docs/trials/snapshots/2b2e670c,
+20260919_191754,2026-09-19,19:17:54,run_M06_yuri.py,M06,yuri,Pybricks Hub3,success,14.8,0,450d37a,,docs/logs/run_template copy/20260919_191754.log,61ff72b8,docs/trials/snapshots/61ff72b8,
+20260919_192015,2026-09-19,19:20:15,run_M06_yuri.py,M06,yuri,Pybricks Hub3,partial,12.6,0,450d37a,,docs/logs/run_template copy/20260919_192015.log,d2435143,docs/trials/snapshots/d2435143,
+20260919_192115,2026-09-19,19:21:15,run_M06_yuri.py,M06,yuri,Pybricks Hub3,success,15.9,0,450d37a,,docs/logs/run_template copy/20260919_192115.log,b822385c,docs/trials/snapshots/b822385c,
+20260919_193312,2026-09-19,19:33:12,run_M06_yuri.py,M06,yuri,Pybricks Hub3,fail,12.2,0,450d37a,,docs/logs/run_template copy/20260919_193312.log,61ff72b8,docs/trials/snapshots/61ff72b8,

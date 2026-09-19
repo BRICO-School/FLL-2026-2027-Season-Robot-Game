@@ -239,24 +239,24 @@ F5 のとき「📝 Robot X + Log」をえらぶと、
 
 ```python
 # まっすぐ進む・下がる
-await robot.straight(400)                   # 400mm まえへ
-await robot.straight(-200)                  # 200mm うしろへ
-await robot.straight(300, speed=500)        # はやく進む
-await robot.straight(500, timeout=3000)     # 3秒でタイムアウト
+await robot.straight(400)  # 400mm まえへ
+await robot.straight(-200)  # 200mm うしろへ
+await robot.straight(300, speed=500)  # はやく進む
+await robot.straight(500, timeout=3000)  # 3秒でタイムアウト
 
 # まわる
-await robot.turn(90)                        # 右に90度
-await robot.turn(-45)                       # 左に45度
+await robot.turn(90)  # 右に90度
+await robot.turn(-45)  # 左に45度
 
 # カーブ
-await robot.curve(200, 90)                  # 半径200mmで90度カーブ
+await robot.curve(200, 90)  # 半径200mmで90度カーブ
 
 # アームをうごかす
-await left_lift.run_angle(300, 180)         # 左アーム 180度
-await right_lift.run_angle(500, -360)       # 右アーム 逆に1周
+await left_lift.run_angle(300, 180)  # 左アーム 180度
+await right_lift.run_angle(500, -360)  # 右アーム 逆に1周
 
 # まつ
-await wait(500)                             # 0.5秒まつ
+await wait(500)  # 0.5秒まつ
 ```
 
 **つまずいたら**: `run_template.py` の中にたくさんの例がのっています。そっちも見てね！
