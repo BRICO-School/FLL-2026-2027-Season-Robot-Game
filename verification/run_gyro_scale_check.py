@@ -38,7 +38,17 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
             await robot.turn(90, correct=CORRECT)
             await wait(300)
     await wait(1000)
-    print("# MODE:", MODE, "/ 補正:", CORRECT, "/ 命令:", 360 * TURNS, "度 / ジャイロの向き:", round(hub.imu.heading(), 2), "度")
+    print(
+        "# MODE:",
+        MODE,
+        "/ 補正:",
+        CORRECT,
+        "/ 命令:",
+        360 * TURNS,
+        "度 / ジャイロの向き:",
+        round(hub.imu.heading(), 2),
+        "度",
+    )
     print("# imu.settings:", hub.imu.settings())
     print("# → 機体がスタートの向きから実際に何度（前と後ろで何 mm）ずれているかを測る")
     await wait(3000)

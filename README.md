@@ -267,7 +267,7 @@ await wait(500)                             # 0.5秒まつ
 
 - **うごきがおかしい → ジャイロをリセット** （selector を使えば自動でリセットされます）
 - **まっすぐ進まない** → `docs/how_to_reduce_SD.md` を読むとヒントがあるよ
-- **こわれた！** → あわてず `old/` フォルダーを見る。前のバージョンがあるかも
+- **こわれた！** → あわてず `archive/` フォルダーを見る。前のバージョンがあるかも
 - **ハブが見つからない** → Bluetooth の名前があってる？ ハブのボタンはおした？
 - **ruff: command not found** → 「じゅんび①」の `uv sync` がまだ。もう一回うってみよう
 
@@ -280,7 +280,8 @@ await wait(500)                             # 0.5秒まつ
 - [`docs/how_to_reduce_SD.md`](./docs/how_to_reduce_SD.md) — ばらつきをへらすには
 - [`docs/logs/`](./docs/logs/) — 走行ログ
 - [`integrated-guide-v1.md`](./integrated-guide-v1.md) — 総合ガイド
-- [`old/`](./old/) — ふるいファイル
+- [`archive/`](./archive/) — ふるいファイル（昨シーズンまでの run ファイル）
+- [`verification/`](./verification/) — ロボットの精度をたしかめる道具（メンター用）
 
 ---
 

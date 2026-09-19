@@ -113,7 +113,13 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         round(h_max, 2),
         "度",
     )
-    print("# 台の上の空転: 命令", 360 * TURNS, "度ぶん / 止まった瞬間のジャイロ:", round(h_stop, 2), "度")
+    print(
+        "# 台の上の空転: 命令",
+        360 * TURNS,
+        "度ぶん / 止まった瞬間のジャイロ:",
+        round(h_stop, 2),
+        "度",
+    )
     print(
         "# ★結果★ 機体は回っていないのに動いたジャイロの向き:",
         round(h_end, 2),

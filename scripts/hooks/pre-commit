@@ -5,8 +5,8 @@
 
 ROOT=$(git rev-parse --show-toplevel) || exit 0
 
-# staged な「トップ階層の run_*.py」だけを対象（old/ などは除外）
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^run_[^/]*\.py$' || true)
+# staged な「トップ階層と verification/ の run_*.py」を対象（archive/ などは除外）
+files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(verification/)?run_[^/]*\.py$' || true)
 [ -z "$files" ] && exit 0
 
 # 動く Python を探す（WSL: python3 / Windows: py / 予備: python）

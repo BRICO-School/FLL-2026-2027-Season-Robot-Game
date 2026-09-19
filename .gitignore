@@ -8,3 +8,6 @@ Thumbs.db
 
 # Editors
 .obsidian/
+
+# run_with_log.py がサブフォルダのスクリプトをハブへ送る前に写す場所
+.hub_stage/

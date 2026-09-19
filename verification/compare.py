@@ -1,9 +1,9 @@
 """
 【新旧 setup.py の比較走行を 1 コマンドで走らせて記録する】（PC 側だけで動く。Step 9 用）
 
-使い方:
-  uv run python compare.py new straight
-  uv run python compare.py old straight
+使い方（リポジトリのルートで実行する）:
+  uv run python verification/compare.py new straight
+  uv run python verification/compare.py old straight
       設定: new / old / oldfull      コース: straight / turn / square / mission
       ハブ名を変えるとき: --name "Pybricks Hub4"（省略時は Pybricks Hub3）
 
@@ -90,13 +90,14 @@ def main():
         del args[i : i + 2]
     if len(args) != 2 or args[0] not in SETTINGS or args[1] not in COURSES:
         print(
-            "Usage: python compare.py <new|old|oldfull> <straight|turn|square|mission> [--name <hub>]"
+            "Usage: python verification/compare.py <new|old|oldfull> <straight|turn|square|mission> [--name <hub>]"
         )
         sys.exit(1)
     setting, course = args
 
-    root = os.path.dirname(os.path.abspath(__file__))
-    run_file = os.path.join(root, f"cmp_{setting}_{course}.py")
+    here = os.path.dirname(os.path.abspath(__file__))  # verification/
+    root = os.path.dirname(here)  # リポジトリのルート（setup.py・docs/ がある）
+    run_file = os.path.join(here, f"cmp_{setting}_{course}.py")
     if not os.path.exists(run_file):
         print(f"! {os.path.basename(run_file)} がありません")
         sys.exit(1)
@@ -111,13 +112,24 @@ def main():
 
     print(f"📝 比較走行: {setting} / {course} / この組の {trial} 本目 / ハブ: {hub_name}\n")
     # -u と PYTHONUNBUFFERED: パイプにつなぐと pybricksdev の出力がまとめて届き、走行中の「★測って★」を拾えない（2026-09-18）
-    cmd = [sys.executable, "-u", "-m", "pybricksdev", "run", "ble", run_file, "--name", hub_name]
+    # pybricksdev は送るスクリプトと同じフォルダからしか import を探さないので、setup.py と一緒に .hub_stage/ へ写す
+    sys.path.insert(0, root)
+    from run_with_log import stage_for_hub
+
+    hub_file = stage_for_hub(run_file, root)
+    cmd = [sys.executable, "-u", "-m", "pybricksdev", "run", "ble", hub_file, "--name", hub_name]
     env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
     lines = []
     answered = {}  # 走行の途中でターミナルに入れてもらった値（square / mission の終点のズレ）
     process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
-        encoding="utf-8", errors="replace", env=env,
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
     )
     try:
         for line in process.stdout:
@@ -130,7 +142,9 @@ def main():
                     if key == "向きのズレ_度":
                         continue  # 向きは当て直しで自動
                     answered[key] = ask_number(label)
-                print("  ✓ 入れました。ハブの右ボタン（▶）を押して、ライトが緑になったら当て直してね\n")
+                print(
+                    "  ✓ 入れました。ハブの右ボタン（▶）を押して、ライトが緑になったら当て直してね\n"
+                )
     except KeyboardInterrupt:
         print("\n⏹ 停止しました")
         lines.append("\n[Ctrl+C で停止]\n")

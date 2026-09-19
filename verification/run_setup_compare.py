@@ -61,15 +61,15 @@ from pybricks.tools import wait, multitask, run_task, StopWatch
 from setup import initialize_robot, Robot
 
 # ===== ここを書きかえる =====
-SETTINGS = "new"        # "new" / "old" / "old_full" / "new_short"
-COURSE = "straight"     # "straight" / "turn" / "square" / "mission"
+SETTINGS = "new"  # "new" / "old" / "old_full" / "new_short"
+COURSE = "straight"  # "straight" / "turn" / "square" / "mission"
 # ============================
 
-SQUARE_SIDE = 700       # square コースの 1 辺（mm）。指示書は 1000 だが場所が取れず 500（2026-09-17）→ 500 だと障害物に当たるため 700（2026-09-18）
+SQUARE_SIDE = 700  # square コースの 1 辺（mm）。指示書は 1000 だが場所が取れず 500（2026-09-17）→ 500 だと障害物に当たるため 700（2026-09-18）
 
 # 短い動き用の加速度（Step 6-2 で決めた setup_R.py の値をここに写す。new_short のときだけ使う）
-SHORT_STRAIGHT_ACC = None   # mm/s²  例: 1100
-SHORT_TURN_ACC = None       # deg/s² 例: 1200
+SHORT_STRAIGHT_ACC = None  # mm/s²  例: 1100
+SHORT_TURN_ACC = None  # deg/s² 例: 1200
 
 # 昨年の本番値（old/setup_last_season_backup.py の抜き書き。ここは変えない）
 OLD_WHEEL = 62
@@ -105,13 +105,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     elif SETTINGS == "old_full":
         robot = build_old_full(hub, left_wheel, right_wheel)
 
-    comp = False   # 2026-09-17: 打ち消しは既定で使わない（続けて回るとズレは積み上がらず、打ち消すと逆にズレる）
+    comp = False  # 2026-09-17: 打ち消しは既定で使わない（続けて回るとズレは積み上がらず、打ち消すと逆にズレる）
     print("# 比較走行: SETTINGS =", SETTINGS, "/ COURSE =", COURSE, "/ 回転の打ち消し =", comp)
-    fix = False   # ジャイロに見えない回り足りなさの補正は、係数が決まるまで使わない（2026-09-17）
+    fix = False  # ジャイロに見えない回り足りなさの補正は、係数が決まるまで使わない（2026-09-17）
     print("# 回り足りなさの補正 =", fix)
     if COURSE == "square":
         print("# square の 1 辺:", SQUARE_SIDE, "mm")
-    print("# settings:", robot._robot.settings())  # Robot.settings() は値を返さないので中の DriveBase から読む
+    print(
+        "# settings:", robot._robot.settings()
+    )  # Robot.settings() は値を返さないので中の DriveBase から読む
     print("# heading pid:", robot.heading_control().pid())
     print("# distance pid:", robot.distance_control().pid())
 
@@ -126,7 +128,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     watch.reset()
 
     if COURSE == "straight":
-        await robot.straight(1000)          # 速度の引数は書かない（既定値の効きを見る）
+        await robot.straight(1000)  # 速度の引数は書かない（既定値の効きを見る）
     elif COURSE == "turn":
         for i in range(4):
             await robot.turn(90, compensate=comp, correct=fix)
@@ -157,11 +159,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         print("! COURSE が不正:", COURSE)
 
     t = watch.time() / 1000
-    await wait(3000)                        # 止まってから測れるように待つ
+    await wait(3000)  # 止まってから測れるように待つ
     robot.stop()
 
     print("# 所要時間:", round(t, 2), "秒")
-    print("# ジャイロの向き:", round(hub.imu.heading(), 2), "度 （turn/square は 360、mission は 720 か 0 に近いほど良い）")
+    print(
+        "# ジャイロの向き:",
+        round(hub.imu.heading(), 2),
+        "度 （turn/square は 360、mission は 720 か 0 に近いほど良い）",
+    )
     print("# エンコーダの距離:", robot.distance(), "mm / 電池:", hub.battery.voltage(), "mV")
     if COURSE in ("turn", "square", "mission"):
         await realign_and_report(hub, robot)
@@ -183,16 +189,24 @@ async def realign_and_report(hub, robot):
         # 測る → ターミナルに入れる → ハブの右ボタン（▶）→ 当て直し、の順（2026-09-18 オーナー指示。同時にやるのは難しい）
         hub.light.on(Color.YELLOW)
         await hub.speaker.beep(frequency=300, duration=300)
-        print("# ★測って★ 終点のズレ (mm) を測ってターミナルに入れてね。入れ終わったらハブの右ボタン（▶）を押すと当て直しに進むよ")
+        print(
+            "# ★測って★ 終点のズレ (mm) を測ってターミナルに入れてね。入れ終わったらハブの右ボタン（▶）を押すと当て直しに進むよ"
+        )
         while Button.RIGHT not in hub.buttons.pressed():
             await wait(20)
         while Button.RIGHT in hub.buttons.pressed():
             await wait(20)
         # h1 は止まった時の読みのまま使う。測っている間に機体が少し動いてもジャイロが追っているので、h2 − h1 は変わらない
         if abs(hub.imu.heading() - h1) > 0.3:
-            print("# （測っている間に機体が", round(hub.imu.heading() - h1, 2), "度動いたけど、ジャイロが追っているので結果はそのまま使える）")
+            print(
+                "# （測っている間に機体が",
+                round(hub.imu.heading() - h1, 2),
+                "度動いたけど、ジャイロが追っているので結果はそのまま使える）",
+            )
     hub.light.on(Color.GREEN)
-    print("# ★いま★ ライトが緑になったら（ピーと鳴ったら）、機体の左側面を定規にぴったり当て直して、手を離してね")
+    print(
+        "# ★いま★ ライトが緑になったら（ピーと鳴ったら）、機体の左側面を定規にぴったり当て直して、手を離してね"
+    )
     await hub.speaker.beep(frequency=500, duration=600)
 
     total = StopWatch()
@@ -204,7 +218,9 @@ async def realign_and_report(hub, robot):
         if not hub.imu.stationary():
             still.reset()
             moved = True
-        if total.time() > 8000 and still.time() > 3000:  # 少なくとも 8 秒は待ち、動いたあと 3 秒静止したら終わる
+        if (
+            total.time() > 8000 and still.time() > 3000
+        ):  # 少なくとも 8 秒は待ち、動いたあと 3 秒静止したら終わる
             break
         if total.time() > 60000:  # 1 分たっても当て直されなければ抜ける
             break
@@ -214,8 +230,18 @@ async def realign_and_report(hub, robot):
     await hub.speaker.beep(frequency=1000, duration=200)
     if not moved or abs(h2 - h1) < 0.05:
         print("# ！ 当て直しでほとんど動いていません。当て直しを忘れていたら、この回は除外にしてね")
-    print("# 止まった時のジャイロ h1:", round(h1, 2), "度 / 当て直した時のジャイロ h2:", round(h2, 2), "度")
-    print("# 向きの実測ズレ_右が＋:", round(h1 - h2, 2), "度（当て直しで測った本当のズレ。＋は右に回りすぎ・−は回り足りない）")
+    print(
+        "# 止まった時のジャイロ h1:",
+        round(h1, 2),
+        "度 / 当て直した時のジャイロ h2:",
+        round(h2, 2),
+        "度",
+    )
+    print(
+        "# 向きの実測ズレ_右が＋:",
+        round(h1 - h2, 2),
+        "度（当て直しで測った本当のズレ。＋は右に回りすぎ・−は回り足りない）",
+    )
 
 
 def main(settings=None, course=None):

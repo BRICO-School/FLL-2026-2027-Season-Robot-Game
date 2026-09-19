@@ -15,6 +15,13 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
       ↑ 機構テストなど、成否を記録したくないときは --no-trial
         （環境変数 TRIAL_LOG=0 でも同じ）
 
+【サブフォルダのスクリプト（verification/ など）】
+  python run_with_log.py verification/run_gyro_motor_check.py --name "Pybricks Hub3" --no-trial
+  pybricksdev は「送るスクリプトと同じフォルダ」からしか import を探さないので、
+  サブフォルダのスクリプトはそのままだと `from setup import ...` が見つからない。
+  そこで .hub_stage/ に「ルートの setup.py ＋ そのフォルダの *.py」を写してから送る（stage_for_hub）。
+  ログの保存先（docs/logs/<スクリプト名>/）は変わらない。
+
 【使い方（VS Code）】
   launch.json に用意された「📝 Robot X + Log」構成で実行すると、
   開いているファイルが自動的にログ付きで実行される。
@@ -31,6 +38,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 - 2026-09-09: 走行結果の記録とコードスナップショット保存機能を追加した。
 - 2026-09-09: セレクター経由のプログラム実行ログの記録に対応した
 - 2026-09-09: Ctrl+Cによる中断時にプロセスを安全に終了する処理を追加。
+- 2026-09-19: サブフォルダのスクリプト実行時にルートの設定ファイルを同梱して転送する処理を追加
 """
 
 import csv
@@ -361,6 +369,29 @@ def record_selector_trials(root, hub_args, watcher, exit_code, log_path):
         )
 
 
+STAGE_DIR = ".hub_stage"
+
+
+def stage_for_hub(run_file, root):
+    """サブフォルダのスクリプトを、ルートの setup.py と同じフォルダに写して、その写しのパスを返す。
+
+    ルート直下のスクリプトは何もせずそのまま返す。
+    """
+    src = os.path.abspath(run_file)
+    src_dir = os.path.dirname(src)
+    if os.path.normcase(src_dir) == os.path.normcase(os.path.abspath(root)):
+        return run_file
+    stage = os.path.join(root, STAGE_DIR)
+    shutil.rmtree(stage, ignore_errors=True)
+    os.makedirs(stage)
+    for name in os.listdir(src_dir):
+        if name.endswith(".py"):
+            shutil.copy2(os.path.join(src_dir, name), os.path.join(stage, name))
+    # ルートの setup.py を最後に写す（サブフォルダに同じ名前があっても、本番の setup.py を使う）
+    shutil.copy2(os.path.join(root, "setup.py"), os.path.join(stage, "setup.py"))
+    return os.path.join(stage, os.path.basename(src))
+
+
 def main():
     args = sys.argv[1:]
     no_trial = "--no-trial" in args
@@ -383,7 +414,8 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = os.path.join(log_dir, f"{timestamp}.log")
 
-    cmd = [sys.executable, "-m", "pybricksdev", "run", "ble", run_file] + hub_args
+    hub_file = stage_for_hub(run_file, script_dir)
+    cmd = [sys.executable, "-m", "pybricksdev", "run", "ble", hub_file] + hub_args
 
     print(f"📝 ログ保存先: {log_path}")
     print(f"📝 実行コマンド: pybricksdev run ble {run_file} {' '.join(hub_args)}")

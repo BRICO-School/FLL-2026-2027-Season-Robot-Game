@@ -116,7 +116,7 @@ DEFAULT_TURN_SETTINGS = {
 #   2026-09-19: 365.8 は取り下げ。始めに 2 秒待つ＋校正表 360.1 で new の square（700mm）×4 本の終点は 10 / 2 / 10 / 16mm。
 #   9/18 の turn / square / mission の向きと終点は、ジャイロの状態 A/B が混ざる条件での数字なので取り直しの候補（直進・時間はそのまま）。
 # 切りかえ方: ここを書きかえるか、run ファイルで initialize_robot(drive_settings="old") と呼ぶ。起動時に画面に出る。
-DRIVE_SETTINGS = "new"   # "new" / "old"
+DRIVE_SETTINGS = "new"  # "new" / "old"
 LAST_SEASON_STRAIGHT_SETTINGS = {"straight_speed": 400, "straight_acceleration": 500}
 LAST_SEASON_TURN_SETTINGS = {"turn_rate": 240, "turn_acceleration": 850}
 
@@ -617,7 +617,11 @@ def wait_gyro_settle(hub):
         if not (hub.imu.ready() and hub.imu.stationary()):
             still.reset()  # 動いたら数え直し
         if total.time() > GYRO_SETTLE_TIMEOUT_MS:
-            print("⚠ ジャイロの待ち: 機体が止まらないまま", GYRO_SETTLE_TIMEOUT_MS, "ms たちました。回転が約 1.4% ずれるかもしれません")
+            print(
+                "⚠ ジャイロの待ち: 機体が止まらないまま",
+                GYRO_SETTLE_TIMEOUT_MS,
+                "ms たちました。回転が約 1.4% ずれるかもしれません",
+            )
             return
         wait(20)
     print("✓ ジャイロの待ち完了:", total.time(), "ms（止まったまま", GYRO_SETTLE_MS, "ms）")
@@ -719,7 +723,9 @@ def initialize_robot(drive_settings=None):
         print("✓ PID制御設定完了（Pybricks の既定値を使用）")
 
     # ----- ステップ5: センサーの初期化 -----
-    wait_gyro_settle(hub)  # 始めてすぐの回転はジャイロが多く数えるので、止まったまま少し待つ（2026-09-19）
+    wait_gyro_settle(
+        hub
+    )  # 始めてすぐの回転はジャイロが多く数えるので、止まったまま少し待つ（2026-09-19）
     initialize_sensors(hub, robot)
     print("✓ センサー初期化完了")
 

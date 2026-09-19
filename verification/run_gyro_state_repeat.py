@@ -31,7 +31,9 @@ from setup import initialize_robot
 TURNS = 5
 REPEATS = 6
 DIRECTION = 1  # 1 = 右回り / -1 = 左回り
-START_WAIT_MS = 0  # 最初の 5 周の前に、さわらずに待つ時間 (ms)。「始めてすぐの 1 回だけ A」かを見るため
+START_WAIT_MS = (
+    0  # 最初の 5 周の前に、さわらずに待つ時間 (ms)。「始めてすぐの 1 回だけ A」かを見るため
+)
 WHEEL_MM = 62.32  # setup.py の ROBOT_PROFILES と同じ（比率の計算だけに使う）
 AXLE_MM = 114.48
 # 加速・減速のところはタイヤのすべり方が違うので、比率は 1 周目の終わり〜4 周目の終わりで取る
@@ -81,7 +83,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
             if hub.imu.stationary():
                 still_count += 1
             await wait(20)
-        print("# 最初に待った時間:", START_WAIT_MS, "ms / そのうち静止と判定:", still_count, "/", count, "回")
+        print(
+            "# 最初に待った時間:",
+            START_WAIT_MS,
+            "ms / そのうち静止と判定:",
+            still_count,
+            "/",
+            count,
+            "回",
+        )
         hub.light.on(Color.BLUE)
 
     for i in range(REPEATS):
@@ -142,6 +152,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         await wait(2000)
 
     print("# 電池:", hub.battery.voltage(), "mV")
+
 
 def main(direction=None, start_wait_ms=None, repeats=None):
     global DIRECTION, START_WAIT_MS, REPEATS

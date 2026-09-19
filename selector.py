@@ -1,25 +1,24 @@
 """
-【開発版プログラムセレクター】
-このファイルは、selector.pyの「開発版（デベロップメント版）」です。
-通常版よりも高機能で、デバッグ（バグ探し）に便利な機能があります。
-
-【通常版（selector.py）との違い】
-1. センサーログ機能：ロボットの動きをリアルタイムで記録できる
-2. 非同期処理：複数の作業を同時に行える（ログを取りながらロボットを動かす）
-3. devフラグ：開発モードと本番モードを簡単に切り替えられる
-
-【devフラグとは？】
-- dev=True : 開発モード（センサーログが有効、デバッグに便利）
-- dev=False : 本番モード（センサーログなし、競技本番用）
+【プログラムセレクター】（競技で使う入口。ハブの中でずっと動きつづけ、ミッションのプログラムを選んで走らせる）
 
 【使い方】
-通常版と同じように、左右ボタンでプログラムを選び、
-フォースセンサーで実行します。
-開発モードでは、ロボットの動きが数値で画面に表示されます。
+ハブの左右ボタンでプログラムの番号を選び、フォースセンサー（ポート C）を押すと走り出す。
+走り終わるとセレクターに戻るので、ホームで次の番号を選んでまた押す。
 
-【いつ使う？】
-- プログラムのテスト中 → dev=True
-- 競技本番 → dev=False
+【競技の流れと初期化】
+initialize_robot() を呼ぶのは、このファイルを始めたときの 1 回だけ（ジャイロの待ち 2 秒もこの 1 回だけ。
+試合が始まる前に終わっている）。ミッションごとに行うのは reset_robot()（距離と向きを 0 に戻す）だけで、待ち時間は無い。
+
+【devフラグ】
+- dev=True : 開発モード（0.2 秒ごとにセンサーの値を画面に出す。デバッグ用）
+- dev=False : 本番モード（ログなし。競技本番はこちら）
+
+【プログラムの足し方】
+1. run_template.py をコピーして run_<ミッション>_<名前>.py を作る（例: run_M04_kanna.py）
+2. 下の「競技プログラムのインポート」に import を 1 行足す
+3. programs リストに {"module": <その名前>, "display_number": <ハブに出す番号>} を 1 行足す
+
+昨シーズンまでの run ファイルは archive/ に移した（2026-09-19）。
 """
 
 # ===== ライブラリのインポート =====
@@ -29,13 +28,8 @@ from pybricks.pupdevices import ForceSensor  # センサーを使うための道
 from pybricks.tools import StopWatch, multitask, run_task, wait  # 待機、並行処理、タイマーの道具
 
 # ----- 競技プログラムのインポート -----
-# 各ミッションのプログラムを読み込みます
-import run1_M01_M02_kanna  # ミッション1と2のプログラム
-import run1_m08_M06_M05_new  # ミッション8、6、5のプログラム（新版）
-import run1_M10_M11  # ミッション10と11のプログラム
-import run1_M13_M03  # ミッション13と3のプログラム
-import run3_M09_M07_ayumu_modified  # ミッション9と7のプログラム（修正版）
-import run4_M12_ayumu  # ミッション12のプログラム
+# 各ミッションのプログラムを読み込みます（今シーズンのプログラムができたら、ここに足す）
+import run_template  # ひな形（500mm 直進するだけ）。最初のプログラムができたら入れかえる
 from setup import initialize_robot  # ロボットを初期化する関数をインポート
 
 # ===== 開発モードの設定 =====
@@ -57,12 +51,7 @@ hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
 #   - display_number: ハブに表示する番号（必須）
 # ※ 各モジュールには「run」という名前の関数が必要です
 programs = [
-    {"module": run1_m08_M06_M05_new, "display_number": 1},
-    {"module": run3_M09_M07_ayumu_modified, "display_number": 2},
-    {"module": run1_M10_M11, "display_number": 3},
-    {"module": run4_M12_ayumu, "display_number": 4},
-    {"module": run1_M01_M02_kanna, "display_number": 5},
-    {"module": run1_M13_M03, "display_number": 6},
+    {"module": run_template, "display_number": 1},
 ]
 
 # ===== フォースセンサーの初期化 =====
@@ -159,7 +148,7 @@ async def selector_task():
     プログラムを選択して実行するタスク（非同期版）
 
     【この関数の役割】
-    通常版のselector.pyと同じ機能を、非同期処理で実現します。
+    プログラムを選んで走らせる機能を、非同期処理で実現します。
     左右ボタンでプログラムを選び、フォースセンサーで実行します。
 
     【通常版との違い】

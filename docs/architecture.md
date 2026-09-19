@@ -322,21 +322,21 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 
 ```python
 # ① ファイル冒頭でミッションのファイルを import する
-import run1_m08_M06_M05_new       # ← 追加したい run_*.py をここで読み込む
-import run4_M12_ayumu
+import run_M04_kanna       # ← 追加したい run_*.py をここで読み込む（名前は例）
+import run_M07_ayumu
 
 # ② programs リストに { "module": モジュール, "display_number": 番号 } を並べる
 programs = [
-    {"module": run1_m08_M06_M05_new, "display_number": 1},
-    {"module": run4_M12_ayumu,       "display_number": 2},
+    {"module": run_M04_kanna, "display_number": 1},
+    {"module": run_M07_ayumu, "display_number": 2},
     # 新しいミッションはこの下に1行足す ↓
     # {"module": run_M14_keiichiro,  "display_number": 3},
 ]
 ```
 
 - **`"module"`（必須）**: `import` したモジュール（＝ファイル）そのものを書きます。
-  **文字列ではなく、import した名前をそのまま**置きます（`"run4_M12_ayumu"` ではなく
-  `run4_M12_ayumu`）。そのモジュールには必ず `run` 関数が必要です（§3.2 のお約束）。
+  **文字列ではなく、import した名前をそのまま**置きます（`"run_M07_ayumu"` ではなく
+  `run_M07_ayumu`）。そのモジュールには必ず `run` 関数が必要です（§3.2 のお約束）。
 - **`"display_number"`（必須）**: ハブの画面に出る番号です。重複しても動きますが、
   選ぶとき紛らわしいので**通し番号にする**のがおすすめです。
 - **並び順 = 選択順**: リストの上から順に、左右ボタンで選べます。競技のラン順に並べると
@@ -361,7 +361,8 @@ run_test_*.py                              性能テスト用（競技では使�
   自由に試せるようにするためです。他人のファイルは勝手に直さないのがマナーです。
 - 新しく作るときは `run_template.py`（雛形）をコピーして、`run()` の中に動きを書きます。
   本番で使うときだけ `selector.py` の一覧に足します。
-- `old/` フォルダは昔のファイル置き場です（参照だけ。ruff のチェック対象外）。
+- `archive/` フォルダは昔のファイル置き場です（`archive/2025/` ＝旧 old/・`archive/2026-pre-bioglow/` ＝昨シーズンの run。参照だけ。ruff のチェック対象外）。
+- `verification/` フォルダは精度の検証用コード（ジャイロ・IMU 校正・新旧比較）。pybricksdev は送るスクリプトと同じフォルダからしか import を探さないので、`run_with_log.py` 経由で走らせる（`.hub_stage/` に setup.py と一緒に写して送る）。VS Code の「🤖 Robot X」（ログなし）では動かない。
 
 ---
 
@@ -432,7 +433,7 @@ def add(items=[]): # B: デフォルト引数に [] は危険（呼び出し間�
 - **`run*.py` / `run_template.py` は `F401` と `I001` を除外** … 「未使用 import」と
   「import 並べ替え」を**しない**。子どもが学習用にまとめて書いて残した import を、
   自動修正で消したり並べ替えたりして混乱させないため。
-- **`old/` と `.venv` はチェックしない**（`extend-exclude`）。
+- **`archive/`・`.hub_stage/`・`.venv` はチェックしない**（`extend-exclude`）。
 
 ### 7.2 ruff が走るタイミングは「2 つ」ある
 

@@ -4,7 +4,7 @@
 コピーして使用してください。
 
 【使い方】
-1. このファイルをコピーして、新しい名前をつける（例: run2_M04_M05.py）
+1. このファイルをコピーして、新しい名前をつける（例: run_M04_kanna.py。run_ で始めると変更の記録が自動で付く）
 2. run() 関数内にロボットの動作を記述する
 3. selector.py の programs リストに追加する
 
@@ -14,6 +14,7 @@
 - 2026-09-17: 旋回設定のコメントから回りすぎに関する補足を削除した。
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
+- 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 """
 
 from pybricks.hubs import PrimeHub
@@ -25,9 +26,6 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-
-    await robot.straight(500, speed=500)
-
     """
     ロボットの動作を記述する関数
 
@@ -67,6 +65,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
     # ここにロボットの動作を記述してください
     #######################################
+
+    await robot.straight(500, speed=500)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
 
     # ロボットを停止
     robot.stop()

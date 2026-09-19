@@ -65,20 +65,15 @@ FLL-2026-2027-Season-Robot-Game/
 ├── setup.py                    # ★ ロボット初期化＋Robotクラス（全 run 共通基盤）
 ├── selector.py                 # ★ 競技本番のエントリポイント（multitask）
 ├── run_template.py             # 新しい run を作るテンプレート
-├── run_template copy.py        # テンプレートの派生
-├── run_with_log.py             # pybricksdev ラッパー（ログ自動保存 + 走行後の成否記録）
-├── run1_M01_M02_kanna.py       # ミッション別プログラム（担当者名付き）
-├── run1_M05_M06_M07_M08_kidachi.py
-├── run1_M10_M11.py
-├── run1_M13_M03.py
-├── run1_m08_M06_M05_new.py
-├── run3_M09_M07_ayumu_modified.py
-├── run4_M12_ayumu.py
-├── run4_M12_kanna.py
-├── run4_M12_Yuta.py
-├── run_M01_kanna.py
-├── run_M01_kidachi.py
-├── run_test_ayumu*.py          # 歩むの検証用スクリプト
+├── run_with_log.py             # pybricksdev ラッパー（ログ自動保存 + 走行後の成否記録。サブフォルダのスクリプトは .hub_stage/ に写して送る）
+├── run_<ミッション>_<名前>.py   # 今シーズン（BIOGLOW）のミッション別プログラム（これから作る。ルート直下に置く）
+├── run_left_arm_test.py / run_lift_motor_test.py   # アームの機構テスト
+├── verification/               # 検証用コード（ジャイロ・IMU 校正・setup の確認・新旧比較 compare.py と cmp_*.py）
+│                               #   走らせ方: uv run python run_with_log.py verification/<ファイル> --name "<ハブ名>" --no-trial
+│                               #   比較走行: uv run python verification/compare.py new square --name "<ハブ名>"
+├── archive/
+│   ├── 2025/                   # 旧 old/（2025 年のスクリプトと旧 README・昨年の setup の控え）
+│   └── 2026-pre-bioglow/       # 2025-12〜2026-07 の run ファイル（昨シーズンのミッションと練習。参照のみ）
 ├── pyproject.toml              # 依存 (pybricks, pybricksdev, ruff …) と ruff 設定
 ├── uv.lock                     # 依存の完全固定 (全 OS 共通)
 ├── .python-version             # Python 3.12 に固定
@@ -98,13 +93,13 @@ FLL-2026-2027-Season-Robot-Game/
 │   ├── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先
 │   ├── trial_log_spec.md       # 試行記録の仕様
 │   └── trials/                 # 試行記録 CSV・コードのスナップショット・集計レポート
-└── old/                        # 旧版スクリプトと旧 README（参照のみ、ruff 除外）
+└── scripts/                    # PC 側の道具（変更履歴 hook・試行レポート・gyro_trace_summary.py）
 ```
 
 ### 命名規則
 
 - `run<ラン番号>_<ミッション列>_<担当者>.py`
-  例: `run1_M01_M02_kanna.py` → 「ラン1、M01+M02、kanna 担当」
+  例: `run_M04_kanna.py` → 「M04、kanna 担当」（`run_` で始めると変更履歴が自動で付く。昨シーズンの `run1_M01_M02_kanna.py` 形式は archive/ にある）
 - 同じミッションでも **担当者別にファイルを分けている** のが特徴です。
   これは子どもたちが互いのコードを壊さずに試行錯誤するための運用です。
   メンター側も、他人のファイルを勝手に書き換えないよう注意してください。
@@ -149,9 +144,9 @@ FLL-2026-2027-Season-Robot-Game/
     - 校正表は B に合わせてある（360.1）。確かめ（2026-09-19）: 90° ずつ 20 回で本当のズレ +0.2〜+0.5°（3 本）・70cm 四方の終点 10 / 2 / 10 / 16mm（4 本）。
       2026-09-18 の「多数派の A に合わせて 365.8」は取り下げ（始めに待てば A は出ないため。365.8 のままだと B のとき 90° あたり約 1.45° 回りすぎる）。
     - **要所で壁に当てて向きを取り直す**設計は変えない。
-  - **1 台を表に足す手順（約 15 分）**: ①ハブを機体から外して `uv run pybricksdev run ble run_imu_calibrate_guided.py --name "<ハブ名>"`
+  - **1 台を表に足す手順（約 15 分）**: ①ハブを機体から外して `uv run python run_with_log.py verification/run_imu_calibrate_guided.py --name "<ハブ名>" --no-trial`
     （メロディ → 画面の軸名の向きに置いて右ボタン → 手前に 90° ゆっくり倒すを 8 回 × 3 軸）②機体に戻し、固定した定規に左側面を当てて
-    `uv run python run_with_log.py run_gyro_motor_check.py --name "<ハブ名>" --no-trial` を 5 回以上（置いて手を離してから実行 → 2 秒待ってからモーターで 5 周 → ライトが緑になったら手で定規に当て直す）
+    `uv run python run_with_log.py verification/run_gyro_motor_check.py --name "<ハブ名>" --no-trial` を 5 回以上（置いて手を離してから実行 → 2 秒待ってからモーターで 5 周 → ライトが緑になったら手で定規に当て直す）
     → ログの「1 周の読み」の平均を `heading_correction` に書く。2 秒待ってからの回転は全部 状態 B になる見こみ。1 本だけ約 1.4% 大きい読みが出たら状態 A（待ちが効いていない）なので平均に入れない
     （2026-09-19 改訂。9/18 の「A の本だけの平均」は取り下げ）③書いたあと同じ確認を 3 回以上（5 周で ±5° 以内なら合格。ズレが 0.3° 未満だと「当て直し忘れ」の警告が出るが、当て直したのが確かなら有効）。
   - **ファームを入れ直すと 3 軸校正は消える**（起動時に警告が出る）。ハブの交換・位置の変更・重い常設アタッチメントのあとは ② をやり直す。
@@ -461,7 +456,7 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 - `select = ["E", "F", "I", "B", "UP"]`、`ignore = ["E501"]`（長い行は許容）。
 - `run*.py` と `run_template.py` は `F401`（未使用 import）と `I001`（import ソート）を除外
   → 子どもが学習用に意図的に残している import を壊さないため。
-- `old/` と `.venv` は ruff の検査対象外。
+- `archive/`・`.hub_stage/`・`.venv` は ruff の検査対象外。
 - `.pre-commit-config.yaml` は `ruff check --fix` と `ruff format` をローカルフックで実行。
 
 ---
