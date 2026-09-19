@@ -13,6 +13,7 @@
 - 2026-09-17: 直進と旋回のデフォルト速度および加速度の記載を更新した
 - 2026-09-17: 旋回設定のコメントから回りすぎに関する補足を削除した。
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
+- 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -75,5 +76,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 # ===== 単体テスト用（このファイルを直接実行した場合） =====
 if __name__ == "__main__":
     # 昨年の速度・加速度・PID で走らせて成功率を比べるときは initialize_robot(drive_settings="old")（2026-09-18・setup.py の DRIVE_SETTINGS）
+    # initialize_robot() は、機体が止まったまま 2 秒待ってから進む（2026-09-19・ジャイロは始めてすぐの回転だけ約 1.4% 多く数えるため）。
+    # 機体を置いて手を離してから実行する。
     hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
     run_task(run(hub, robot, left_wheel, right_wheel, left_lift, right_lift))

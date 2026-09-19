@@ -209,6 +209,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 | 2 | `setup_motors()` | タイヤ(F/B＝必須)とアーム(E/A＝任意)のモーターを用意する |
 | 3 | `setup_robot_parameters()` | タイヤの大きさなどを設定し、後述の `Robot` で包む |
 | 4 | `setup_pid_control()` | まっすぐ走るための自動調整（PID）を設定する |
+| 4.5 | `wait_gyro_settle()` | 機体が止まったまま 2 秒待つ（2026-09-19 追加。ジャイロは始めてすぐの回転だけ約 1.4% 多く数えるため。置いて手を離してから実行する） |
 | 5 | `initialize_sensors()` | 向きセンサーをONにして、向き・距離を 0 に戻す |
 | 6 | `reset_motor_angles()` | 全モーターの回転角度を 0 に戻す |
 
@@ -278,7 +279,7 @@ Pybricks には `DriveBase`（2 輪走行をまとめて扱う部品）があり
 | `Port.F` / `Port.B` | `setup_motors()` | 左タイヤ／右タイヤのポート（※必須） |
 | `Port.E` / `Port.A` | `setup_motors()` | 左リフト／右リフトのポート（未接続なら `NullMotor`） |
 | `positive_direction=Direction.…` | `setup_motors()` | 各モーターの「正」とする回転方向 |
-| `ROBOT_PROFILES` / `DEFAULT_PROFILE` | ファイル冒頭（`apply_robot_profile()` が起動時に適用） | 機体（ハブ名）ごとの `wheel`（タイヤ径 62.32）・`axle`（トレッド 114.48）・`heading_correction`（ジャイロの目盛り。Hub3 は 365.8・2026-09-18 暫定。ジャイロは「1 周 約 365 と数える状態 A」と「約 360 の状態 B」を行き来し、多数派の A に合わせた値）。表に無いハブは触らず警告 |
+| `ROBOT_PROFILES` / `DEFAULT_PROFILE` | ファイル冒頭（`apply_robot_profile()` が起動時に適用） | 機体（ハブ名）ごとの `wheel`（タイヤ径 62.32）・`axle`（トレッド 114.48）・`heading_correction`（ジャイロの目盛り。Hub3 は 360.1・2026-09-19 暫定。ジャイロは「プログラムを始めて約 1 秒以内の回転」だけ 1 周を約 365 と数え（状態 A）、1 秒以上止まったあとは約 360（状態 B・正確）。`initialize_robot()` が `wait_gyro_settle()` で止まったまま `GYRO_SETTLE_MS`＝2 秒待つので走行は B になり、B に合わせた値。2026-09-18 の 365.8 は取り下げ）。表に無いハブは触らず警告 |
 | `DRIVE_SETTINGS` | ファイル冒頭（`initialize_robot(drive_settings=…)` でも指定可） | `"new"`（今年の速度・加速度・Pybricks 既定 PID）／`"old"`（昨年の速度・加速度・PID）。開発中は両方でミッションを走らせて成功率で決める（2026-09-18） |
 | `wheel_diameter=_active_profile["wheel"]` | `setup_robot_parameters()` | タイヤの直径(mm)。校正表から |
 | `axle_track=_active_profile["axle"]` | `setup_robot_parameters()` | 左右タイヤの間隔(mm)。校正表から |
