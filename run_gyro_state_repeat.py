@@ -9,15 +9,18 @@ B の回は、同じジャイロの角度に対してモーターが約 1.5〜2%
  ・1 回のプログラムの中で比率が A と B に分かれたら → プログラムの開始や置き方ではなく、回転のたびに決まる
  ・プログラムの中では全部同じで、プログラムごとに変わるなら → 開始時（ハブの準備・置き方）で決まる
 
-やり方:
+やり方（2026-09-19 改: 1 回ごとに当て直す。比率だけでは A/B を見分けきれなかったため）:
  1. 機体の左側面を定規に当てて置き、手を離して実行する
- 2. 5 周 → 2 秒休み を REPEATS 回くり返す（約 1 分）。そのあいだ機体にさわらない
- 3. 最後にライトが緑になったら、手で定規に当て直して手を離す（全部の合計のズレを読む）
+ 2. 5 周まわって止まり、ライトが緑になる（ピー）→ 手で定規に当て直して手を離す
+ 3. 青になって 2 秒たつと、次の 5 周が始まる。これを REPEATS 回くり返す（約 2 分）
+    当て直しは「近いほうへ」回す。機体が定規から離れていたら、向きを変えずに定規へ寄せてから当てる
+ 4. 最後はライトが青のまま終わる
 
 ハブの設定は書きかえない。
 
 【更新履歴】
 - 2026-09-19: 連続旋回時のジャイロとエンコーダ比率を記録する検証スクリプトを追加した
+- 2026-09-19: 最後ではなく回転ごとに定規へ当て直してズレを計測するよう変更した
 """
 
 from pybricks.parameters import Axis, Color
@@ -32,6 +35,27 @@ AXLE_MM = 114.48
 # 加速・減速のところはタイヤのすべり方が違うので、比率は 1 周目の終わり〜4 周目の終わりで取る
 MID_FROM_DEG = 360
 MID_TO_DEG = 360 * (TURNS - 1)
+
+
+async def realign(hub):
+    """緑にして、手で定規に当て直されるのを待ち、当て直したあとのジャイロの向きを返す"""
+    hub.light.on(Color.GREEN)
+    hub.speaker.volume(100)
+    await hub.speaker.beep(frequency=500, duration=600)
+    total = StopWatch()
+    still = StopWatch()
+    await wait(1500)  # 手を伸ばす時間
+    still.reset()
+    while True:
+        if not hub.imu.stationary():
+            still.reset()
+        if total.time() > 6000 and still.time() > 2500:  # 少なくとも 6 秒は待つ
+            break
+        await wait(20)
+    h2 = hub.imu.heading()
+    hub.light.on(Color.BLUE)
+    await hub.speaker.beep(frequency=1000, duration=200)
+    return h2
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
@@ -82,37 +106,26 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
             ", 電池",
             hub.battery.voltage(),
         )
-        await wait(1000)
+        # 1 回ごとに当て直して、本当のズレと「1 周の読み」を出す（A なら校正前の目盛りで約 365・B なら約 360）
+        h1 = hub.imu.heading()
+        robot.stop()  # モーターの力を抜く（手で回せるように）
+        h2 = await realign(hub)
+        per_turn = abs(h2 - h0) / TURNS
+        print(
+            "S,",
+            i + 1,
+            ", 当て直しで動いた角度 h2-h1",
+            round(h2 - h1, 2),
+            ", 1 周の読み",
+            round(per_turn, 3),
+            ", 校正前の目盛りで",
+            round(per_turn * hub.imu.settings()[-1] / 360, 2),
+        )
+        # DriveBase は「命令した角度の合計」を目標として覚えているので、手で回したぶんを忘れさせる
+        robot.reset()
+        await wait(2000)
 
-    h1 = hub.imu.heading()
-    robot.stop()  # モーターの力を抜く（手で回せるように）
-    hub.light.on(Color.GREEN)
-    print(
-        "# ★いま★ ライトが緑になったら（ピーと鳴ったら）、手で定規にぴったり当て直して、手を離してね"
-    )
-    hub.speaker.volume(100)
-    await hub.speaker.beep(frequency=500, duration=600)
-    total = StopWatch()
-    still = StopWatch()
-    await wait(1500)  # 手を伸ばす時間
-    still.reset()
-    while True:
-        if not hub.imu.stationary():
-            still.reset()
-        if total.time() > 8000 and still.time() > 3000:  # 少なくとも 8 秒は待つ
-            break
-        await wait(20)
-    h2 = hub.imu.heading()
-    hub.light.on(Color.BLUE)
-    await hub.speaker.beep(frequency=1000, duration=200)
-    if abs(h2 - h1) < 0.3:
-        print("# ！ 合わせ直しでほとんど動いていません。当て直しを忘れていたら、合計のズレは無効です")
-    print("# 命令の合計:", 360 * TURNS * REPEATS * DIRECTION, "度 / 止まった時のジャイロ h1:", round(h1, 2), "度")
-    print("# 定規に合わせ直した時のジャイロ h2:", round(h2, 2), "度")
-    print("# 合計の本当のズレ（右回りで＋は回り足りない）:", round(h2 - h1, 2), "度（ジャイロの目盛りで）")
-    print("# 1 周の読みの平均:", round(abs(h2) / (TURNS * REPEATS), 3), "度")
     print("# 電池:", hub.battery.voltage(), "mV")
-
 
 def main(direction=None):
     global DIRECTION
