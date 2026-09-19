@@ -10,13 +10,14 @@ PC 側だけで動く。ハブには関係ない。外部のライブラリも�
 run_with_log.py で成否を記録するたびに自動で作り直されるので、ふだんは
 docs/trials/dashboard.html をブラウザで開いて、再読みこみ（F5）するだけでよい。
 
-【見られるもの】
-  ・全体の試行数・成功率・今日の試行数
-  ・ミッションごとの 成功 / 途中まで / 失敗 の本数と成功率
-  ・日ごとの成功率と試行数
-  ・メンバーごとの試行数と成功率
-  ・最近の試行の一覧（メモ・ログの場所つき）
-  期間・ミッション・メンバー・ハブでしぼりこめる。
+【見られるもの】（開発の進め方「① run ファイルで要素開発 → ② セレクターから通し」に合わせてある）
+  ・いまの見こみ点（満点 × 直近 10 本の成功率 の合計）と、ミッションの進み
+  ・点数マップ: 15 ミッションの満点・段階（未着手／要素開発中／単体で安定／通しに入れた／通しで安定）・成功率・見こみ点
+  ・① 要素開発: run ファイルごとの成功率・平均秒・コードの版の数・直近の成否の並び
+  ・② 通し: セレクターで続けて走らせた 1 回ごとの見こみ点と時間（試合は 150 秒）
+  ・日ごとの成功率と試行数／メンバーごと／最近の試行の一覧（メモ・ログの場所つき）
+  期間・走らせ方（単体／通し）・ミッション・メンバー・ハブでしぼりこめる。
+  点数の表は scripts/bioglow_missions.py（公式の採点表とルールブックから。合計 530 点）。
 
 成功率の分母は 成功 + 途中まで + 失敗。「動かなかった (error)」は、チェックを入れたときだけ数える。
 dashboard.html は生成物なので git には入れない（.gitignore）。表とグラフの PNG が要るときは trial_report.py。
@@ -29,6 +30,9 @@ import os
 import sys
 import webbrowser
 from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bioglow_missions as bm  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
@@ -70,6 +74,15 @@ def build(csv_path=TRIALS_CSV, out_path=OUT_HTML):
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "today": datetime.now().strftime("%Y-%m-%d"),
         "rows": rows,
+        "missions": [
+            {"id": m["id"], "name": m["name"], "en": m["en"], "max": m["max"], "items": m["items"]}
+            for m in bm.MISSIONS
+        ],
+        "missionMax": bm.MISSION_MAX_TOTAL,
+        "inspection": bm.EQUIPMENT_INSPECTION,
+        "tokensMax": bm.PRECISION_TOKENS[6],
+        "grandTotal": bm.GRAND_TOTAL,
+        "matchSec": bm.MATCH_SECONDS,
     }
     # </script> で HTML が切れないように "<" を逃がす
     payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
@@ -90,63 +103,73 @@ TEMPLATE = r"""<!doctype html>
   color-scheme: light;
   --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
-  --series: #2a78d6; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --neutral: #c3c2b7;
+  --series: #2a78d6; --track: #cde2fb; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --neutral: #c3c2b7;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
-    --series: #3987e5; --neutral: #52514e;
+    --series: #3987e5; --track: #104281; --neutral: #52514e;
   }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", "Yu Gothic UI", "Hiragino Sans", sans-serif; font-size: 14px; line-height: 1.6; }
-main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
 h1 { font-size: 22px; margin: 0 0 2px; }
-h2 { font-size: 15px; margin: 0 0 2px; }
-.sub { color: var(--ink2); font-size: 12.5px; margin: 0 0 12px; }
+h2 { font-size: 16px; margin: 0 0 2px; }
+h2 small { font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+.sub { color: var(--ink2); font-size: 12.5px; margin: 0 0 10px; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 16px 0;
   padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
 .filters label { color: var(--ink2); font-size: 12.5px; display: flex; gap: 6px; align-items: center; }
 select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 6px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.kpis { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+@media (max-width: 760px) { .kpis { grid-template-columns: 1fr 1fr; } }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+.kpi { margin: 0; }
 .kpi .label { color: var(--ink2); font-size: 12.5px; }
 .kpi .value { font-size: 30px; font-weight: 600; line-height: 1.25; }
+.kpi .value small { font-size: 15px; font-weight: 400; color: var(--muted); }
 .kpi.hero .value { font-size: 48px; }
 .kpi .note { color: var(--muted); font-size: 12px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink2); font-size: 12.5px; margin: 6px 0 8px; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink2); font-size: 12.5px; margin: 2px 0 8px; }
+.legend i, .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 svg text { fill: var(--ink2); font-size: 11.5px; }
 svg text.val { fill: var(--ink); }
-svg .hit { fill: transparent; cursor: default; }
+svg .hit { fill: transparent; }
 .scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; vertical-align: middle; }
 th { color: var(--ink2); font-weight: 600; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.wrap { white-space: normal; min-width: 12em; }
-.res { display: inline-flex; align-items: center; gap: 5px; }
-.res i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.empty { color: var(--muted); padding: 18px 0; }
+tr.idle td { color: var(--muted); }
+.meter { display: inline-block; width: 90px; height: 8px; border-radius: 4px; background: var(--track); vertical-align: middle; margin-right: 8px; overflow: hidden; }
+.meter b { display: block; height: 100%; background: var(--series); border-radius: 4px 0 0 4px; }
+.meter.over b { background: var(--critical); }
+.strip i { display: inline-block; width: 8px; height: 14px; border-radius: 2px; margin-right: 2px; vertical-align: middle; }
+.empty { color: var(--muted); padding: 14px 0; }
 #tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); padding: 6px 9px; border-radius: 6px;
-  font-size: 12px; line-height: 1.5; opacity: 0; transition: opacity .08s; z-index: 10; max-width: 260px; }
+  font-size: 12px; line-height: 1.5; opacity: 0; transition: opacity .08s; z-index: 10; max-width: 300px; }
 details summary { cursor: pointer; color: var(--ink2); font-size: 12.5px; margin-top: 8px; }
+.how { color: var(--ink2); font-size: 12.5px; margin: 8px 0 0; }
 </style>
 </head>
 <body>
 <main>
-  <h1>試行記録ダッシュボード</h1>
+  <h1>試行記録ダッシュボード <small style="font-size:13px;font-weight:400;color:var(--muted)">BIOGLOW 2026-27</small></h1>
   <p class="sub">走らせるたびに記録した 成功・失敗 のまとめ。作成: <span id="gen"></span> ／ もとのデータ: docs/trials/trials.csv</p>
 
   <div class="filters">
     <label>期間 <select id="f-period">
       <option value="all">ぜんぶ</option><option value="today">今日</option>
       <option value="7">この 7 日</option><option value="30">この 30 日</option></select></label>
+    <label>走らせ方 <select id="f-via">
+      <option value="">ぜんぶ</option><option value="single">① 単体（run ファイル）</option><option value="selector">② 通し（セレクター）</option></select></label>
     <label>ミッション <select id="f-mission"></select></label>
     <label>メンバー <select id="f-member"></select></label>
     <label>ハブ <select id="f-hub"></select></label>
@@ -156,11 +179,28 @@ details summary { cursor: pointer; color: var(--ink2); font-size: 12.5px; margin
   <div class="kpis" id="kpis"></div>
 
   <div class="card">
-    <h2>ミッションごとの結果</h2>
-    <p class="sub">バーの長さは試行の数。右の数字は 成功率（成功 ÷ 試行）。</p>
-    <div class="legend" id="legend"></div>
-    <div id="chart-mission"></div>
-    <details><summary>表で見る</summary><div class="scroll" id="table-mission"></div></details>
+    <h2>点数マップ <small>15 ミッションのどこまで来たか</small></h2>
+    <p class="sub">見こみ点 ＝ 満点 × 直近 10 本の成功率。点の高いミッションで成功率を上げるほど、合計がのびる。</p>
+    <div class="legend" id="legend-stage"></div>
+    <div class="scroll" id="table-score"></div>
+    <details><summary>採点の条件を見る（採点表の 1 行ずつ）</summary><div class="scroll" id="table-items"></div></details>
+    <p class="how">段階の決め方: 記録なし＝未着手 ／ 単体の記録だけ＝要素開発中 ／ 直近 10 本（5 本以上）で 80% 以上＝単体で安定 ／ セレクターから走らせた記録あり＝通しに入れた（80% 以上なら 通しで安定）。
+      見こみ点は、成功＝満点・それ以外＝0 点で数えた目安（ボーナスだけ取れた・一部だけ取れた、は数えていない）。</p>
+  </div>
+
+  <div class="card">
+    <h2>① 要素開発 <small>run ファイルを 1 本ずつ走らせた記録</small></h2>
+    <p class="sub">「直近の並び」は左が古く右が新しい。緑がつづいたら、セレクターに入れるころあい。</p>
+    <div class="legend" id="legend-result"></div>
+    <div class="scroll" id="table-scripts"></div>
+  </div>
+
+  <div class="card">
+    <h2>② 通し <small>セレクターから続けて走らせた記録</small></h2>
+    <p class="sub">通し 1 回 ＝ セレクターで続けて走らせたひとまとまり（同じプログラムをもう一度走らせたとき、または 90 秒あいたときに、次の回として数える）。
+      時間は、最初のスタートから最後のゴールまで（ホームでのつけかえの時間をふくむ）。試合は 150 秒。</p>
+    <div id="chart-rounds"></div>
+    <div class="scroll" id="table-rounds"></div>
   </div>
 
   <div class="grid2">
@@ -169,7 +209,7 @@ details summary { cursor: pointer; color: var(--ink2); font-size: 12.5px; margin
   </div>
 
   <div class="card"><h2>メンバーごと</h2><p class="sub">たくさん試した人ほど、ロボットのくせが分かる。</p><div class="scroll" id="table-member"></div></div>
-  <div class="card"><h2>最近の試行（新しい順・30 本まで）</h2><div class="scroll" id="table-recent"></div></div>
+  <div class="card"><h2>最近の試行 <small>新しい順・30 本まで</small></h2><div class="scroll" id="table-recent"></div></div>
 </main>
 <div id="tip"></div>
 
@@ -182,6 +222,15 @@ const RESULTS = [
   { key: "error", label: "動かなかった", color: "var(--neutral)" },
 ];
 const RES = Object.fromEntries(RESULTS.map(r => [r.key, r]));
+const STAGES = [
+  { key: "none", label: "未着手", color: "var(--neutral)" },
+  { key: "dev", label: "要素開発中", color: "var(--warning)" },
+  { key: "stable", label: "単体で安定", color: "var(--series)" },
+  { key: "sel", label: "通しに入れた", color: "var(--series)", ring: true },
+  { key: "selstable", label: "通しで安定", color: "var(--good)" },
+];
+const STAGE = Object.fromEntries(STAGES.map(s => [s.key, s]));
+const RECENT_N = 10, STABLE_RATE = 80, STABLE_MIN = 5, ROUND_GAP_SEC = 90;
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const NS = "http://www.w3.org/2000/svg";
@@ -202,24 +251,25 @@ function bindTip(el, html) {
   });
   el.addEventListener("mouseleave", () => { tip.style.opacity = 0; });
 }
-
 function fillSelect(id, values, allLabel) {
-  $(id).innerHTML = `<option value="">${allLabel}</option>` +
-    values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  $(id).innerHTML = `<option value="">${allLabel}</option>` + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
 }
-function uniq(key) {
-  return [...new Set(DATA.rows.map(r => r[key]).filter(Boolean))].sort();
-}
+const uniq = key => [...new Set(DATA.rows.map(r => r[key]).filter(Boolean))].sort();
+const missionsOf = r => (r.mission || "").split("+").filter(Boolean);
+const isSelector = r => (r.via || "").startsWith("selector");
+const stamp = r => r.date + " " + r.time;
+const byTime = (a, b) => (stamp(a) < stamp(b) ? -1 : 1);
 function daysAgo(n) {
   const d = new Date(DATA.today + "T00:00:00"); d.setDate(d.getDate() - (n - 1));
   return d.toISOString().slice(0, 10);
 }
 function filtered() {
-  const p = $("f-period").value, m = $("f-mission").value, mem = $("f-member").value, hub = $("f-hub").value;
+  const p = $("f-period").value, via = $("f-via").value, m = $("f-mission").value, mem = $("f-member").value, hub = $("f-hub").value;
   const counted = $("f-error").checked ? ["success", "partial", "fail", "error"] : ["success", "partial", "fail"];
   const from = p === "all" ? "" : p === "today" ? DATA.today : daysAgo(+p);
   return DATA.rows.filter(r => counted.includes(r.result) && (!from || r.date >= from) &&
-    (!m || (r.mission || "（なし）") === m) && (!mem || r.member === mem) && (!hub || r.hub === hub));
+    (!via || (via === "selector") === isSelector(r)) &&
+    (!m || missionsOf(r).includes(m) || (m === "（なし）" && !r.mission)) && (!mem || r.member === mem) && (!hub || r.hub === hub)).sort(byTime);
 }
 function tally(rows) {
   const t = { n: rows.length, success: 0, partial: 0, fail: 0, error: 0 };
@@ -233,149 +283,185 @@ function groupBy(rows, fn) {
   return m;
 }
 const pct = t => t.rate == null ? "–" : t.rate + "%";
+const recent = rows => tally(rows.slice(-RECENT_N));
+function meanSec(rows) {
+  const ok = rows.filter(r => r.result === "success" && +r.elapsed_sec > 0);
+  return ok.length ? (ok.reduce((a, r) => a + +r.elapsed_sec, 0) / ok.length).toFixed(1) : "–";
+}
+const meter = (rate, cls) => rate == null ? "" : `<span class="meter ${cls || ""}"><b style="width:${Math.min(rate, 100)}%"></b></span>`;
+const dotStyle = s => s.ring ? `background:transparent;box-shadow:inset 0 0 0 2px ${s.color}` : `background:${s.color}`;
+const stageCell = k => `<span class="dot" style="${dotStyle(STAGE[k])}"></span>${STAGE[k].label}`;
+const resCell = k => `<span class="dot" style="background:${(RES[k] || {}).color || "var(--neutral)"}"></span>${(RES[k] || { label: k }).label}`;
+function strip(rows) {
+  return '<span class="strip">' + rows.slice(-20).map(r =>
+    `<i style="background:${(RES[r.result] || {}).color}" title="${r.date} ${r.time.slice(0, 5)} ${(RES[r.result] || {}).label}"></i>`).join("") + "</span>";
+}
+function table(heads, rows, numCols, rowClass) {
+  numCols = numCols || [];
+  return "<table><thead><tr>" + heads.map((h, i) => `<th class="${numCols.includes(i) ? "num" : ""}">${h}</th>`).join("") +
+    "</tr></thead><tbody>" + rows.map((r, ri) => `<tr class="${rowClass ? rowClass(ri) : ""}">` + r.map((c, i) =>
+      `<td class="${numCols.includes(i) ? "num" : ""}${heads[i] === "メモ" ? " wrap" : ""}">${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+}
 
-function renderKpis(rows) {
+// ===== 点数マップ =====
+function scoreMap(rows) {
+  return DATA.missions.map(m => {
+    const mine = rows.filter(r => missionsOf(r).includes(m.id));
+    const t = tally(mine), rec = recent(mine), sel = mine.some(isSelector);
+    const stable = rec.n >= STABLE_MIN && rec.rate >= STABLE_RATE;
+    const stage = !t.n ? "none" : sel ? (stable ? "selstable" : "sel") : stable ? "stable" : "dev";
+    return { m, mine, t, rec, stage, expected: rec.n ? m.max * rec.rate / 100 : 0 };
+  });
+}
+function renderKpis(rows, map) {
   const all = tally(rows), today = tally(rows.filter(r => r.date === DATA.today));
-  const missions = new Set(rows.map(r => r.mission).filter(Boolean)).size;
+  const expected = Math.round(map.reduce((a, x) => a + x.expected, 0));
+  const started = map.filter(x => x.t.n).length, stable = map.filter(x => x.stage === "stable" || x.stage === "selstable").length;
+  const inSel = map.filter(x => x.stage === "sel" || x.stage === "selstable").length;
   const tiles = [
-    ["成功率", pct(all), `成功 ${all.success} ／ 試行 ${all.n}`, true],
-    ["試行の数", all.n.toLocaleString(), `途中まで ${all.partial}・失敗 ${all.fail}`],
+    ["いまの見こみ点（ミッション）", `${expected} <small>/ ${DATA.missionMax} 点</small>`,
+      `ほかに 装備の点検 ${DATA.inspection} 点・精密トークン 最大 ${DATA.tokensMax} 点（合計 ${DATA.grandTotal} 点）`, true],
+    ["ミッションの進み", `${started} <small>/ ${map.length} に着手</small>`, `安定 ${stable}・通しに入れた ${inSel}`],
+    ["成功率", pct(all), `成功 ${all.success} ／ 試行 ${all.n}（途中まで ${all.partial}・失敗 ${all.fail}）`],
     ["今日の試行", today.n, today.n ? `成功率 ${pct(today)}` : "まだ記録なし"],
-    ["ミッションの数", missions, "記録のあるミッション"],
   ];
   $("kpis").innerHTML = tiles.map(([l, v, n, hero]) =>
-    `<div class="card kpi${hero ? " hero" : ""}" style="margin:0"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
+    `<div class="card kpi${hero ? " hero" : ""}"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
+}
+function renderScore(map) {
+  $("legend-stage").innerHTML = STAGES.map(s => `<span><i style="${dotStyle(s)}"></i>${s.label}</span>`).join("");
+  $("table-score").innerHTML = table(
+    ["ミッション", "満点", "段階", "試行", "成功 / 途中 / 失敗", `直近 ${RECENT_N} 本の成功率`, "見こみ点", "平均秒", "担当", "直近の並び"],
+    map.map(x => [`<b>${x.m.id}</b> ${esc(x.m.name)} <span style="color:var(--muted)">${esc(x.m.en)}</span>`, x.m.max, stageCell(x.stage), x.t.n || "",
+      x.t.n ? `${x.t.success} / ${x.t.partial} / ${x.t.fail}` : "", x.rec.n ? meter(x.rec.rate) + pct(x.rec) + `（${x.rec.success}/${x.rec.n}）` : "",
+      x.t.n ? Math.round(x.expected) : "", x.t.n ? meanSec(x.mine) : "", esc([...new Set(x.mine.map(r => r.member).filter(Boolean))].join("・")), strip(x.mine)]),
+    [1, 3, 6, 7], i => map[i].t.n ? "" : "idle");
+  $("table-items").innerHTML = table(["ミッション", "条件", "点"],
+    DATA.missions.flatMap(m => m.items.map(([c, p], i) => [i ? "" : `<b>${m.id}</b> ${esc(m.name)}`, esc(c), p])), [2]);
 }
 
-function renderMission(rows) {
-  const box = $("chart-mission");
-  const groups = [...groupBy(rows, r => r.mission || "（なし）")].map(([k, v]) => [k, tally(v)])
-    .sort((a, b) => a[0].localeCompare(b[0], "ja", { numeric: true }));
-  const shown = RESULTS.filter(r => r.key !== "error" || $("f-error").checked);
-  $("legend").innerHTML = shown.map(r => `<span><i style="background:${r.color}"></i>${r.label}</span>`).join("");
-  if (!groups.length) { box.innerHTML = '<p class="empty">この条件の記録はまだありません。</p>'; $("table-mission").innerHTML = ""; return; }
-  const W = 1000, left = 110, right = 130, rowH = 30, barH = 16, top = 6;
-  const plotW = W - left - right, maxN = Math.max(...groups.map(g => g[1].n));
-  const H = top + groups.length * rowH + 22;
-  box.innerHTML = "";
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "ミッションごとの結果" }, box);
-  const ticks = niceTicks(maxN);
-  ticks.forEach(t => {
-    const x = left + plotW * t / ticks[ticks.length - 1];
-    svgEl("line", { x1: x, x2: x, y1: top, y2: H - 20, stroke: "var(--grid)", "stroke-width": 1 }, svg);
-    svgEl("text", { x, y: H - 5, "text-anchor": "middle" }, svg, t);
-  });
-  const scale = plotW / ticks[ticks.length - 1];
-  groups.forEach(([name, t], i) => {
-    const y = top + i * rowH + (rowH - barH) / 2;
-    svgEl("text", { x: left - 10, y: y + barH - 4, "text-anchor": "end", class: "val" }, svg, name);
-    let x = left;
-    const segs = shown.filter(r => t[r.key] > 0);
-    segs.forEach((r, j) => {
-      const w = t[r.key] * scale, last = j === segs.length - 1, gap = last ? 0 : 2;
-      const rect = svgEl("path", { d: barPath(x, y, Math.max(w - gap, 1), barH, last ? 4 : 0), fill: r.color }, svg);
-      bindTip(rect, `<b>${esc(name)}</b><br>${r.label}: ${t[r.key]} 本（${Math.round(100 * t[r.key] / t.n)}%）`);
-      x += w;
+// ===== ① 要素開発 =====
+function renderScripts(rows) {
+  $("legend-result").innerHTML = RESULTS.filter(r => r.key !== "error" || $("f-error").checked)
+    .map(r => `<span><i style="background:${r.color}"></i>${r.label}</span>`).join("");
+  const g = [...groupBy(rows.filter(r => !isSelector(r)), r => r.script)].map(([k, v]) => [k, v])
+    .sort((a, b) => (stamp(b[1][b[1].length - 1]) < stamp(a[1][a[1].length - 1]) ? -1 : 1));
+  $("table-scripts").innerHTML = g.length ? table(
+    ["run ファイル", "ミッション", "担当", "試行", `直近 ${RECENT_N} 本`, "通算", "平均秒", "コードの版", "最後の日", "直近の並び"],
+    g.map(([k, v]) => { const t = tally(v), rec = recent(v); return [esc(k), esc(v[v.length - 1].mission), esc(v[v.length - 1].member), t.n,
+      meter(rec.rate) + pct(rec), pct(t), meanSec(v), new Set(v.map(r => r.code_hash).filter(Boolean)).size || "", v[v.length - 1].date.slice(5).replace("-", "/"), strip(v)]; }),
+    [3, 5, 6, 7]) : '<p class="empty">単体で走らせた記録はまだありません。「📝 Robot N + Log」で run ファイルを走らせると、ここに出ます。</p>';
+}
+
+// ===== ② 通し =====
+function toRounds(rows) {
+  const rounds = [];
+  [...groupBy(rows.filter(isSelector), r => r.log_path || r.date)].forEach(([, v]) => {
+    let cur = null, lastEnd = 0;
+    v.sort(byTime).forEach(r => {
+      const start = new Date(r.date + "T" + r.time).getTime() / 1000, end = start + (+r.elapsed_sec || 0);
+      if (!cur || cur.rows.some(x => x.script === r.script) || start - lastEnd > ROUND_GAP_SEC) { cur = { rows: [], start }; rounds.push(cur); }
+      cur.rows.push(r); cur.end = end; lastEnd = end;
     });
-    svgEl("text", { x: x + 8, y: y + barH - 4, class: "val" }, svg, `${pct(t)}（${t.success}/${t.n}）`);
   });
-  svgEl("line", { x1: left, x2: left, y1: top, y2: H - 20, stroke: "var(--axis)", "stroke-width": 1 }, svg);
-  $("table-mission").innerHTML = table(["ミッション", "試行", "成功", "途中まで", "失敗", "動かなかった", "成功率"],
-    groups.map(([k, t]) => [esc(k), t.n, t.success, t.partial, t.fail, t.error, pct(t)]), [1, 2, 3, 4, 5, 6]);
+  const maxOf = Object.fromEntries(DATA.missions.map(m => [m.id, m.max]));
+  rounds.forEach(x => {
+    x.t = tally(x.rows); x.sec = Math.round(x.end - x.start);
+    const okMissions = new Set(x.rows.filter(r => r.result === "success").flatMap(missionsOf));
+    x.points = [...okMissions].reduce((a, id) => a + (maxOf[id] || 0), 0);
+    x.label = x.rows[0].date.slice(5).replace("-", "/") + " " + x.rows[0].time.slice(0, 5);
+  });
+  return rounds.sort((a, b) => a.start - b.start);
 }
-function barPath(x, y, w, h, r) {
-  r = Math.min(r, w / 2);
-  return `M${x},${y}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${h - 2 * r}a${r},${r} 0 0 1 ${-r},${r}h${-(w - r)}z`;
+function renderRounds(rows) {
+  const rounds = toRounds(rows);
+  if (!rounds.length) {
+    $("chart-rounds").innerHTML = "";
+    $("table-rounds").innerHTML = '<p class="empty">通しの記録はまだありません。selector.py を「📝 Robot N + Log」で走らせると、プログラムごとに成否を聞かれて、ここに出ます。</p>';
+    return;
+  }
+  drawSeries($("chart-rounds"), rounds.map(x => ({ label: x.label, value: x.points,
+    tip: `<b>${x.label}</b><br>見こみ点 ${x.points} 点<br>成功 ${x.t.success} / ${x.t.n} 本・${x.sec} 秒` })),
+    { yMax: DATA.missionMax, unit: " 点", height: 200, width: 1000 });
+  $("table-rounds").innerHTML = table(["はじめた時刻", "走らせた本数", "成功", "見こみ点", `時間（試合は ${DATA.matchSec} 秒）`, "走らせた順（結果）", "ハブ"],
+    [...rounds].reverse().slice(0, 20).map(x => [x.label, x.t.n, x.t.success, x.points,
+      meter(100 * x.sec / DATA.matchSec, x.sec > DATA.matchSec ? "over" : "") + x.sec + " 秒" + (x.sec > DATA.matchSec ? "（オーバー）" : ""),
+      x.rows.map(r => `<span title="${esc(r.script)}">${resCell(r.result).replace(/<\/span>.*/, "</span>")}${esc(r.mission || r.script)}</span>`).join("　"), esc(x.rows[0].hub)]),
+    [1, 2, 3]);
 }
+
+// ===== 日ごと =====
 function niceTicks(max) {
   const step = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].find(s => max / s <= 5) || 2000;
   const out = []; for (let v = 0; v < max + step; v += step) out.push(v);
   return out;
 }
-
-function renderDaily(rows) {
-  const days = [...groupBy(rows, r => r.date)].map(([d, v]) => [d, tally(v)]).sort((a, b) => a[0] < b[0] ? -1 : 1);
-  drawDaily($("chart-rate"), days, "rate");
-  drawDaily($("chart-count"), days, "n");
-}
-function drawDaily(box, days, key) {
-  if (!days.length) { box.innerHTML = '<p class="empty">記録はまだありません。</p>'; return; }
-  const W = 520, H = 230, left = 38, right = 44, top = 14, bottom = 28;
+function drawSeries(box, pts, opt) {
+  const W = opt.width || 520, H = opt.height || 230, left = 40, right = 56, top = 14, bottom = 28;
   const plotW = W - left - right, plotH = H - top - bottom;
-  const ticks = key === "rate" ? [0, 25, 50, 75, 100] : niceTicks(Math.max(...days.map(d => d[1].n)));
+  const ticks = opt.ticks || niceTicks(opt.yMax || Math.max(...pts.map(p => p.value), 1));
   const yMax = ticks[ticks.length - 1];
-  const xOf = i => left + (days.length === 1 ? plotW / 2 : plotW * i / (days.length - 1) * 0.94 + plotW * 0.03);
+  const xOf = i => left + (pts.length === 1 ? plotW / 2 : plotW * (0.03 + 0.94 * i / (pts.length - 1)));
   const yOf = v => top + plotH * (1 - v / yMax);
   box.innerHTML = "";
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, box);
   ticks.forEach(t => {
     svgEl("line", { x1: left, x2: W - right, y1: yOf(t), y2: yOf(t), stroke: t ? "var(--grid)" : "var(--axis)", "stroke-width": 1 }, svg);
-    svgEl("text", { x: left - 6, y: yOf(t) + 4, "text-anchor": "end" }, svg, key === "rate" ? t + "%" : t);
+    svgEl("text", { x: left - 6, y: yOf(t) + 4, "text-anchor": "end" }, svg, t + (opt.unit === "%" ? "%" : ""));
   });
-  const every = Math.ceil(days.length / 6);
-  days.forEach(([d], i) => {
-    const last = days.length - 1;
-    if ((i % every === 0 && last - i >= every / 2) || i === last)
-      svgEl("text", { x: xOf(i), y: H - 8, "text-anchor": "middle" }, svg, d.slice(5).replace("-", "/"));
+  const every = Math.ceil(pts.length / (W > 600 ? 10 : 6)), last = pts.length - 1;
+  pts.forEach((p, i) => {
+    if ((i % every === 0 && last - i >= Math.max(every, 2)) || i === last) svgEl("text", { x: xOf(i), y: H - 8, "text-anchor": "middle" }, svg, p.label);
   });
-  if (key === "rate") {
-    const pts = days.map(([, t], i) => [xOf(i), yOf(t.rate)]);
-    if (pts.length > 1)
-      svgEl("path", { d: "M" + pts.map(p => p.join(",")).join("L"), fill: "none", stroke: "var(--series)",
-        "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
-    pts.forEach(p => svgEl("circle", { cx: p[0], cy: p[1], r: 4, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 2 }, svg));
-    const lastP = pts[pts.length - 1];
-    svgEl("text", { x: lastP[0] + 8, y: lastP[1] + 4, class: "val" }, svg, days[days.length - 1][1].rate + "%");
-  } else {
-    const bw = Math.min(24, plotW / days.length * 0.6);
-    days.forEach(([, t], i) => {
-      const h = plotH * t.n / yMax, x = xOf(i) - bw / 2, y = yOf(t.n);
-      svgEl("path", { d: colPath(x, y, bw, h, 4), fill: "var(--series)" }, svg);
+  if (opt.bars) {
+    const bw = Math.min(24, plotW / pts.length * 0.6);
+    pts.forEach((p, i) => {
+      const h = plotH * p.value / yMax, r = Math.min(4, bw / 2, h), x = xOf(i) - bw / 2, y = yOf(p.value);
+      svgEl("path", { d: `M${x},${y + h}v${-(h - r)}a${r},${r} 0 0 1 ${r},${-r}h${bw - 2 * r}a${r},${r} 0 0 1 ${r},${r}v${h - r}z`, fill: "var(--series)" }, svg);
     });
-    const peak = days.reduce((a, b) => b[1].n > a[1].n ? b : a), pi = days.indexOf(peak);
-    svgEl("text", { x: xOf(pi), y: yOf(peak[1].n) - 6, "text-anchor": "middle", class: "val" }, svg, peak[1].n);
+    const pi = pts.reduce((a, p, i) => (p.value > pts[a].value ? i : a), 0);
+    svgEl("text", { x: xOf(pi), y: yOf(pts[pi].value) - 6, "text-anchor": "middle", class: "val" }, svg, pts[pi].value);
+  } else {
+    const xy = pts.map((p, i) => [xOf(i), yOf(p.value)]);
+    if (xy.length > 1) svgEl("path", { d: "M" + xy.map(p => p.join(",")).join("L"), fill: "none", stroke: "var(--series)",
+      "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    xy.forEach(p => svgEl("circle", { cx: p[0], cy: p[1], r: 4, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 2 }, svg));
+    svgEl("text", { x: xy[last][0] + 8, y: xy[last][1] + 4, class: "val" }, svg, pts[last].value + (opt.unit || ""));
   }
-  const slot = days.length === 1 ? plotW : plotW / (days.length - 1);
-  days.forEach(([d, t], i) => {
-    const hit = svgEl("rect", { x: xOf(i) - slot / 2, y: top, width: slot, height: plotH, class: "hit" }, svg);
-    bindTip(hit, `<b>${d}</b><br>成功率 ${pct(t)}<br>成功 ${t.success}・途中まで ${t.partial}・失敗 ${t.fail}（試行 ${t.n}）`);
-  });
+  const slot = pts.length === 1 ? plotW : plotW * 0.94 / (pts.length - 1);
+  pts.forEach((p, i) => bindTip(svgEl("rect", { x: xOf(i) - slot / 2, y: top, width: slot, height: plotH, class: "hit" }, svg), p.tip));
 }
-function colPath(x, y, w, h, r) {
-  r = Math.min(r, w / 2, h);
-  return `M${x},${y + h}v${-(h - r)}a${r},${r} 0 0 1 ${r},${-r}h${w - 2 * r}a${r},${r} 0 0 1 ${r},${r}v${h - r}z`;
+function renderDaily(rows) {
+  const days = [...groupBy(rows, r => r.date)].map(([d, v]) => [d, tally(v)]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  if (!days.length) { ["chart-rate", "chart-count"].forEach(id => { $(id).innerHTML = '<p class="empty">記録はまだありません。</p>'; }); return; }
+  const tipOf = (d, t) => `<b>${d}</b><br>成功率 ${pct(t)}<br>成功 ${t.success}・途中まで ${t.partial}・失敗 ${t.fail}（試行 ${t.n}）`;
+  const lab = d => d.slice(5).replace("-", "/");
+  drawSeries($("chart-rate"), days.map(([d, t]) => ({ label: lab(d), value: t.rate, tip: tipOf(d, t) })), { ticks: [0, 25, 50, 75, 100], unit: "%" });
+  drawSeries($("chart-count"), days.map(([d, t]) => ({ label: lab(d), value: t.n, tip: tipOf(d, t) })), { bars: true });
 }
-
-function table(heads, rows, numCols) {
-  numCols = numCols || [];
-  return "<table><thead><tr>" + heads.map((h, i) => `<th class="${numCols.includes(i) ? "num" : ""}">${h}</th>`).join("") +
-    "</tr></thead><tbody>" + rows.map(r => "<tr>" + r.map((c, i) =>
-      `<td class="${numCols.includes(i) ? "num" : ""}${heads[i] === "メモ" ? " wrap" : ""}">${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
-}
-const resCell = k => `<span class="res"><i style="background:${(RES[k] || {}).color || "var(--neutral)"}"></i>${(RES[k] || { label: k }).label}</span>`;
 
 function renderMembers(rows) {
-  const g = [...groupBy(rows, r => r.member || "（なし）")].map(([k, v]) => [k, tally(v), new Set(v.map(r => r.mission).filter(Boolean)).size])
+  const g = [...groupBy(rows, r => r.member || "（なし）")].map(([k, v]) => [k, tally(v), recent(v), new Set(v.flatMap(missionsOf)).size])
     .sort((a, b) => b[1].n - a[1].n);
-  $("table-member").innerHTML = g.length ? table(["メンバー", "試行", "成功", "途中まで", "失敗", "成功率", "ミッションの数"],
-    g.map(([k, t, m]) => [esc(k), t.n, t.success, t.partial, t.fail, pct(t), m]), [1, 2, 3, 4, 5, 6]) : '<p class="empty">記録はまだありません。</p>';
+  $("table-member").innerHTML = g.length ? table(["メンバー", "試行", "成功", "途中まで", "失敗", "通算の成功率", `直近 ${RECENT_N} 本`, "ミッションの数"],
+    g.map(([k, t, rec, m]) => [esc(k), t.n, t.success, t.partial, t.fail, pct(t), meter(rec.rate) + pct(rec), m]), [1, 2, 3, 4, 5, 7]) : '<p class="empty">記録はまだありません。</p>';
 }
 function renderRecent(rows) {
-  const r = [...rows].sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1)).slice(0, 30);
-  $("table-recent").innerHTML = r.length ? table(["日時", "スクリプト", "ミッション", "メンバー", "ハブ", "結果", "秒", "メモ", "ログ"],
-    r.map(x => [`${x.date} ${x.time.slice(0, 5)}`, esc(x.script) + (x.via ? `（${esc(x.via)}）` : ""), esc(x.mission), esc(x.member), esc(x.hub),
-      resCell(x.result), x.elapsed_sec, esc(x.note), x.log_path ? `<a href="../../${esc(x.log_path)}">ログ</a>` : ""]), [6]) : '<p class="empty">記録はまだありません。</p>';
+  const r = [...rows].reverse().slice(0, 30);
+  $("table-recent").innerHTML = r.length ? table(["日時", "走らせ方", "スクリプト", "ミッション", "メンバー", "ハブ", "結果", "秒", "メモ", "ログ"],
+    r.map(x => [`${x.date} ${x.time.slice(0, 5)}`, isSelector(x) ? "② 通し" : "① 単体", esc(x.script), esc(x.mission), esc(x.member), esc(x.hub),
+      resCell(x.result), x.elapsed_sec, esc(x.note), x.log_path ? `<a href="../../${esc(x.log_path)}">ログ</a>` : ""]), [7]) : '<p class="empty">記録はまだありません。</p>';
 }
 
 function render() {
-  const rows = filtered();
-  renderKpis(rows); renderMission(rows); renderDaily(rows); renderMembers(rows); renderRecent(rows);
+  const rows = filtered(), map = scoreMap(rows);
+  renderKpis(rows, map); renderScore(map); renderScripts(rows); renderRounds(rows); renderDaily(rows); renderMembers(rows); renderRecent(rows);
 }
 $("gen").textContent = DATA.generated + "（ぜんぶで " + DATA.rows.length + " 行）";
-fillSelect("f-mission", [...new Set(DATA.rows.map(r => r.mission || "（なし）"))].sort(), "ぜんぶ");
+fillSelect("f-mission", DATA.missions.map(m => m.id).concat(DATA.rows.some(r => !r.mission) ? ["（なし）"] : []), "ぜんぶ");
 fillSelect("f-member", uniq("member"), "ぜんぶ");
 fillSelect("f-hub", uniq("hub"), "ぜんぶ");
-["f-period", "f-mission", "f-member", "f-hub", "f-error"].forEach(id => $(id).addEventListener("change", render));
+["f-period", "f-via", "f-mission", "f-member", "f-hub", "f-error"].forEach(id => $(id).addEventListener("change", render));
 render();
 </script>
 </body>
