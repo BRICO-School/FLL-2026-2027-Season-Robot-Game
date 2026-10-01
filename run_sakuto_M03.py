@@ -15,6 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
+- 2026-10-01: M03用の走行ファイルを新規作成し左リフトの動作を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -26,6 +27,9 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
+
+    await left_lift.run_angle(999, -550)  # 左アームを300deg/sで180度回転
+
     """
     ロボットの動作を記述する関数
 
@@ -65,8 +69,6 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
     # ここにロボットの動作を記述してください
     #######################################
-
-    await robot.straight(500, speed=500)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
 
     # ロボットを停止
     robot.stop()

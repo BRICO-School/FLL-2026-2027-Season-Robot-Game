@@ -15,8 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
-- 2026-09-28: M04とM06用の走行プログラムを新規作成した。
-- 2026-10-01: 直進をカーブ走行に変更し以降の移動やアーム操作をコメントアウトした
+- 2026-10-01: ミッションM01用の走行プログラムファイルを新規追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -29,19 +28,18 @@ from setup import initialize_robot
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    await robot.curve(1900, 20)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
-    await robot.turn(-47)
-    # await robot.straight(30, 200)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
+    await robot.straight(650)  # 400mm直進
 
-    # await left_lift.run_angle(500, -360 * 2)  # 左アームを300deg/sで180度回転
+    # await robot.straight(650 + 130 + 20)  # 400mm直進
+    # await robot.turn(-30)  # 45度左回転
+    # await robot.straight(200)
+    # await robot.turn(-30)
 
-    # await robot.straight(-80, 200)
+    # await robot.straight(170)  # 400mm直進
+    # await wait(100)  # 0.5秒待機
+    # await robot.straight(650 - 170)  # 400mm直進
 
-    # await right_lift.run_angle(500, -180 * 3)  # 右アームを逆方向に1回転
-
-    # await robot.turn(30)
-
-    # await right_lift.run_angle(500, 180 * 3)  # 右アームを逆方向に1回転
+    # await robot.curve(1500, 20)  # 半径200mmで90度カーブ
 
     """
     ロボットの動作を記述する関数
