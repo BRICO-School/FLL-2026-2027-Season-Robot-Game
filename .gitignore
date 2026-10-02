@@ -14,6 +14,7 @@ Thumbs.db
 
 # scripts/trial_dashboard.py が trials.csv から作る生成物（記録のたびに作り直す）
 docs/trials/dashboard.html
+docs/trials/dashboard_coach.html
 
 # Python のキャッシュ
 __pycache__/

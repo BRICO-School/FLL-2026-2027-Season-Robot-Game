@@ -169,6 +169,10 @@ uv run python scripts/trial_dashboard.py --open
 （足した部品は `trial_dashboard.py` の `EXTRA_CSS` だけ）。節は 数字 4 つ → ハイライト → 点数マップ → ① 要素開発 → ② 通し → 日ごとの試行 → メンバーごと → 最近の試行 → 次に手を入れるところ。
 記録の無い節は出さない。「動かなかった」も数えるときは `--include-error`。
 
+**チームとコーチを分ける**（2026-10-02）: run ファイルの名前に `coach` が入る記録（`run_coach_M01.py` など。セレクター経由もふくむ）は
+コーチが確かめるために走らせたものなので、`dashboard.html` には**数えない**。そのぶんだけを集めた `docs/trials/dashboard_coach.html` を
+同じ作りで別に作る（「メンバーごと」の節は出さない）。2 枚の見出しの下に、おたがいへのリンクがある。どちらも記録のたびに作り直される。
+
 - **いまの見こみ点** ＝ Σ（ミッションの満点 × 直近 10 本の成功率）。満点の表は `scripts/bioglow_missions.py`
   （公式の採点表とルールブックから。ミッション 460 点＋装備の点検 20 点＋精密トークン 最大 50 点＝ 530 点）
 - **点数マップ**: 15 ミッションの満点・段階・試行・直近 10 本の成功率・見こみ点・平均秒・担当・直近の成否の並び。
@@ -182,7 +186,7 @@ uv run python scripts/trial_dashboard.py --open
 ボーナスだけ・一部だけ取れた点、精密トークン（ホームの外で手を出した回数）は記録していない。
 ミッション番号はファイル名から読む（`run_M04_kanna.py` → M04、`run_M07_M09_x.py` → M07+M09）ので、**run ファイルの名前に M 番号を入れること**。
 成功率の分母は 成功＋途中まで＋失敗（「動かなかった」はチェックを入れたときだけ数える）。
-`dashboard.html` は生成物なので **git には入れない**（`.gitignore`）。プレゼン用の表と PNG は下の `trial_report.py`。
+`dashboard.html` と `dashboard_coach.html` は生成物なので **git には入れない**（`.gitignore`）。プレゼン用の表と PNG は下の `trial_report.py`。
 
 ## 5. 集計・可視化 `scripts/trial_report.py`
 

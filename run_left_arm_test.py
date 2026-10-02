@@ -24,8 +24,7 @@ from setup import initialize_robot
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    await left_lift.run_angle(1000, 360 * 24)
-    await left_lift.run_angle(1000, 360 * -24)
+    await robot.straight(500, speed=300)  # 500mm/sで200mm直進
 
     """
     ロボットの動作を記述する関数54

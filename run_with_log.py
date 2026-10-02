@@ -31,6 +31,7 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
   docs/trials/trials.csv                            … 試行の記録（1 行 = 1 走行）
   docs/trials/snapshots/<code_hash>/                … 走行したコードのコピー
   docs/trials/dashboard.html                        … 集計ダッシュボード（記録のたびに作り直す。git には入れない）
+  docs/trials/dashboard_coach.html                  … 名前に coach が入る run ファイルだけの集計（同上。チームの方には数えない）
 
 ※ このファイルは PC 側だけで動く。ハブへ送るコード（setup.py / run_*.py）には
    一切手を入れないので、ロボットの動きには影響しない。
@@ -42,6 +43,8 @@ docs/trials/trials.csv に記録し、走行したコードのコピーも残す
 - 2026-09-19: サブフォルダのスクリプト実行時にルートの設定ファイルを同梱して転送する処理を追加
 - 2026-09-19: 使い方の説明にあるテストスクリプトのパスを更新した
 - 2026-09-19: 走行記録時に集計ダッシュボードを自動更新する処理を追加した
+- 2026-10-02: 名前に coach が入る run ファイルの記録を、コーチ確認用のダッシュボードに分けて作り直すようにした
+- 2026-10-02: コーチ確認用の集計ダッシュボードを分けて自動生成するようにした。
 """
 
 import csv
@@ -313,13 +316,16 @@ def write_trial(
 
 
 def refresh_dashboard(root):
-    """docs/trials/dashboard.html を作り直す（scripts/trial_dashboard.py）。失敗しても走行の記録には影響させない。"""
+    """docs/trials/dashboard.html と dashboard_coach.html を作り直す（scripts/trial_dashboard.py）。失敗しても走行の記録には影響させない。"""
     try:
         sys.path.insert(0, os.path.join(root, "scripts"))
         import trial_dashboard
 
-        trial_dashboard.build()
+        trial_dashboard.build_all()
         print("📊 ダッシュボード: docs/trials/dashboard.html（ブラウザで開いて F5）")
+        print(
+            "   コーチ確認用（名前に coach が入る run ファイル）: docs/trials/dashboard_coach.html"
+        )
     except Exception as e:
         print(f"⚠ ダッシュボードを作り直せませんでした: {e}")
 

@@ -6,11 +6,17 @@ PC 側だけで動く。ハブには関係ない。外部のライブラリも�
 答える問い: 「いま何点取れそうで、次にどのミッションに手を入れるか」
 
 【使い方】
-  uv run python scripts/trial_dashboard.py          # docs/trials/dashboard.html を作る
+  uv run python scripts/trial_dashboard.py          # docs/trials/dashboard.html と dashboard_coach.html を作る
   uv run python scripts/trial_dashboard.py --open   # 作ってからブラウザで開く
   uv run python scripts/trial_dashboard.py --include-error   # 「動かなかった (error)」も試行に数える
 
 run_with_log.py で成否を記録するたびに自動で作り直されるので、ふだんは開いたまま再読みこみするだけでよい。
+
+【チームとコーチを分ける】（2026-10-02）
+  run ファイルの名前に「coach」が入る記録（run_coach_M01.py など。セレクター経由もふくむ）は
+  コーチが確かめるために走らせたものなので、チームの dashboard.html には数えない。
+  そのぶんだけを集めた dashboard_coach.html を同じ作りで別に作る（「メンバーごと」の節は出さない）。
+  2 枚の見出しの下に、おたがいへのリンクがある。
 
 【作り】（2026-09-19 見直し）
   ・数字はぜんぶこの Python で計算し、出てくる HTML にはスクリプトが 1 行も無い
@@ -24,7 +30,7 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   → 日ごとの試行 → メンバーごと → 最近の試行 → 次に手を入れるところ
 
 成功率の分母は 成功 + 途中まで + 失敗。見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安。
-dashboard.html は生成物なので git には入れない（.gitignore）。プレゼン用の表と PNG は trial_report.py。
+dashboard.html と dashboard_coach.html は生成物なので git には入れない（.gitignore）。プレゼン用の表と PNG は trial_report.py。
 """
 
 import argparse
@@ -42,12 +48,14 @@ import bioglow_missions as bm  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
 OUT_HTML = os.path.join(ROOT, "docs", "trials", "dashboard.html")
+OUT_COACH_HTML = os.path.join(ROOT, "docs", "trials", "dashboard_coach.html")
 STYLE_CSS = os.path.join(ROOT, "scripts", "dashboard_style.css")
 SCORESHEET_URL = (
     "https://firstinspires.blob.core.windows.net/fll/challenge/2026-27/"
     "fll-challenge-bioglow-software-scoresheet.pdf"
 )
 
+COACH_WORD = "coach"  # run ファイルの名前にこれが入る記録は、コーチ用のダッシュボードへ分ける
 COUNTED = ("success", "partial", "fail")  # 成功率の分母に入れる結果
 RESULT_LABEL = {"success": "成功", "partial": "途中まで", "fail": "失敗", "error": "動かなかった"}
 RESULT_DOT = {"success": "low", "partial": "med", "fail": "high", "error": "none"}
@@ -95,12 +103,17 @@ EXTRA_CSS = """
   details { margin-top: 12px; } summary { cursor: pointer; color: var(--gray-500); font-size: 13px; }
   .lead { color: var(--gray-700); font-size: 14px; margin: -10px 0 16px; }
   .gap { height: 14px; }
+  .scope-note { color: var(--gray-500); font-size: 13px; margin-top: 6px; }
+  .scope-note a { color: var(--clay); }
 """
 
 
 # ===== 読みこみ =====
-def load_rows(csv_path, include_error=False):
-    """trials.csv を読んで、数える行だけを時刻の順に返す。"""
+def load_rows(csv_path, include_error=False, coach=False):
+    """trials.csv を読んで、数える行だけを時刻の順に返す。
+
+    coach=False ならコーチの記録（is_coach）を除いたチームの行、True ならコーチの行だけ。
+    """
     if not os.path.exists(csv_path):
         return []
     rows = []
@@ -111,9 +124,17 @@ def load_rows(csv_path, include_error=False):
                 result in COUNTED or (include_error and result == "error")
             ):
                 continue
-            rows.append({k: (v or "") for k, v in r.items() if k})
+            row = {k: (v or "") for k, v in r.items() if k}
+            if is_coach(row) != coach:
+                continue
+            rows.append(row)
     rows.sort(key=stamp)
     return rows
+
+
+def is_coach(row):
+    """run ファイルの名前に「coach」が入っていれば、コーチが確かめるために走らせた記録。"""
+    return COACH_WORD in row.get("script", "").lower()
 
 
 def stamp(row):
@@ -398,11 +419,12 @@ def render_summary(rows, smap, today):
     return f'<section><div class="summary-band">{inner}</div></section>'
 
 
-def render_highlights(rows, smap, rounds):
+def render_highlights(rows, smap, rounds, coach=False):
     items = []
     if not rows:
+        which = f"名前に {COACH_WORD} が入る run ファイル" if coach else "run ファイル"
         items.append(
-            "<strong>まだ記録がない。</strong> 「📝 Robot N + Log」で run ファイルを走らせ、成否を 1 キーで入れると、ここに集計が出る。"
+            f"<strong>まだ記録がない。</strong> 「📝 Robot N + Log」で{which}を走らせ、成否を 1 キーで入れると、ここに集計が出る。"
         )
     growing = [x for x in smap if x["stage"] in ("dev", "sel")]
     if growing:
@@ -692,10 +714,33 @@ def render_next(smap, rounds):
 
 
 # ===== 組み立て =====
-def build(csv_path=TRIALS_CSV, out_path=OUT_HTML, include_error=False, now=None):
-    """trials.csv を読んで dashboard.html を書き出し、数えた行数を返す。"""
+def scope_note(out_path, other_path, coach):
+    """見出しの下に出す「この 1 枚に何が入っているか」と、もう 1 枚へのリンク。"""
+    other = os.path.relpath(
+        os.path.abspath(other_path), os.path.dirname(os.path.abspath(out_path))
+    ).replace(os.sep, "/")
+    if coach:
+        text = f"名前に「{COACH_WORD}」が入る run ファイルの記録だけ。チームの記録は"
+        link = "チームのダッシュボード"
+    else:
+        text = f"名前に「{COACH_WORD}」が入る run ファイルの記録は数えていない。コーチの記録は"
+        link = "コーチ確認用のダッシュボード"
+    return f'<div class="scope-note">{text} <a href="{escape(other)}">{link}</a> へ。</div>'
+
+
+def build(
+    csv_path=TRIALS_CSV, out_path=None, include_error=False, now=None, coach=False, other_path=None
+):
+    """trials.csv を読んでダッシュボードを書き出し、数えた行数を返す。
+
+    coach=False ならチームの dashboard.html、True ならコーチの記録だけの dashboard_coach.html。
+    other_path はもう 1 枚の置き場所（見出しの下のリンク先）。
+    """
     now = now or datetime.now()
-    rows = load_rows(csv_path, include_error)
+    out_path = out_path or (OUT_COACH_HTML if coach else OUT_HTML)
+    other_path = other_path or (OUT_HTML if coach else OUT_COACH_HTML)
+    title = "コーチ確認用の試行記録" if coach else "ロボットゲームの試行記録"
+    rows = load_rows(csv_path, include_error, coach)
     smap, rounds = score_map(rows), to_rounds(rows)
     period = (
         f"{rows[0]['date']} 〜 {rows[-1]['date']}・{len(rows)} 本"
@@ -713,15 +758,16 @@ def build(csv_path=TRIALS_CSV, out_path=OUT_HTML, include_error=False, now=None)
     )
     body = "".join(
         [
-            '<header><div class="header-top"><h1>ロボットゲームの試行記録</h1><span class="auto-pill">自動生成</span></div>'
-            f'<div class="date-range">{escape(period)} &nbsp;&middot;&nbsp; <span class="repo">{escape(repo)}</span></div></header>',
+            f'<header><div class="header-top"><h1>{title}</h1><span class="auto-pill">自動生成</span></div>'
+            f'<div class="date-range">{escape(period)} &nbsp;&middot;&nbsp; <span class="repo">{escape(repo)}</span></div>'
+            f"{scope_note(out_path, other_path, coach)}</header>",
             render_summary(rows, smap, now),
-            render_highlights(rows, smap, rounds),
+            render_highlights(rows, smap, rounds, coach),
             render_score_map(smap),
             render_scripts(rows),
             render_rounds(rounds),
             render_daily(rows),
-            render_members(rows),
+            "" if coach else render_members(rows),
             render_recent(rows),
             render_next(smap, rounds),
             f"<footer>出典: {sources} &nbsp;&mdash;&nbsp; {now.strftime('%Y年%m月%d日 %H:%M')} 生成"
@@ -733,7 +779,7 @@ def build(csv_path=TRIALS_CSV, out_path=OUT_HTML, include_error=False, now=None)
     html = (
         '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="UTF-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        "<title>ロボットゲームの試行記録</title>\n"
+        f"<title>{title}</title>\n"
         "<!-- make-html weekly 型（見本 ja/11-status-report.html）。scripts/trial_dashboard.py が trials.csv から生成 -->\n"
         f'<style>\n{css}{EXTRA_CSS}</style>\n</head>\n<body>\n  <div class="page">\n{body}\n  </div>\n</body>\n</html>\n'
     )
@@ -743,22 +789,42 @@ def build(csv_path=TRIALS_CSV, out_path=OUT_HTML, include_error=False, now=None)
     return len(rows)
 
 
+def build_all(
+    csv_path=TRIALS_CSV,
+    out_path=OUT_HTML,
+    coach_out_path=OUT_COACH_HTML,
+    include_error=False,
+    now=None,
+):
+    """チームの dashboard.html とコーチの dashboard_coach.html をまとめて作り、(チームの行数, コーチの行数) を返す。"""
+    now = now or datetime.now()
+    team = build(csv_path, out_path, include_error, now, coach=False, other_path=coach_out_path)
+    coach = build(csv_path, coach_out_path, include_error, now, coach=True, other_path=out_path)
+    return team, coach
+
+
 def main():
     ap = argparse.ArgumentParser(
-        description="試行記録のダッシュボード (docs/trials/dashboard.html) を作る"
+        description="試行記録のダッシュボード (docs/trials/dashboard.html と dashboard_coach.html) を作る"
     )
     ap.add_argument(
         "--csv", default=TRIALS_CSV, help="読みこむ CSV（省略時は docs/trials/trials.csv）"
     )
-    ap.add_argument("--out", default=OUT_HTML, help="書き出す HTML")
+    ap.add_argument("--out", default=OUT_HTML, help="書き出すチームの HTML")
+    ap.add_argument(
+        "--coach-out",
+        default=OUT_COACH_HTML,
+        help=f"書き出すコーチの HTML（名前に {COACH_WORD} が入る run ファイルだけ）",
+    )
     ap.add_argument(
         "--include-error", action="store_true", help="「動かなかった (error)」も試行に数える"
     )
-    ap.add_argument("--open", action="store_true", help="作ったあとブラウザで開く")
+    ap.add_argument("--open", action="store_true", help="作ったあとチームの方をブラウザで開く")
     args = ap.parse_args()
-    n = build(args.csv, args.out, args.include_error)
+    n, n_coach = build_all(args.csv, args.out, args.coach_out, args.include_error)
     print(f"📊 ダッシュボードを作りました: {args.out}（{n} 行）")
-    if n == 0:
+    print(f"📊 コーチ確認用: {args.coach_out}（{n_coach} 行）")
+    if n + n_coach == 0:
         print("   記録がまだありません。「📝 Robot N + Log」で走らせて成否を入れると行が増えます。")
     if args.open:
         webbrowser.open("file://" + os.path.abspath(args.out).replace(os.sep, "/"))
