@@ -24,7 +24,7 @@ import trial_results as tr  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
-COLUMNS = ["mission_results"]  # 古い trials.csv の見出しに足す列
+COLUMNS = ["mission_results", "run_sec"]  # 古い trials.csv の見出しに足す列
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")

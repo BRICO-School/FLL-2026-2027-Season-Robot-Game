@@ -35,6 +35,11 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   分母は そのミッションを 成功 + 途中まで + 失敗 した数で、「届かなかった」は入れない。
   「試行」はいままでどおり走らせた本数。
 見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安（届かなかったぶんを入れないので「届けば取れる点」）。
+
+【時間は本番でもかかるぶんだけ】（2026-10-03）
+  秒数は trials.csv の run_sec 列だけを使う（run_with_log.py が「=== ロボット初期化完了 ===」→「# 走行完了！」を測った値。
+  セレクター経由はプログラムの「実行中 → 実行完了」）。ハブを探す・接続・送る・ジャイロの待ちは入らない。
+  run_sec の無い 2026-10-03 より前の記録は、時間の集計に入れない（elapsed_sec はそれらをふくむので使わない）。
 dashboard.html と dashboard_coach.html は生成物なので git には入れない（.gitignore）。プレゼン用の表と PNG は trial_report.py。
 """
 
@@ -168,8 +173,9 @@ def is_selector(row):
 
 
 def seconds_of(row):
+    """本番でもかかる時間（run_sec）。無い古い記録は 0（時間の集計に入れない）。"""
     try:
-        return float(row.get("elapsed_sec") or 0)
+        return float(row.get("run_sec") or 0)
     except ValueError:
         return 0.0
 
@@ -546,6 +552,7 @@ def render_score_map(smap):
     lead = (
         f"見こみ点は 満点 × 直近 {RECENT_N} 回の成功率。安定は 直近 {STABLE_MIN} 回以上で {STABLE_RATE}% 以上。"
         "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
+        "平均秒は成功した回の 本番でもかかる時間（初期化完了 → 走行完了）で、2026-10-03 より前の記録には無い。"
     )
     inner = legend + table(heads, body, num_cols=(1, 3, 5, 6), row_classes=classes)
     inner += f"<details><summary>採点の条件を見る</summary>{conditions}</details>"
@@ -607,6 +614,7 @@ def render_scripts(rows):
     lead = (
         f"run ファイルを 1 本ずつ走らせた記録。試行は本数、直近 {RECENT_N} 本と通算の成功率はミッション単位。"
         "ミッションの列は ミッションごとの 成功/挑戦。並びは走行ぜんたいの結果で、左が古く右が新しい。"
+        "平均秒は成功した本の 本番でもかかる時間（ハブを探す・接続・送る・ジャイロの待ちは入らない）。"
     )
     return section("① 要素開発", legend + table(heads, body, num_cols=(3, 5, 6, 7)), lead)
 
@@ -734,12 +742,22 @@ def render_recent(rows):
                 dot(
                     RESULT_DOT.get(r["result"], "none"), RESULT_LABEL.get(r["result"], r["result"])
                 ),
-                r.get("elapsed_sec", ""),
+                r.get("run_sec", ""),
                 escape(r.get("note", "")),
                 log,
             ]
         )
-    heads = ["日時", "走らせ方", "スクリプト", "ミッション", "担当", "結果", "秒", "メモ", "ログ"]
+    heads = [
+        "日時",
+        "走らせ方",
+        "スクリプト",
+        "ミッション",
+        "担当",
+        "結果",
+        "走行秒",
+        "メモ",
+        "ログ",
+    ]
     return section("最近の試行", table(heads, body, num_cols=(6,)))
 
 

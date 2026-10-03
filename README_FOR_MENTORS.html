@@ -376,7 +376,7 @@ dl.faq dd { font-size: 14px; margin: 4px 0 0; }
     <summary>3 · run_with_log.py — 記録つきの実行 <span class="where"><a href="run_with_log.py">run_with_log.py</a></span></summary>
     <div class="body">
       <p>画面の出力を docs/logs/ に保存し、走行後にファイル名のミッションの順に成否を 1 つずつ聞く。確認で Enter を押すと trials.csv に足す。</p>
-      <p>記録のたびに dashboard.html と dashboard_coach.html を作り直す。名前に coach が入る run の記録はチームの方に数えない。</p>
+      <p>記録のたびに dashboard.html と dashboard_coach.html を作り直す。秒は本番でもかかる時間だけで、ハブを探す・接続・送る・ジャイロの待ちは入らない。</p>
       <p>verification/ などのスクリプトは .hub_stage/ に setup.py と写して送る。成否を数えない走行には --no-trial を付ける。</p>
     </div>
   </details>
