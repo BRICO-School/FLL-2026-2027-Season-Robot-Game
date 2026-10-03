@@ -1932,7 +1932,7 @@ function mimeFor(vaultPath) {
 // src/security.ts
 var INLINE_BUDGET_BYTES = 96 * 1024 * 1024;
 var CENTER_STYLE_ID = "brico-html-viewer-center";
-var CENTER_CSS = "html{display:flex;flex-direction:column;align-items:center;min-height:100%}";
+var CENTER_CSS = "html{display:flex;flex-direction:column;align-items:safe center;min-height:100%}";
 function sandboxAttribute(mode) {
   return mode === "edit" ? "allow-same-origin allow-modals" : "allow-scripts allow-modals";
 }

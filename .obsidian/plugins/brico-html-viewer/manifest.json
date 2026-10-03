@@ -1,7 +1,7 @@
 {
   "id": "brico-html-viewer",
   "name": "BRICO HTML Viewer",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "minAppVersion": "1.4.0",
   "description": "Open .html/.htm files from the file explorer and render them in a sandboxed, CSP-restricted iframe (scripts off by default).",
   "author": "BRICO School",
