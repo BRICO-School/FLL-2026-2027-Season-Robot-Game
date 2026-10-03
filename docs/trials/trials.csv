@@ -1,4 +1,4 @@
-trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit,note,log_path,code_hash,snapshot,via,mission_results
+trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit,note,log_path,code_hash,snapshot,via,mission_results,run_sec
 20260919_141604,2026-09-19,14:16:04,run_coach_test.py,,coach,Pybricks Hub3,fail,11.0,0,450d37a,,docs/logs/run_coach_test/20260919_141604.log,2b2e670c,docs/trials/snapshots/2b2e670c,
 20260919_191754,2026-09-19,19:17:54,run_M06_yuri.py,M06,yuri,Pybricks Hub3,success,14.8,0,450d37a,,docs/logs/run_template copy/20260919_191754.log,61ff72b8,docs/trials/snapshots/61ff72b8,
 20260919_192015,2026-09-19,19:20:15,run_M06_yuri.py,M06,yuri,Pybricks Hub3,partial,12.6,0,450d37a,,docs/logs/run_template copy/20260919_192015.log,d2435143,docs/trials/snapshots/d2435143,
@@ -28,3 +28,4 @@ trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit
 20261003_135146,2026-10-03,13:51:46,run_coach_M04.py,M04,coach,Pybricks Hub3,fail,19.0,0,131b596,,docs/logs/run_coach_M04/20261003_135146.log,ce23522f,docs/trials/snapshots/ce23522f,,M04=fail
 20261003_140615,2026-10-03,14:06:15,run_coach_M04M05.py,M04+M05,coach,Pybricks Hub3,partial,21.3,0,131b596,アームの下げが足りなかった,docs/logs/run_coach_M04M05/20261003_140615.log,2920c6f3,docs/trials/snapshots/2920c6f3,,M04=success M05=fail
 20261003_141206,2026-10-03,14:12:06,run_coach_M04M05.py,M04+M05,coach,Pybricks Hub3,fail,20.8,0,131b596,,docs/logs/run_coach_M04M05/20261003_141206.log,430d3a86,docs/trials/snapshots/430d3a86,,M04=fail M05=fail
+20261003_161010,2026-10-03,16:10:10,run_coach_M12M11M06M07.py,M12+M11+M06+M07,coach,Pybricks Hub3,partial,43.6,0,fe66452,,docs/logs/run_coach_M12M11M06M07/20261003_161010.log,f48e30c7,docs/trials/snapshots/f48e30c7,,M12=fail M11=success M06=fail M07=fail,29.4
