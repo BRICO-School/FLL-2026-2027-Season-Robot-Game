@@ -24,6 +24,10 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   ・見た目は make-html スキルの weekly 型（html-effectiveness の ja/11-status-report.html）。
     CSS は scripts/dashboard_style.css に見本のまま写してあり、足した部品は下の EXTRA_CSS だけ
   ・点数の表は scripts/bioglow_missions.py（公式の採点表とルールブックから。合計 530 点）
+  ・表は .page の幅（最大 860px）に収める（2026-10-03）。全部の列を 1 行にしていたら表が 1077px になり、
+    どの画面幅でも表の枠の中に横スクロールが出ていた。文字の列（ミッション名・run ファイル名・メモ）は折り返し、
+    段階・担当・並びは 1 行のまま。run ファイル名は「_」の後ろで折り返す（run_file()）。
+    崩れの検査は obsidian-plugin-html-viewer の npm run check-layout -- <HTML>（表示幅ごとに横スクロールを測る）
 
 【節の並び】（開発の進め方「① run ファイルで要素開発 → ② セレクターから通し」に合わせてある）
   数字 4 つ → ハイライト → 点数マップ（15 ミッション）→ ① 要素開発（run ファイルごと）→ ② 通し（セレクター）
@@ -110,8 +114,9 @@ EXTRA_CSS = """
   /* ---------- 足した部品（trial_dashboard.py） ---------- */
   .table-wrap { overflow-x: auto; }
   table.shipped td.num, table.shipped th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  table.shipped thead th { white-space: nowrap; padding: 11px 10px; }
-  table.shipped tbody td { white-space: nowrap; padding: 11px 10px; }
+  table.shipped thead th { white-space: nowrap; padding: 11px 8px; }
+  table.shipped tbody td { padding: 11px 8px; }
+  table.shipped .risk, table.shipped .author, table.shipped .strip { white-space: nowrap; }
   table.shipped tbody td.note { white-space: normal; min-width: 12em; color: var(--gray-700); font-size: 13px; }
   table.shipped tbody tr.idle td { color: var(--gray-500); }
   table.shipped tbody tr.total td { font-weight: 600; border-top: 2px solid var(--gray-300); }
@@ -134,6 +139,16 @@ EXTRA_CSS = """
   .gap { height: 14px; }
   .scope-note { color: var(--gray-500); font-size: 13px; margin-top: 6px; }
   .scope-note a { color: var(--clay); }
+  footer { overflow-wrap: anywhere; }
+  /* 狭い画面（Obsidian の画面分割など）: 見出しも折り返し、余白・バー・メモの最小幅を詰める */
+  @media (max-width: 720px) {
+    body { padding-left: 12px; padding-right: 12px; }
+    table.shipped thead th { white-space: normal; }
+    table.shipped thead th, table.shipped tbody td { padding: 8px 5px; font-size: 13px; }
+    table.shipped tbody td.note { min-width: 6em; }
+    table.shipped .strip { white-space: normal; }
+    table.shipped .meter { width: 44px; }
+  }
 """
 
 
@@ -355,6 +370,11 @@ def pct(t):
 
 def dot(kind, label):
     return f'<span class="risk"><span class="risk-dot {kind}"></span>{escape(label)}</span>'
+
+
+def run_file(name):
+    """表の run ファイル名。列が狭いとき「_」の後ろで折り返せるようにする（<wbr> は見た目にも文字にも残らない）。"""
+    return f'<span class="pr-link">{escape(name).replace("_", "_<wbr>")}</span>'
 
 
 def meter(rate, over=False):
@@ -681,7 +701,7 @@ def render_scripts(rows):
         versions = len({r["code_hash"] for r in runs if r.get("code_hash")})
         body.append(
             [
-                f'<span class="pr-link">{escape(script)}</span>',
+                run_file(script),
                 per_mission(runs),
                 f'<span class="author">{escape(runs[-1].get("member", ""))}</span>',
                 len(runs),
@@ -835,7 +855,7 @@ def render_recent(rows):
             [
                 f"{short_date(r['date'])} {r.get('time', '')[:5]}",
                 "② 通し" if is_selector(r) else "① 単体",
-                f'<span class="pr-link">{escape(r["script"])}</span>',
+                run_file(r["script"]),
                 mission_dots(r),
                 f'<span class="author">{escape(r.get("member", ""))}</span>',
                 dot(
