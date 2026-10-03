@@ -7,7 +7,11 @@
 Thumbs.db
 
 # Editors
-.obsidian/
+# .obsidian/ は端末ごとの設定なので入れない。ただし plugins/（HTML ビューアーなど）だけは共有する（2026-10-03）
+.obsidian/*
+!.obsidian/plugins/
+# プラグインの設定（data.json）はトークンなどが入ることがあるので入れない
+.obsidian/plugins/*/data.json
 
 # run_with_log.py がサブフォルダのスクリプトをハブへ送る前に写す場所
 .hub_stage/
