@@ -38,3 +38,7 @@ trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit
 20261003_185119,2026-10-03,18:51:19,run_M07_yuri.py,M07,yuri,Pybricks Hub3,fail,19.4,0,cfc29f9,記録時は run_M06_yuri.py。M07 の試行として修正,docs/logs/run_M06_yuri/20261003_185119.log,7094cf30,docs/trials/snapshots/7094cf30,,M07=fail,
 20261003_185705,2026-10-03,18:57:05,run_M07_yuri.py,M07,yuri,Pybricks Hub3,fail,31.4,1,cfc29f9,記録時は run_M06_yuri.py。M07 の試行として修正,docs/logs/run_M06_yuri/20261003_185705.log,f15a7a44,docs/trials/snapshots/f15a7a44,,M07=fail,
 20261003_190216,2026-10-03,19:02:16,run_M07_yuri.py,M07,yuri,Pybricks Hub3,success,11.8,0,cfc29f9,,docs/logs/run_M07_yuri/20261003_190216.log,a6d2e91c,docs/trials/snapshots/a6d2e91c,,M07=success,1.8
+20261003_205941,2026-10-03,20:59:41,run_coach_M03.py,M03,coach,Pybricks Hub3,success,19.1,0,7acbe6d,,docs/logs/run_coach_M03/20261003_205941.log,dd1ec4fc,docs/trials/snapshots/dd1ec4fc,,M03=success,2.7
+20261003_210053,2026-10-03,21:00:53,run_coach_M02.py,M02,coach,Pybricks Hub3,success,21.6,0,7acbe6d,,docs/logs/run_coach_M02/20261003_210053.log,aea71c8e,docs/trials/snapshots/aea71c8e,,M02=success,7.9
+20261003_210207,2026-10-03,21:02:07,run_coach_M04M05.py,M04+M05,coach,Pybricks Hub3,fail,20.6,0,7acbe6d,,docs/logs/run_coach_M04M05/20261003_210207.log,a7300f22,docs/trials/snapshots/a7300f22,,M04=fail M05=fail,7.7
+20261003_210317,2026-10-03,21:03:17,run_coach_M04M05.py,M04+M05,coach,Pybricks Hub3,fail,20.9,0,7acbe6d,,docs/logs/run_coach_M04M05/20261003_210317.log,a7300f22,docs/trials/snapshots/a7300f22,,M04=fail M05=fail,7.7
