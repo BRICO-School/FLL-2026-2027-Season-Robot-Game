@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>メンター向けガイド — FLL 2026-2027 ロボットゲーム</title>
+<!--
+make-html compose 型 — README_FOR_MENTORS.md（2026-10-03 更新）から生成
+問い: メンター／コーチがこの 1 枚で「リポジトリはいまどうなっていて、子どもを支援するとき何に気をつけるか」が分かる
+読者: プロジェクトを技術的に支えるメンター・コーチ
+構成表（h2 → 節型 → 反復数 → 材料の出所）:
+  いまの状況            → context（p×2＋stat-card 4）        → §0.1
+  開発の流れと実行モード → funnel（.flow 3 段・here 1）        → §0・§0.1・§3.1
+  実行モードの決まり     → gotchas（callout ul 3）            → §0 ルール 3 項
+  ルートにある run ファイル → evidence（table.kit 13 行）     → §0.1 表 13 行
+  最近の変更            → timeline（milestone 5）             → §3.1・§3.2・§3.4・§3.5
+  しくみを順に追う       → steps（details 5・中に表 5 行）     → §3.1〜§3.5
+  setup.py で決まっていること → basis（9 項）                 → §3.1
+  よく使う手順           → howto（tabs 4）                    → §4.1・§3.5・§5・§3.1
+  手押しの記録とコードの記法 → howto（tabs 2）＋ table.kit 4 行 ×2 → §3.5 の記法 2 表
+  支援で気をつけること   → discarded 型 highlights（8 項）    → §7 の 8 項
+  まだ決まっていないこと → open（q 3・next 1）                → §3.1・§3.2
+  次に開くドキュメント   → evidence 型 table.kit（15 行）     → §6 の 15 行
+  よくあるトラブル       → faq（15 組）                       → §8 の 15 行
+省いた節: criteria・compare・layer・discarded 本来の用途（材料に該当なし）
+-->
+<style>
+/* ============================================================
+   style-kit.css — html-effectiveness ギャラリー共通スタイルの抽出版
+   出所: anthropics/html-effectiveness（MIT）index.html・11・12・14・16・01・03 の
+   :root トークンと部品を 1 本にまとめ、日本語向けに 4 点だけ調整した。
+   使い方: <style> に丸ごとインライン（外部参照禁止のため）。
+   部品は class 名で選ぶ。色・フォント・幅は変えない（トークン固定）。
+   日本語調整: 見出し・数字＝游明朝、本文＝游ゴシック Medium（候補 B・2026-08-22 確定）、palt 詰め組み／本文 15.5px・行間 1.75／eyebrow の字間 0.08em／数字は tabular
+   ============================================================ */
+
+:root {
+  /* 色: 地 1・文字 1・アクセント 1（clay）・状態 2（olive=良/rust=悪）・灰 4 */
+  --ivory: #FAF9F5;   /* 地 */
+  --paper: #FFFFFF;   /* カード */
+  --slate: #141413;   /* 文字 */
+  --clay:  #D97757;   /* アクセント。1 画面に「見るべき 1 点」だけ */
+  --clay-d:#B85C3E;
+  --oat:   #E3DACC;   /* 淡い帯・タグ地 */
+  --olive: #788C5D;   /* 良い・完了 */
+  --rust:  #B04A3F;   /* 悪い・高リスク */
+  --g100:  #F0EEE6;
+  --g200:  #E6E3DA;
+  --g300:  #D1CFC5;   /* 罫線 */
+  --g500:  #87867F;   /* 補助文字 */
+  --g700:  #3D3D3A;   /* 本文（やや薄い文脈） */
+
+  --serif: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Noto Serif JP", ui-serif, Georgia, serif;
+  --sans:  "Yu Gothic Medium", "Yu Gothic", "YuGothic", "Hiragino Sans", "Noto Sans JP", system-ui, -apple-system, sans-serif;
+  --mono:  ui-monospace, "SF Mono", Menlo, Consolas, "BIZ UDGothic", monospace;
+
+  --border: 1.5px solid var(--g300);
+  --radius-panel: 12px;
+  --radius-row: 8px;
+}
+
+/* ---------- 土台 ---------- */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; padding: 56px 24px 120px;
+  background: var(--ivory); color: var(--slate);
+  font-family: var(--sans); font-size: 15.5px; line-height: 1.75;
+  -webkit-font-smoothing: antialiased; font-feature-settings: "palt" 1, "kern" 1, "tnum" 1;
+}
+.page { max-width: 860px; margin: 0 auto; }                 /* 1 列の文書 */
+.page.wide { max-width: 1100px; display: grid; grid-template-columns: 200px minmax(0,1fr); gap: 48px; } /* 側注つき */
+@media (max-width: 880px) { .page.wide { grid-template-columns: minmax(0,1fr); } .page.wide nav { display: none; } }
+a { color: var(--clay); text-decoration: underline; text-decoration-color: var(--oat); text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--clay); }
+code { font-family: var(--mono); font-size: .9em; }
+pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; }
+p { margin: 0 0 12px; }
+p, li, dd { max-width: 680px; }   /* 行長の上限。表・カードは対象外 */
+
+/* ---------- 見出し ---------- */
+.eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--g500); margin-bottom: 10px; }
+h1 { font-family: var(--serif); font-weight: 500; font-size: 34px; line-height: 1.25; letter-spacing: -.01em; margin: 0 0 10px; color: var(--slate); }
+h1 em { font-style: normal; color: var(--clay); }
+.meta { color: var(--g500); font-size: 14px; margin-bottom: 36px; }
+.meta code { color: var(--g700); font-size: 13px; }
+section { margin-bottom: 52px; }
+h2 { font-family: var(--serif); font-weight: 500; font-size: 23px; letter-spacing: -.01em; margin: 40px 0 6px; color: var(--slate); scroll-margin-top: 24px; }
+h2 + hr.rule, hr.rule { border: none; border-top: 1px solid var(--g300); margin: 0 0 20px; }
+h3 { font-family: var(--serif); font-weight: 500; font-size: 18px; margin: 22px 0 6px; color: var(--slate); }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+.sec-head .num { font-family: var(--mono); font-size: 12px; background: var(--oat); color: var(--slate); padding: 3px 9px; border-radius: 8px; }
+.sec-intro { font-size: 14.5px; color: var(--g500); max-width: 720px; margin-bottom: 24px; }
+
+/* ---------- ピル・タグ・状態 ---------- */
+.pill { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--g500); background: var(--g100); border: var(--border); border-radius: 999px; padding: 5px 11px; white-space: nowrap; }
+.tag  { font-family: var(--mono); font-size: 11.5px; background: var(--g100); border: 1px solid var(--g300); border-radius: 6px; padding: 3px 8px; color: var(--g700); }
+.risk { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--g500); }
+.risk-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.risk-dot.low  { background: var(--olive); }
+.risk-dot.med  { background: var(--clay); }
+.risk-dot.high { background: var(--rust); }
+.src { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--g300); border-radius: 4px; padding: 0 .4em; color: var(--g500); background: var(--g100); vertical-align: middle; margin-left: .35em; } /* 出所: 実測／推定／未計測 */
+
+/* ---------- TL;DR（要するに） ---------- */
+.tldr { border: var(--border); border-left: 3px solid var(--clay); border-radius: 10px; background: var(--paper); padding: 16px 18px; margin: 0 0 18px; }
+.tldr b { color: var(--slate); }
+
+/* ---------- 数字の帯 ---------- */
+.summary-band { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 0 0 8px; }
+.summary-band.cols-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 720px) { .summary-band, .summary-band.cols-3 { grid-template-columns: repeat(2, 1fr); } }
+.stat-card { background: var(--paper); border: var(--border); border-radius: var(--radius-panel); padding: 20px 22px 18px; }
+.stat-card.warn { border-left: 4px solid var(--clay); padding-left: 19px; }  /* 見るべき 1 枚だけ */
+.stat-num { font-family: var(--serif); font-size: 42px; font-weight: 500; line-height: 1; color: var(--slate); margin-bottom: 8px; }
+.stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--g500); }
+.stat-delta { font-family: var(--mono); font-size: 11px; margin-top: 6px; color: var(--g500); }
+.stat-delta.up { color: var(--olive); }
+.stat-delta.down { color: var(--rust); }
+
+/* ---------- ハイライト（3 項まで） ---------- */
+.highlights { list-style: none; margin: 0; padding: 0; }
+.highlights li { position: relative; padding: 0 0 14px 26px; color: var(--g700); }
+.highlights li::before { content: ""; position: absolute; left: 6px; top: 11px; width: 7px; height: 7px; border-radius: 2px; background: var(--clay); }
+.highlights li strong { color: var(--slate); font-weight: 600; }
+
+/* ---------- 表（1 本に 1 つまで） ---------- */
+table.kit { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--paper); border: var(--border); border-radius: var(--radius-panel); overflow: hidden; }
+table.kit thead th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--g500); background: var(--g100); padding: 12px 16px; border-bottom: 1px solid var(--g300); }
+table.kit tbody td { padding: 12px 16px; border-bottom: 1px solid var(--g100); font-size: 14px; vertical-align: middle; }
+table.kit tbody tr:last-child td { border-bottom: none; }
+table.kit tbody tr:hover { background: var(--ivory); }
+table.kit td.mono, table.kit .mono { font-family: var(--mono); font-size: 13px; }
+
+/* ---------- 折りたたみ（手順・詳細。summary に出所を右寄せ） ---------- */
+details.kit { border: var(--border); border-radius: 10px; background: var(--paper); margin: 14px 0; overflow: hidden; }
+details.kit summary { list-style: none; cursor: pointer; padding: 14px 16px; font-family: var(--serif); font-size: 16px; color: var(--slate); display: flex; align-items: baseline; gap: 10px; }
+details.kit summary::-webkit-details-marker { display: none; }
+details.kit summary::before { content: "▸"; color: var(--clay); font-family: var(--sans); font-size: 12px; transition: transform 120ms; }
+details.kit[open] summary::before { transform: rotate(90deg); }
+details.kit summary .where { font-family: var(--mono); font-size: 11px; color: var(--g500); margin-left: auto; }
+details.kit .body { padding: 0 16px 16px; }
+details.kit .body p { font-size: 14px; }
+
+/* ---------- タブ（設定例・コード片の切替） ---------- */
+.tabs { border: var(--border); border-radius: 10px; background: var(--paper); margin: 16px 0 8px; overflow: hidden; }
+.tabbar { display: flex; border-bottom: 1px solid var(--g300); background: var(--g100); }
+.tabbar button { appearance: none; border: none; background: none; font-family: var(--mono); font-size: 12px; color: var(--g500); padding: 10px 16px; cursor: pointer; border-right: 1px solid var(--g300); }
+.tabbar button.on { background: var(--paper); color: var(--slate); border-bottom: 2px solid var(--clay); margin-bottom: -1px; }
+.tabs pre { display: none; margin: 0; padding: 16px 18px; color: var(--slate); }
+.tabs pre.on { display: block; }
+.hl { color: var(--clay); } .cm { color: var(--g500); }
+
+/* ---------- コールアウト（注意・前提） ---------- */
+.callout { display: flex; gap: 12px; border: 1.5px solid var(--oat); background: rgba(227,218,204,.35); border-radius: 10px; padding: 14px 16px; margin: 18px 0; font-size: 14px; }
+.callout .ico { color: var(--clay); font-weight: 600; }
+.callout ul { margin: 6px 0 0; padding-left: 1.2em; }
+
+/* ---------- 側注ナビ（.page.wide のとき） ---------- */
+nav.side { position: sticky; top: 32px; align-self: start; font-size: 13px; }
+nav.side .label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--g500); margin-bottom: 12px; }
+nav.side a { display: block; padding: 5px 0 5px 12px; border-left: 2px solid var(--g300); color: var(--g700); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav.side a:hover { color: var(--slate); border-color: var(--slate); }
+nav.side a.l2 { padding-left: 24px; font-size: 12.5px; color: var(--g500); }
+nav.side .files { margin-top: 28px; border-top: 1px solid var(--g300); padding-top: 16px; }
+nav.side .files code { display: block; font-size: 11px; color: var(--g500); padding: 3px 0; white-space: normal; word-break: break-all; line-height: 1.45; }  /* 絶対パスを折り返す */
+
+/* ---------- タイムライン（計画・障害の時系列） ---------- */
+.milestones { display: flex; flex-direction: column; }
+.milestone { display: grid; grid-template-columns: 120px 28px 1fr; gap: 0 18px; position: relative; }
+.milestone .when { text-align: right; font-family: var(--mono); font-size: 12px; color: var(--g500); padding-top: 4px; }
+.milestone .dot-col { display: flex; flex-direction: column; align-items: center; }
+.milestone .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--paper); border: 3px solid var(--clay); margin-top: 4px; flex-shrink: 0; }
+.milestone .dot.done { background: var(--olive); border-color: var(--olive); }
+.milestone .line { width: 2px; flex: 1; background: var(--g300); margin: 4px 0; }
+.milestone:last-child .line { display: none; }
+.milestone .body { padding-bottom: 32px; }
+.milestone .body h3 { margin: 0 0 4px; }
+.milestone .body p { font-size: 14px; color: var(--g500); margin-bottom: 10px; max-width: 620px; }
+.milestone .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- 比較（2〜3 案の並置＋推薦） ---------- */
+.compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 12px 0; }
+.compare.cols-2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 720px) { .compare, .compare.cols-2 { grid-template-columns: 1fr; } }
+.option { background: var(--paper); border: var(--border); border-radius: var(--radius-panel); padding: 18px 20px; }
+.option.pick { border-color: var(--clay); }
+.option h3 { margin: 0 0 6px; }
+.option .tradeoff { font-size: 13.5px; color: var(--g500); }
+.recommend { background: var(--oat); border-radius: var(--radius-panel); padding: 16px 20px; margin-top: 8px; }
+.recommend .label { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--g700); display: block; margin-bottom: 4px; }
+
+/* ---------- 未決・次の一手 ---------- */
+.q { background: var(--paper); border: var(--border); border-left: 4px solid var(--clay); border-radius: 10px; padding: 14px 18px; margin: 0 0 12px; }
+.q .qt { font-weight: 600; color: var(--slate); margin-bottom: 2px; }
+.q .qd { font-size: 13.5px; color: var(--g500); }
+.q .owner { font-family: var(--mono); font-size: 11.5px; color: var(--g500); margin-top: 6px; }
+.next { display: flex; gap: 12px; align-items: baseline; background: var(--oat); border-radius: var(--radius-row); padding: 10px 14px; margin: 0 0 18px; font-size: 14.5px; }
+.next .label { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--g700); white-space: nowrap; }
+
+/* ---------- 図の器 ---------- */
+.chart-panel { background: var(--paper); border: var(--border); border-radius: var(--radius-panel); padding: 24px 28px 18px; }
+.chart-panel svg { display: block; width: 100%; height: auto; }
+.chart-caption { font-size: 12px; color: var(--g500); margin-top: 12px; }
+
+/* ---------- エクスポート（操作系は必ずこれで終える） ---------- */
+.export { display: flex; gap: 10px; align-items: center; margin-top: 24px; }
+.export button { appearance: none; font-family: var(--mono); font-size: 12px; color: var(--slate); background: var(--paper); border: var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.export button:hover { border-color: var(--slate); }
+.export .done { font-size: 12px; color: var(--olive); }
+
+/* ---------- 脚注・出典 ---------- */
+footer.src-list { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--g300); font-size: 12.5px; color: var(--g500); }
+footer.src-list code { font-size: 11.5px; }
+
+/* ---------- 追加（2026-08-25・compose 型用） ---------- */
+/* FAQ（14 型から移植） */
+dl.faq { margin-top: 8px; }
+dl.faq dt { font-family: var(--serif); font-size: 16px; color: var(--slate); margin-top: 18px; }
+dl.faq dd { font-size: 14px; margin: 4px 0 0; }
+/* 格付けピル（証拠の強さ: 強／中／弱） */
+.pill.strong { color: var(--olive); border-color: var(--olive); background: var(--paper); }
+.pill.mid    { color: var(--clay);  border-color: var(--clay);  background: var(--paper); }
+.pill.weak   { color: var(--g500); }
+/* 段の図（ファネル・経路。段は材料の数だけ。5 段以上は縦に） */
+.flow { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; align-items: stretch; margin: 12px 0 6px; }
+.flow.vertical { grid-auto-flow: row; }
+.flow .step { position: relative; background: var(--paper); border: var(--border); border-radius: 10px; padding: 12px 14px 12px; margin-right: 22px; }
+.flow.vertical .step { margin-right: 0; margin-bottom: 22px; }
+.flow .step:last-child { margin: 0; }
+.flow .step::after { content: "→"; position: absolute; right: -19px; top: 50%; transform: translateY(-50%); color: var(--g500); font-size: 14px; }
+.flow.vertical .step::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); }
+.flow .step:last-child::after { content: none; }
+.flow .step.here { border-color: var(--clay); box-shadow: inset 3px 0 0 var(--clay); }  /* いま扱っている段は 1 つだけ */
+.flow .step .k { font-family: var(--mono); font-size: 11px; color: var(--g500); letter-spacing: .06em; text-transform: uppercase; }
+.flow .step .t { font-family: var(--serif); font-size: 15px; color: var(--slate); margin: 2px 0 2px; }
+.flow .step .d { font-size: 12.5px; color: var(--g500); }
+/* 根拠つきカード（設計判断 → 当てた原則） */
+.basis { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.basis li { background: var(--paper); border: var(--border); border-radius: 10px; padding: 12px 16px; max-width: none; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 16px; align-items: baseline; }
+.basis li .what { color: var(--slate); font-weight: 600; }
+.basis li .why { grid-column: 1; font-size: 13.5px; color: var(--g700); }
+.basis li .ref { font-family: var(--mono); font-size: 11.5px; color: var(--g500); white-space: nowrap; }
+/* 側注の第 2 階層は h3 相当（節内の項目）にだけ使う */
+
+</style>
+</head>
+<body>
+<div class="page wide">
+<nav class="side">
+  <div class="label">このページの内容</div>
+  <a href="#tldr">TL;DR</a>
+  <a href="#context">いまの状況</a>
+  <a href="#funnel">開発の流れ</a>
+  <a href="#gotchas">実行モードの決まり</a>
+  <a href="#runs">ルートの run ファイル</a>
+  <a href="#timeline">最近の変更</a>
+  <a href="#steps">しくみを順に追う</a>
+  <a href="#steps" class="l2">1. setup.py</a>
+  <a href="#steps" class="l2">2. selector.py</a>
+  <a href="#steps" class="l2">3. run_with_log.py</a>
+  <a href="#steps" class="l2">4. ポート割付</a>
+  <a href="#steps" class="l2">5. 手押しティーチング</a>
+  <a href="#basis">setup.py の決めごと</a>
+  <a href="#howto">よく使う手順</a>
+  <a href="#teach-notation">手押しの記法</a>
+  <a href="#cautions">支援で気をつけること</a>
+  <a href="#open">まだ決まっていないこと</a>
+  <a href="#docs">次に開くドキュメント</a>
+  <a href="#faq">よくあるトラブル</a>
+  <div class="files">
+    <div class="label">読んだファイル</div>
+    <code><a href="README_FOR_MENTORS.md">/mnt/c/Projects/FLL-2026-2027-Season-Robot-Game/README_FOR_MENTORS.md</a></code>
+  </div>
+</nav>
+
+<main>
+<header>
+  <div class="eyebrow">FLL 2026-2027 · メンター向けガイド</div>
+  <h1>ロボットゲームの<em>いま</em>と支援の要点</h1>
+  <div class="tldr" id="tldr">
+    <b>TL;DR</b> — 本番機 Pybricks Hub3 で要素開発をしている段階で、セレクターの登録はまだ run_template だけ。2026-10-02 に手押しティーチングとコーチ用ダッシュボードが入った。支援では、置いて手を離してから走らせる・コーチの run は名前に coach を入れる・selector.py と setup.py は 1 人が触る、を守る。
+  </div>
+</header>
+
+<section id="context">
+  <h2>いまの状況 — 2026-10-03 時点</h2><hr class="rule">
+  <p>本番機はローバー型で、ハブは Pybricks Hub3。寸法・速度・PID は 2026-09-17 に確定した。</p>
+  <p>いまは run ファイルでミッションごとの要素開発をしている段階。セレクターからの通し練習はまだ始まっていない。</p>
+  <div class="summary-band">
+    <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">チームの run</div><div class="stat-delta">yuri・sakuto・soichiro</div></div>
+    <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">コーチ確認用の run</div><div class="stat-delta">手押しから 3 本</div></div>
+    <div class="stat-card warn"><div class="stat-num">1</div><div class="stat-label">セレクターの登録</div><div class="stat-delta down">run_template だけ</div></div>
+    <div class="stat-card"><div class="stat-num">360.1</div><div class="stat-label">Hub3 の校正表</div><div class="stat-delta">2026-09-19・暫定</div></div>
+  </div>
+</section>
+
+<section id="funnel">
+  <h2>開発の流れと実行モード</h2><hr class="rule">
+  <p>開発中は run ファイルを 1 本ずつ F5 で回し、大会が近づいたら selector.py に登録して通す。いまは最初の段にいる。</p>
+  <div class="flow">
+    <div class="step here"><div class="k">01 要素開発</div><div class="t">run_*.py を直接 F5</div><div class="d">1 つのミッションを繰り返し試す</div></div>
+    <div class="step"><div class="k">02 登録</div><div class="t">selector.py の programs へ</div><div class="d">メンターか担当者 1 名が行う</div></div>
+    <div class="step"><div class="k">03 通し・本番</div><div class="t">selector.py から走らせる</div><div class="d">左右ボタンで選び、フォースセンサーで発射</div></div>
+  </div>
+  <div class="chart-caption">大会形式の走行はジャイロが状態 B になる見こみで、まだ測っていない。</div>
+</section>
+
+<section id="gotchas">
+  <h2>実行モードの決まり</h2><hr class="rule">
+  <div class="callout"><span class="ico">!</span>
+    <div>子どもに徹底させる、いちばん大事な決まり。
+      <ul>
+        <li>開発中は selector.py を触らず、自分の run_*.py だけを F5 で回す。誰かが壊しても他人に波及しない。</li>
+        <li>完成した run は大会直前に programs へ登録し、全プログラムを通しで確かめる。</li>
+        <li>selector.py の登録と並び替えはメンターか担当者 1 名が行う。同時に編集するとコンフリクトが頻発する。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="runs">
+  <h2>ルートにある run ファイル</h2><hr class="rule">
+  <p>名前に coach が入るものはコーチの確認用で、チームの集計には数えない。</p>
+  <div style="overflow-x:auto"><table class="kit">
+    <thead><tr><th style="width:190px">ファイル</th><th style="width:150px">種類</th><th>いまの中身</th></tr></thead>
+    <tbody>
+      <tr><td class="mono"><a href="run_M06_yuri.py">run_M06_yuri.py</a></td><td>チーム・yuri</td><td>前進 200mm → 後退 100mm・速度 190</td></tr>
+      <tr><td class="mono"><a href="run_sakuto_M03.py">run_sakuto_M03.py</a></td><td>チーム・sakuto</td><td>左アームを逆に 550°・999deg/s</td></tr>
+      <tr><td class="mono"><a href="run_M9_soichiro.py">run_M9_soichiro.py</a></td><td>チーム・soichiro</td><td>右アームを逆に 3600°・5000deg/s。そのあとの await robot が書きかけで、走る前に TypeError で止まる</td></tr>
+      <tr><td class="mono"><a href="run_coach_M01.py">run_coach_M01.py</a></td><td>コーチ確認用</td><td>前進 650mm</td></tr>
+      <tr><td class="mono"><a href="run_coach_M02.py">run_coach_M02.py</a></td><td>コーチ確認用</td><td>前進 30mm → 右 43° → 前進 400mm → 右アームを逆に 576° → 後退 120mm → 左 180° → 半径 1000mm のカーブ 20°</td></tr>
+      <tr><td class="mono"><a href="run_coach_M03.py">run_coach_M03.py</a></td><td>コーチ確認用</td><td>前進 290mm → 後退 290mm・300mm/s</td></tr>
+      <tr><td class="mono"><a href="run_coach_M04_M06.py">run_coach_M04_M06.py</a></td><td>コーチ確認用</td><td>半径 1900mm のカーブ 20° → 左 47°。そのあとはコメントアウト中</td></tr>
+      <tr><td class="mono"><a href="run_coach_M09.py">run_coach_M09.py</a></td><td>コーチ確認用</td><td>左アーム 25 回転・1000deg/s</td></tr>
+      <tr><td class="mono"><a href="run_M03_coach.py">run_M03_coach.py</a></td><td>コーチ確認用・手押しから</td><td>前進 210mm → 後ろ向きのカーブ 30°・1 秒で打ち切り → 後退 300mm</td></tr>
+      <tr><td class="mono"><a href="run_M04_coach.py">run_M04_coach.py</a></td><td>コーチ確認用・手押しから</td><td>カーブ 2 本 → 向き合わせ → 前進 163mm → 左アームを逆に 2 回転</td></tr>
+      <tr><td class="mono"><a href="run_coach_M12.py">run_coach_M12.py</a></td><td>コーチ確認用・手押しから</td><td>M12 → M11 → M06 → M07 を 1 本で回る。10/3 に 11 本走らせ、途中まで 1・失敗 10。起こしたままの版は archive/2026/run_coach_M12_bak.py</td></tr>
+      <tr><td class="mono"><a href="run_left_arm_test.py">run_left_arm_test.py</a></td><td>機構の確認</td><td>前進 500mm・300mm/s。名前は左アームだが中身は直進</td></tr>
+      <tr><td class="mono"><a href="run_template.py">run_template.py</a></td><td>ひな形</td><td>前進 500mm・500mm/s</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="timeline">
+  <h2>最近の変更</h2><hr class="rule">
+  <div class="milestones">
+    <div class="milestone"><div class="when">09-17</div><div class="dot-col"><div class="dot done"></div><div class="line"></div></div><div class="body"><h3>本番機の確定値を setup.py へ</h3><p>寸法を測って確定し、PID は Pybricks の既定値にした。</p></div></div>
+    <div class="milestone"><div class="when">09-18</div><div class="dot-col"><div class="dot done"></div><div class="line"></div></div><div class="body"><h3>new と old の切りかえを追加</h3><p>DRIVE_SETTINGS で昨年の速度・加速度・PID に戻せる。</p></div></div>
+    <div class="milestone"><div class="when">09-19</div><div class="dot-col"><div class="dot done"></div><div class="line"></div></div><div class="body"><h3>始めに 2 秒待ち、校正表を状態 B に合わせる</h3><p>前日の 365.8 は取り下げた。</p></div></div>
+    <div class="milestone"><div class="when">09-19</div><div class="dot-col"><div class="dot done"></div><div class="line"></div></div><div class="body"><h3>フォースセンサーを Port D に</h3><p>今シーズンの機体は D に付いている。</p></div></div>
+    <div class="milestone"><div class="when">10-02</div><div class="dot-col"><div class="dot done"></div><div class="line"></div></div><div class="body"><h3>手押しティーチングとコーチ用ダッシュボード</h3><p>coach が入る run の記録はチームの集計から外れた。</p><div class="tags"><span class="tag">teach_record.py</span><span class="tag">scripts/teach.py</span><span class="tag">dashboard_coach.html</span></div></div></div>
+  </div>
+</section>
+
+<section id="steps">
+  <h2>しくみを順に追う</h2><hr class="rule">
+  <p>開くと、各部品が何をしていて、どこに気をつけるかが分かる。</p>
+  <details class="kit" open>
+    <summary>1 · setup.py — 全 run の共通基盤 <span class="where"><a href="setup.py">setup.py</a></span></summary>
+    <div class="body">
+      <p>initialize_robot() は hub・robot・左右のタイヤ・左右のリフトの 6 要素を返す。子どもの run はいつもこれを受け取る。</p>
+      <p>Robot クラスは呼び出しごとに速さ・加速度・timeout を指定でき、終わると既定値に戻す。</p>
+      <p>NullMotor はリフトが未接続でも落ちないためのダミー。タイヤは必須で、未接続なら例外になる。</p>
+    </div>
+  </details>
+  <details class="kit">
+    <summary>2 · selector.py — 競技の入口 <span class="where"><a href="selector.py">selector.py</a>:53</span></summary>
+    <div class="body">
+      <p>programs に登録した run を左右ボタンで選び、フォースセンサーで走らせる。いま登録されているのは run_template だけ。</p>
+      <p>initialize_robot() は始めの 1 回だけ。ミッションごとは reset_robot() で距離と向きを 0 に戻し、待ち時間は無い。</p>
+      <p>dev フラグはいま False。True にすると、センサーの値を出すタスクが multitask で並走する。</p>
+    </div>
+  </details>
+  <details class="kit">
+    <summary>3 · run_with_log.py — 記録つきの実行 <span class="where"><a href="run_with_log.py">run_with_log.py</a></span></summary>
+    <div class="body">
+      <p>画面の出力を docs/logs/ に保存し、走行後に成否を 1 キーで聞いて trials.csv に足す。走らせたコードの写しも残す。</p>
+      <p>記録のたびに dashboard.html と dashboard_coach.html を作り直す。名前に coach が入る run の記録はチームの方に数えない。</p>
+      <p>verification/ などのスクリプトは .hub_stage/ に setup.py と写して送る。成否を数えない走行には --no-trial を付ける。</p>
+    </div>
+  </details>
+  <details class="kit">
+    <summary>4 · ハードウェアのポート割付 <span class="where"><a href="README_FOR_MENTORS.md">README_FOR_MENTORS §3.4</a></span></summary>
+    <div class="body">
+      <p>フォースセンサーは 2026-09-19 に Port C から D に変わった。ハブ姿勢は top_side=Axis.Z, front_side=Axis.X。</p>
+      <div style="overflow-x:auto"><table class="kit">
+        <thead><tr><th style="width:70px">Port</th><th>デバイス</th><th style="width:90px">正方向</th><th>必須か</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">F</td><td>左駆動モーター</td><td class="mono">CCW</td><td>必須</td></tr>
+          <tr><td class="mono">B</td><td>右駆動モーター</td><td class="mono">CW</td><td>必須</td></tr>
+          <tr><td class="mono">E</td><td>左リフト</td><td class="mono">CW</td><td>未接続なら NullMotor</td></tr>
+          <tr><td class="mono">A</td><td>右リフト</td><td class="mono">CW</td><td>未接続なら NullMotor</td></tr>
+          <tr><td class="mono">D</td><td>ForceSensor・開始ボタン兼用</td><td class="mono">—</td><td>selector 使用時だけ必須</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </details>
+  <details class="kit">
+    <summary>5 · 手押しティーチング <span class="where"><a href="scripts/teach.py">scripts/teach.py</a></span></summary>
+    <div class="body">
+      <p>ハブ側の teach_record.py が手で押したルートを記録し、PC 側の scripts/teach.py が straight・turn・curve と run_angle のコードを起こす。記録は docs/logs/teach_record/ に残る。</p>
+      <p>1 つの動きごとに手を止め、持ち上げない。タイヤが床で回らないと距離が分からない。</p>
+      <p>起こしたコードはそのまま使えないことが多い。run_M03_coach.py と run_M04_coach.py も距離や速さを手で直している。</p>
+    </div>
+  </details>
+</section>
+
+<section id="basis">
+  <h2>setup.py で決まっていること</h2><hr class="rule">
+  <p>全 run に効く判断と、その理由。右は決めた日。</p>
+  <ul class="basis">
+    <li><span class="what">寸法は本番機で測って確定した</span><span class="ref">09-17</span><span class="why">車輪径は 62.32mm。トレッドは 114.48mm。機体を作り直したら測り直す。</span></li>
+    <li><span class="what">PID は Pybricks の既定値をそのまま使う</span><span class="ref">09-17</span><span class="why">KI を足しても良くならなかった。昨年値は old で残してある。</span></li>
+    <li><span class="what">DRIVE_SETTINGS で new と old を切りかえる</span><span class="ref">09-18</span><span class="why">比較では直進と回転は new、正方形の終点は old が良く、割れた。</span></li>
+    <li><span class="what">ハブ名で校正表 ROBOT_PROFILES を引く</span><span class="ref">09-17</span><span class="why">ジャイロの目盛りはハブごとに違う。校正前の Hub3 は turn(90) で約 88.7° しか回らなかった。</span></li>
+    <li><span class="what">Hub3 の heading_correction は 360.1</span><span class="ref">09-19 · 暫定</span><span class="why">止まってから回れば状態 B になる。365.8 のままだと B のとき回りすぎる。</span></li>
+    <li><span class="what">始めに止まったまま 2 秒待つ</span><span class="ref">09-19</span><span class="why">始めてすぐ回ると状態 A になる。A では回転が約 1.4% ずれる。</span></li>
+    <li><span class="what">回転の打ち消しは既定で使わない</span><span class="ref">09-17</span><span class="why">Pybricks は命令した角度の合計を目標の向きに保つ。打ち消すと逆にずれた。</span></li>
+    <li><span class="what">correct=True も使わない</span><span class="ref">09-17</span><span class="why">係数が再現しなかった。いまは校正表で合わせる。</span></li>
+    <li><span class="what">turn と straight は整数に丸める</span><span class="ref">setup.py</span><span class="why">turn(42.5) のような小数の角度は効かない。</span></li>
+  </ul>
+</section>
+
+<section id="howto">
+  <h2>よく使う手順</h2><hr class="rule">
+  <div class="tabs">
+    <div class="tabbar"><button class="on" data-tab="t1">初回セットアップ</button><button data-tab="t2">手押し</button><button data-tab="t3">新しい run</button><button data-tab="t4">ジャイロ校正</button></div>
+<pre class="on" data-tab="t1"><span class="cm"># PC ごとに 1 回</span>
+uv sync                      <span class="cm"># .venv と Python 3.12</span>
+sh scripts/install-hooks.sh  <span class="cm"># 変更履歴フック</span>
+uv run pre-commit install    <span class="cm"># ruff フック。任意・<span class="hl">必ずこの順</span></span><pre data-tab="t2"><span class="cm"># ① 記録して、そのままコードにする</span>
+uv run python scripts/teach.py --name "Pybricks Hub3"
+uv run python scripts/teach.py --name "Pybricks Hub3" <span class="hl">--out run_M05_kanna.py</span>
+
+<span class="cm"># ② 記録だけする。teach_record.py をハブで走らせる</span>
+<span class="hl">uv run python run_with_log.py teach_record.py --name "Pybricks Hub3" --no-trial</span>
+
+<span class="cm"># ③ 記録をあとからコードにする。ハブは要らない</span>
+uv run python scripts/teach.py                                    <span class="cm"># いちばん新しい記録</span>
+uv run python scripts/teach.py docs/logs/teach_record/&lt;日時&gt;.log   <span class="cm"># 指定した記録</span>
+
+<span class="cm"># VS Code: teach_record.py を開いて 📝 Robot 3 + Log で F5。成否は s</span>
+<span class="cm"># F5 の 🤖 Robot N ではログが残らず、teach.py で読めない</span>
+<span class="cm"># 止める: ハブの真ん中のボタン。Ctrl+C でもそこまでの記録は残る</span></pre>e "Pybricks Hub3" <span class="hl">--out run_M05_kanna.py</span></pre>
+<pre data-tab="t3"><span class="cm"># 1. run_template.py をコピー。M 番号を入れる</span>
+run_M04_kanna.py
+run_coach_M01.py     <span class="cm"># コーチ用は coach を入れる</span>
+
+<span class="cm"># 2. 本番投入するときだけ selector.py に登録</span>
+import run_M04_kanna
+programs = [<span class="hl">{"module": &lt;module&gt;, "display_number": &lt;int&gt;}</span>]</pre>
+<pre data-tab="t4"><span class="cm"># ① ハブを機体から外して 3 軸校正</span>
+uv run python run_with_log.py verification/run_imu_calibrate_guided.py --name "&lt;ハブ名&gt;" --no-trial
+
+<span class="cm"># ② 機体に戻し、定規に当ててモーター 5 周。5 回以上</span>
+uv run python run_with_log.py verification/run_gyro_motor_check.py --name "&lt;ハブ名&gt;" --no-trial
+
+<span class="cm"># ③ 1 周の読みの平均を ROBOT_PROFILES の</span> <span class="hl">heading_correction</span> <span class="cm">へ</span></pre>
+  </div>
+</section>
+
+<section id="teach-notation">
+  <h2>手押しの記録とコードの記法</h2><hr class="rule">
+  <p>teach.py が読むのは # teach: の行と P, で始まる行だけ。● 動き N の行は区切りの目安で、本当の区切りは teach.py が決め直す。</p>
+  <p>読み取りは 40ms ごと。行が出るのは、角度が変わったとき・向きが 0.5° 以上変わったとき・止まっていても 1 秒ごと。</p>
+  <div class="tabs">
+    <div class="tabbar"><button class="on" data-tab="n1">記録の例</button><button data-tab="n2">起こしたコード</button></div>
+<pre class="on" data-tab="n1"><span class="cm"># docs/logs/teach_record/20261002_205805.log から抜粋</span>
+<span class="hl"># teach: wheel=62.32 axle=114.48 hub=Pybricks Hub3</span>
+# 列: P,ms,左タイヤ(度),右タイヤ(度),向き(0.1度),左アーム(度),右アーム(度)
+P,0,0,0,0,0,0
+P,482,-1,0,0,0,0
+● 動き 2 : 進んだ 675 mm / 向き -39.3 ° / 左アーム 1 ° / 右アーム -1 °
+<span class="hl">P,19655,1432,1603,-437,1,-1</span>   <span class="cm"># 19.655 秒・左に 43.7° 向いている</span></pre>
+<pre data-tab="n2"><span class="cm"># uv run python scripts/teach.py docs/logs/teach_record/20261002_205805.log</span>
+    await robot.curve(1365, 26)  <span class="cm"># カーブ 半径 1365mm・右 26°（前進 619mm）</span>
+    await robot.curve(-49, 65)   <span class="cm"># カーブ 半径 49mm・左 65°（前進 55mm）</span>
+    await robot.turn(-3)         <span class="cm"># 向きを合わせる 左 3°</span>
+    await robot.straight(151)    <span class="cm"># 前進 151mm</span>
+
+確認: このコードの終点は、手で押した終点から 26mm・向き -1.7° ずれ</pre>
+  </div>
+  <h3>P, 行の列</h3>
+  <div style="overflow-x:auto"><table class="kit">
+    <thead><tr><th style="width:190px">列</th><th style="width:90px">単位</th><th>中身</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ms</td><td>ミリ秒</td><td>記録スタートからの時間</td></tr>
+      <tr><td>左タイヤ・右タイヤ</td><td>度</td><td>駆動モーターの角度。前に押すと増える</td></tr>
+      <tr><td>向き</td><td>0.1 度</td><td>ジャイロの向きを 10 倍した整数。時計回りの右が＋で、-437 は左に 43.7°</td></tr>
+      <tr><td>左アーム・右アーム</td><td>度</td><td>リフトのモーター角度</td></tr>
+    </tbody>
+  </table></div>
+  <h3>teach.py が出すコード</h3>
+  <div style="overflow-x:auto"><table class="kit">
+    <thead><tr><th style="width:110px">動き</th><th style="width:330px">出るコード</th><th>符号</th></tr></thead>
+    <tbody>
+      <tr><td>直進</td><td class="mono">await robot.straight(距離mm)</td><td>＋前進・−後退</td></tr>
+      <tr><td>その場回転</td><td class="mono">await robot.turn(角度)</td><td>＋右・−左。直進やカーブの前に向きを合わせる回転が入ることがある</td></tr>
+      <tr><td>カーブ</td><td class="mono">await robot.curve(半径mm, 角度)</td><td>半径は＋右回り・−左回り。角度は＋前進・−後退</td></tr>
+      <tr><td>アーム</td><td class="mono">await left_lift.run_angle(速さ, 角度)</td><td>右は right_lift。角度の−は逆回し。速さは --arm-speed で、既定 500</td></tr>
+    </tbody>
+  </table></div>
+  <div class="chart-caption">数字はすべて整数で、速さは書かない。</div>
+</section>
+
+<section id="cautions">
+  <h2>支援で気をつけること</h2><hr class="rule">
+  <ul class="highlights">
+    <li><strong>子どもの run ファイルを勝手に整形しない。</strong>F5 の ruff はリポジトリ全体を整形するので、他人の未コミットの変更にも手が入る。構造を変えるときは本人と一緒に。</li>
+    <li><strong>走らせる前に、置いて手を離す。</strong>initialize_robot() は止まったまま 2 秒待つ。持ったままだと 10 秒で警告を出して進む。</li>
+    <li><strong>コーチの確認走行は名前に coach を入れたファイルで。</strong>チームの成功率と見こみ点にコーチの走行が混ざらない。</li>
+    <li><strong>setup.py の変更は全 run に効く。</strong>物理値や PID を変えたら直線・スクエア・カーブを測り直し、docs/ に残す。</li>
+    <li><strong>selector.py は競技本番の生命線。</strong>dev フラグの取り違えや programs の順序ミスは本番事故に直結する。</li>
+    <li><strong>docs/logs/ は git で管理している。</strong>手押しの記録からコードを起こしたら、もとの記録も一緒にコミットする。</li>
+    <li><strong>複数 PC では別ブランチで作業し、メンターがマージする。</strong>特に selector.py と setup.py を同時に編集させない。</li>
+    <li><strong>launch.json の PYTHONUTF8 を消さない。</strong>Windows での文字化け対策になっている。</li>
+  </ul>
+</section>
+
+<section id="open">
+  <h2>まだ決まっていないこと</h2><hr class="rule">
+  <div class="q"><div class="qt">Hub3 の校正表 360.1 は暫定</div><div class="qd">状態 A のしくみは未解明。速度・電池電圧・温度・振動では説明できない。</div></div>
+  <div class="q"><div class="qt">new と old のどちらで走るか</div><div class="qd">比較の結果が割れた。開発中は両方でミッションを走らせて決める。</div><div class="owner">決め方: ミッションの成功率 · オーナー方針</div></div>
+  <div class="q"><div class="qt">大会形式の走行が状態 B になるか</div><div class="qd">ボタン待ちで止まるので B の見こみ。まだ測っていない。</div></div>
+  <div class="next"><span class="label">次の一手</span>ミッションを new と old の両方で走らせ、成功率で見きわめる。</div>
+</section>
+
+<section id="docs">
+  <h2>次に開くドキュメント</h2><hr class="rule">
+  <div style="overflow-x:auto"><table class="kit">
+    <thead><tr><th style="width:250px">ファイル</th><th>内容</th><th>使う場面</th></tr></thead>
+    <tbody>
+      <tr><td class="mono"><a href="README.md">README.md</a></td><td>子ども向けの日常運用</td><td>子どもへの説明</td></tr>
+      <tr><td class="mono"><a href="integrated-guide-v1.md">integrated-guide-v1.md</a></td><td>科学的アプローチの総合ガイド</td><td>学期を通した指導計画</td></tr>
+      <tr><td class="mono"><a href="docs/architecture.md">docs/architecture.md</a></td><td>コードが動く場所・ファイル同士のお約束・道具</td><td>初めて関わる人への説明</td></tr>
+      <tr><td class="mono"><a href="docs/agy_setup.md">docs/agy_setup.md</a></td><td>変更履歴フックの AI 要約の入れ方</td><td>端末の追加</td></tr>
+      <tr><td class="mono"><a href="docs/trial_log_spec.md">docs/trial_log_spec.md</a></td><td>試行記録・ダッシュボード・集計の仕様</td><td>記録の数え方の確認</td></tr>
+      <tr><td class="mono"><a href="docs/trials/dashboard.html">docs/trials/dashboard.html</a></td><td>いま何点取れそうか・次に手を入れるミッション。コーチ用は <a href="docs/trials/dashboard_coach.html">dashboard_coach.html</a></td><td>練習のふりかえり。生成物なので無ければ作る</td></tr>
+      <tr><td class="mono"><a href="docs/compare/compare_trials.csv">docs/compare/compare_trials.csv</a></td><td>新旧 setup の比較走行</td><td>new と old の見きわめ</td></tr>
+      <tr><td class="mono"><a href="docs/gyro_trace/">docs/gyro_trace/</a></td><td>ジャイロの 2 状態の調査</td><td>回転のズレを疑うとき</td></tr>
+      <tr><td class="mono"><a href="docs/ayumu_roadmap.md">docs/ayumu_roadmap.md</a></td><td>4 フェーズのロードマップ</td><td>次に何をやるかの意思決定</td></tr>
+      <tr><td class="mono"><a href="docs/ayumu_guide_progress.md">docs/ayumu_guide_progress.md</a></td><td>進捗管理</td><td>毎週のふりかえり</td></tr>
+      <tr><td class="mono"><a href="docs/how_to_reduce_SD.md">docs/how_to_reduce_SD.md</a></td><td>走行ばらつきの低減手順</td><td>PID や機体の調整</td></tr>
+      <tr><td class="mono"><a href="docs/speed_test_result_tables.md">docs/speed_test_result_tables.md</a></td><td>速度テストの実測値</td><td>パラメータ選定</td></tr>
+      <tr><td class="mono"><a href="docs/square_test_evaluation.md">docs/square_test_evaluation.md</a></td><td>正方形走行の評価</td><td>キャリブレーション</td></tr>
+      <tr><td class="mono"><a href="docs/curve_test_evaluation.md">docs/curve_test_evaluation.md</a></td><td>カーブ走行の評価</td><td>カーブのパラメータ選定</td></tr>
+      <tr><td class="mono"><a href="docs/tread_ratio_summary.md">docs/tread_ratio_summary.md</a></td><td>トレッド比の検証</td><td>機体設計の検討</td></tr>
+      <tr><td class="mono"><a href="docs/logs/">docs/logs/</a></td><td>実行ログ・変更履歴・手押しの記録</td><td>回帰調査と、だれが何を変えたか</td></tr>
+    </tbody>
+  </table></div>
+  <div class="chart-caption">測定と判断の経緯は隣のリポジトリの <a href="../FLL-2026-2027-Season-Robot-Game-replication-study/06-本番機セットアップ確定の指示書.md">06-本番機セットアップ確定の指示書.md</a> と groups/R/ にある。</div>
+</section>
+
+<section id="faq">
+  <h2>よくあるトラブル</h2><hr class="rule">
+  <dl class="faq">
+    <dt>pybricksdev が無いと出る</dt>
+    <dd>.venv が無いか、VS Code が .venv を使っていない。uv sync して選び直す。</dd>
+    <dt>ruff が見つからない</dt>
+    <dd>.venv が無いか、有効化していない。uv sync するか uv run ruff で呼ぶ。</dd>
+    <dt>ハブに接続できない</dt>
+    <dd>待ち受けか名前の不一致。ハブの Bluetooth ボタンを押し、--name を確かめる。</dd>
+    <dt>まっすぐ進まない</dt>
+    <dd>PID・トレッド・タイヤ径を docs/how_to_reduce_SD.md の手順で調整し直す。</dd>
+    <dt>リフトが動かない</dt>
+    <dd>Port A か E が未接続で NullMotor になっている。意図して外しているなら想定どおり。</dd>
+    <dt>ボタン連打で二重に走る</dt>
+    <dd>selector.py のデバウンスが足りない。必要なら待ちを延ばす。</dd>
+    <dt>フォースセンサーで走らない</dt>
+    <dd>センサーが Port D に付いていない。昨シーズンは C だった。</dd>
+    <dt>起動時に「⚠ ジャイロの待ち」</dt>
+    <dd>機体が止まらないまま 10 秒たった。置いて手を離してから走らせ直す。</dd>
+    <dt>「校正表に無いハブです」</dt>
+    <dd>ROBOT_PROFILES にそのハブ名が無い。新しい機体なら校正して表に足す。</dd>
+    <dt>回転の角度がずれる</dt>
+    <dd>3 軸校正が消えたか、ハブや重い部品を付けかえた。モーター 5 周の実測からやり直す。</dd>
+    <dt>検証用で setup が無い</dt>
+    <dd>pybricksdev で直接送った。run_with_log.py 経由で送り直す。</dd>
+    <dt>teach.py で動きが見つからない</dt>
+    <dd>タイヤもアームも回っていない。床に置いたまま押し、アームは手で回す。</dd>
+    <dt>teach.py が持ち上げを疑う</dt>
+    <dd>タイヤが止まったまま向きが 5° 以上変わった。その間に動いた距離は入っていない。</dd>
+    <dt>集計にコーチが混ざる</dt>
+    <dd>ファイル名に coach が無い。過去の行は trials.csv の script 列で決まる。</dd>
+    <dt>CI の lint が落ちる</dt>
+    <dd>整形が崩れている。uv run ruff format . でそろえてコミットし直す。</dd>
+  </dl>
+</section>
+
+<footer class="src-list">
+  材料: 上の「読んだファイル」1 本。基準日 2026-10-03。数値はすべて材料の値で、ここでの創作は無い。端末とハブを足す詳しい手順は <a href="README_FOR_MENTORS.md">README_FOR_MENTORS.md</a> の §4.4〜§4.5 にある。
+</footer>
+</main>
+</div>
+<script>
+  // タブ切り替えだけ（fetch・外部読込は無い）
+  document.querySelectorAll('.tabs').forEach(function (box) {
+    box.querySelectorAll('.tabbar button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        box.querySelectorAll('.tabbar button, pre').forEach(function (e) { e.classList.toggle('on', e.dataset.tab === b.dataset.tab); });
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

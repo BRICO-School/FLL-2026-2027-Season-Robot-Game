@@ -2,9 +2,11 @@
 
 > 対象: プロジェクトを技術的にサポートするメンター / コーチ。
 > 子ども向けの日常運用ドキュメントは [`README.md`](./README.md) を参照してください。
+> 最終更新: 2026-10-03（手押しティーチング・コーチ用ダッシュボードまで反映）
 
 このドキュメントは、メンターがコードベース全体を短時間で把握し、
 子どもたちの試行錯誤を支援できるようにするための詳細ガイドです。
+初めての人向けのしくみの説明は [`docs/architecture.md`](./docs/architecture.md) にあります。
 
 ---
 
@@ -27,6 +29,33 @@
 - `selector.py` への登録・並び替えは **メンターまたは担当者 1 名が責任を持って行う**。
   複数人が同時に `selector.py` を編集するとコンフリクトが頻発します。
 
+### 0.1 いまの状況（2026-10-03 時点）
+
+- **本番機**: ローバー型 1 台（ハブ `Pybricks Hub3`）。寸法・速度・PID は 2026-09-17 に確定、
+  ジャイロの校正表は 360.1（2026-09-19・暫定）。詳しくは §3.1。
+- **開発の段階**: ① run ファイルでミッションごとの要素開発をしている段階。
+  `selector.py` に登録されているのはまだ `run_template` だけで、② セレクターからの通し練習は始まっていない。
+- **ルートにある run ファイル**:
+
+| ファイル | 種類 | いまの中身 |
+|----------|------|-----------|
+| `run_M06_yuri.py` | チーム（yuri） | 前進 200mm → 後退 100mm（速度 190） |
+| `run_sakuto_M03.py` | チーム（sakuto） | 左アームを逆に 550°（999deg/s） |
+| `run_M9_soichiro.py` | チーム（soichiro） | 右アームを逆に 3600°（5000deg/s）。そのあとの `await robot` が書きかけで、走る前に TypeError で止まる |
+| `run_coach_M01.py` | コーチ確認用 | 前進 650mm |
+| `run_coach_M02.py` | コーチ確認用 | 前進 30mm → 右 43° → 前進 400mm → 右アームを逆に 576° → 後退 120mm → 左 180° → カーブ（半径 1000mm・20°） |
+| `run_coach_M03.py` | コーチ確認用 | 前進 290mm → 後退 290mm（300mm/s） |
+| `run_coach_M04_M06.py` | コーチ確認用 | カーブ（半径 1900mm・20°）→ 左 47°（そのあとはコメントアウト中） |
+| `run_coach_M09.py` | コーチ確認用 | 左アーム 25 回転（1000deg/s） |
+| `run_M03_coach.py` | コーチ確認用（手押しから） | 前進 210mm → 後ろ向きのカーブ（半径 160mm・30°・1 秒で打ち切り）→ 後退 300mm |
+| `run_M04_coach.py` | コーチ確認用（手押しから） | カーブ 2 本 → 向き合わせ → 前進 163mm → 左アームを逆に 2 回転 |
+| `run_coach_M12.py` | コーチ確認用（手押しから） | M12 → M11 → M06 → M07 を 1 本で回る（2026-10-03 の記録から起こして手で直した）。10/3 に 11 本走らせ、途中まで 1・失敗 10。起こしたままの版は `archive/2026/run_coach_M12_bak.py` |
+| `run_left_arm_test.py` | 機構の確認 | 前進 500mm（300mm/s）。名前は左アームのテストだが中身は直進 |
+| `run_template.py` | ひな形 | 前進 500mm（500mm/s） |
+
+- **2026-10-02 に入ったもの**: 手押しティーチング（§3.5）と、コーチの記録をチームの集計から分ける
+  `dashboard_coach.html`（§3.3）。
+
 ---
 
 ## 1. プロジェクト概要
@@ -45,8 +74,8 @@
 | 項目 | 想定 |
 |------|------|
 | PC の OS | Windows / macOS の混在（各メンバーが自分の PC を使う） |
-| 物理ハブ数 | 最大 5 台（`Pybricks Hub` / `Hub2` / … / `Hub5`） |
-| 同期手段 | Git（GitHub）。各メンバーがブランチを切って作業 |
+| 物理ハブ数 | `launch.json` は 6 台ぶん（`Pybricks Hub` / `Hub2` / … / `Hub6`）。本番機は `Pybricks Hub3` |
+| 同期手段 | Git（GitHub）。各メンバーがブランチを切って作業。push のたびに GitHub Actions で lint（§4.6） |
 | ファイル転送 | BLE 経由で `pybricksdev run ble` によりハブへ直接送信 |
 
 OS 差分は `.vscode/tasks.json` の `windows:` セクションで吸収済みです
@@ -66,22 +95,28 @@ FLL-2026-2027-Season-Robot-Game/
 ├── selector.py                 # ★ 競技本番のエントリポイント（multitask）
 ├── run_template.py             # 新しい run を作るテンプレート
 ├── run_with_log.py             # pybricksdev ラッパー（ログ自動保存 + 走行後の成否記録。サブフォルダのスクリプトは .hub_stage/ に写して送る）
-├── run_<ミッション>_<名前>.py   # 今シーズン（BIOGLOW）のミッション別プログラム（これから作る。ルート直下に置く）
-├── verification/               # 検証用コード（ジャイロ・IMU 校正・setup の確認・新旧比較 compare.py と cmp_*.py・アームの機構テスト run_left_arm_test / run_lift_motor_test）
+├── run_<ミッション>_<名前>.py   # 今シーズン（BIOGLOW）のミッション別プログラム（ルート直下に置く。いまある分は §0.1）
+├── run_coach_<ミッション>.py    # コーチ確認用（名前に coach が入る記録はチームの集計に数えない・§3.3）
+├── teach_record.py             # 手押しティーチングの記録係（ハブ側。§3.5）
+├── verification/               # 検証用コード（ジャイロ・IMU 校正・setup の確認・新旧比較 compare.py と cmp_*.py・リフトの機構テスト run_lift_motor_test）
 │                               #   走らせ方: uv run python run_with_log.py verification/<ファイル> --name "<ハブ名>" --no-trial
 │                               #   比較走行: uv run python verification/compare.py new square --name "<ハブ名>"
 ├── archive/
 │   ├── 2025/                   # 旧 old/（2025 年のスクリプトと旧 README・昨年の setup の控え）
-│   └── 2026-pre-bioglow/       # 2025-12〜2026-07 の run ファイル（昨シーズンのミッションと練習。参照のみ）
+│   ├── 2026-pre-bioglow/       # 2025-12〜2026-07 の run ファイル（昨シーズンのミッションと練習。参照のみ）
+│   └── 2026/                   # 今シーズンの控え（手で直す前の run_coach_M12_bak.py など）
 ├── pyproject.toml              # 依存 (pybricks, pybricksdev, ruff …) と ruff 設定
 ├── uv.lock                     # 依存の完全固定 (全 OS 共通)
 ├── .python-version             # Python 3.12 に固定
-├── pyproject.toml              # ruff 設定
 ├── .pre-commit-config.yaml     # ruff check/format フック
+├── FLL-2026-2027-Season-Robot-Game.code-workspace  # VS Code のワークスペース（隣の season-project・replication-study なども一緒に開く）
+├── .github/workflows/lint.yml  # push / PR のたびに Ubuntu・Windows・macOS で ruff と pybricksdev の import を確認
 ├── .vscode/
-│   ├── launch.json             # Robot 1-5 / Robot 1-5 + Log の 10 構成
+│   ├── launch.json             # Robot 1-6 / Robot 1-6 + Log
 │   └── tasks.json              # ruff: all（pre-launch で自動実行）
 ├── docs/
+│   ├── architecture.md         # しくみの説明（初めての人向け）
+│   ├── agy_setup.md            # 変更履歴フックの AI 要約（agy）の入れ方
 │   ├── ayumu_roadmap.md        # 子どもの学習ロードマップ
 │   ├── ayumu_guide_progress.md # 進捗管理
 │   ├── how_to_reduce_SD.md     # ばらつき低減の技術メモ
@@ -89,20 +124,36 @@ FLL-2026-2027-Season-Robot-Game/
 │   ├── square_test_evaluation.md
 │   ├── curve_test_evaluation.md
 │   ├── tread_ratio_summary.md
-│   ├── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先
+│   ├── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先（HISTORY.md・作業ログ.md は変更履歴フックが書く）
 │   ├── trial_log_spec.md       # 試行記録の仕様
-│   └── trials/                 # 試行記録 CSV・コードのスナップショット・集計レポート
-└── scripts/                    # PC 側の道具（変更履歴 hook・試行レポート trial_report.py・ダッシュボード trial_dashboard.py → docs/trials/dashboard.html とコーチ用 dashboard_coach.html・gyro_trace_summary.py）
+│   ├── trials/                 # 試行記録 CSV・コードのスナップショット・ダッシュボード（dashboard*.html は生成物）
+│   ├── compare/                # 新旧 setup の比較走行の記録（compare_trials.csv）
+│   └── gyro_trace/             # ジャイロの 2 状態の調査（2026-09-19）の時系列 CSV
+└── scripts/
+    ├── teach.py                # 手押しの記録 → run ファイルのコード（§3.5）
+    ├── trial_dashboard.py      # trials.csv → docs/trials/dashboard.html とコーチ用 dashboard_coach.html
+    ├── trial_report.py         # trials.csv → report.md と PNG（プレゼン用）
+    ├── bioglow_missions.py     # BIOGLOW の点数表（ダッシュボードの見こみ点に使う）
+    ├── dashboard_style.css     # ダッシュボードの見た目
+    ├── gyro_trace_summary.py   # docs/gyro_trace/ の集計
+    ├── changelog_hook.py       # 変更履歴フックの本体（run_*.py の commit で動く）
+    ├── hooks/pre-commit        # ↑を呼ぶ git フック
+    └── install-hooks.sh        # ↑を .git/hooks/ に入れる（端末ごとに 1 回）
 ```
 
 ### 命名規則
 
-- `run<ラン番号>_<ミッション列>_<担当者>.py`
-  例: `run_M04_kanna.py` → 「M04、kanna 担当」（`run_` で始めると変更履歴が自動で付く。昨シーズンの `run1_M01_M02_kanna.py` 形式は archive/ にある）
+- `run_<ミッション>_<担当者>.py`
+  例: `run_M04_kanna.py` → 「M04、kanna 担当」。`run_sakuto_M03.py` のように名前が先でもよい
+  （`run_` で始めると変更履歴が自動で付く。昨シーズンの `run1_M01_M02_kanna.py` 形式は archive/ にある）
+- **ファイル名に M 番号を入れる**。試行記録とダッシュボードはミッションをファイル名から読む
+  （`run_M07_M09_x.py` → M07+M09）。担当者もファイル名から推測する。
+- **コーチが確かめるための run は名前に `coach` を入れる**（`run_coach_M01.py`・`run_M04_coach.py`）。
+  その記録はチームの `dashboard.html` に数えず、`dashboard_coach.html` に分かれる（§3.3）。
 - 同じミッションでも **担当者別にファイルを分けている** のが特徴です。
   これは子どもたちが互いのコードを壊さずに試行錯誤するための運用です。
   メンター側も、他人のファイルを勝手に書き換えないよう注意してください。
-- `run_test_*.py` は性能評価用の検証スクリプトで、競技には直接使いません。
+- 性能評価・校正用の検証スクリプトは `verification/` に置き、競技には直接使いません。
 
 ---
 
@@ -152,20 +203,22 @@ FLL-2026-2027-Season-Robot-Game/
   - `turn()` / `straight()` は**引数を整数に丸める**。`turn(42.5)` のような小数は効かない。
   - 詳しい経緯と測り方は replication-study の `06-本番機セットアップ確定の指示書.md` §3.5。
 - **回転の打ち消し**: 既定では**使わない**。Pybricks は 1 つのプログラムの中で「命令した角度の合計」を目標の向きとして保つので、回転のズレは積み上がらない（2026-09-17 マット上で確認。打ち消しを入れると 90°×4 で −4.7° ずれた）。`Robot.turn(…, compensate=True)` のときだけ `TURN_OVERSHOOT_TABLE` を使う。
+  `Robot.turn(…, correct=True)`（`GYRO_TURN_SCALE` = 1.0099 倍）も仕組みだけ残っているが、係数が再現しなかったので**使わない**（いまは校正表の `heading_correction` で合わせる）。
   チューニング手順は `docs/how_to_reduce_SD.md` 参照。
 
 ### 3.2 エントリポイント: `selector.py`
 
-- `dev` フラグ（`selector.py:43`）:
+- `dev` フラグ（`selector.py:37`）:
   - `True` → `sensor_logger_task()` と `selector_task()` を `multitask` で並走
-  - `False` → セレクターのみ（本番用、通信オーバーヘッドなし）
-- `programs` リスト（`selector.py:59`）に登録されたモジュールが
+  - `False` → セレクターのみ（本番用、通信オーバーヘッドなし）。いまは `False`
+- `programs` リスト（`selector.py:53`）に登録されたモジュールが
   ハブ LED で選択・実行される。各モジュールは
   `async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift)`
-  シグネチャを満たす必要があります。
-- ボタン: LEFT/RIGHT で選択、フォースセンサー（Port.D）で実行。
-- `reset_robot()` が前後に走り、`hub.imu.reset_heading(0)` と `robot.reset()` で
-  プログラム間の状態漏れを防ぎます。
+  シグネチャを満たす必要があります。**いま登録されているのは `run_template`（1 番）だけ**。
+- ボタン: LEFT/RIGHT で選択、フォースセンサー（**Port.D**・2026-09-19 に C から変更）で実行。
+- `initialize_robot()`（ジャイロの待ち 2 秒をふくむ）は `selector.py` を始めたときの 1 回だけ。
+  ミッションごとには `reset_robot()` が前後に走り、`hub.imu.reset_heading(0)` と `robot.reset()` で
+  プログラム間の状態漏れを防ぎます（待ち時間は無い）。
 
 ### 3.3 ログ付き実行: `run_with_log.py`
 
@@ -181,8 +234,21 @@ stdout を tee しつつ `docs/logs/<script>/<YYYYMMDD_HHMMSS>.log` に保存し
   1 行追記します。走行した `run_*.py` と `setup.py` は `docs/trials/snapshots/<code_hash>/`
   に内容ハッシュ単位でコピーされます。`selector.py` 経由ではハブの出力行からプログラム
   境界を検出し、走ったプログラムごとに聞きます。ハブ側コードは無変更で、記録は
-  pybricksdev プロセス終了後にのみ動きます。`--no-trial` / `TRIAL_LOG=0` でスキップ。
-- 集計は `python scripts/trial_report.py`（`--since` / `--mission` / `--by day` / `--diff`）。
+  pybricksdev プロセス終了後にのみ動きます。`--no-trial` / `TRIAL_LOG=0` でスキップ
+  （機構テスト・校正・手押しの記録など、成否を数えたくない走行に付ける）。
+- **サブフォルダのスクリプト**（`verification/` など）は、`.hub_stage/` に「ルートの `setup.py` ＋
+  そのフォルダの `*.py`」を写してから送ります（`stage_for_hub()`。pybricksdev は送るスクリプトと
+  同じフォルダからしか import を探さないため）。ログの保存先は `docs/logs/<スクリプト名>/` のまま。
+- **ダッシュボード**: 成否を記録するたびに `scripts/trial_dashboard.py` が
+  `docs/trials/dashboard.html`（チーム）と `docs/trials/dashboard_coach.html`（コーチ）を作り直します。
+  答える問いは「いま何点取れそうで、次にどのミッションに手を入れるか」。
+  見こみ点は Σ（ミッションの満点 × 直近 10 本の成功率）で、満点の表は `scripts/bioglow_missions.py`。
+  - **チームとコーチを分ける（2026-10-02）**: run ファイルの名前に `coach` が入る記録（セレクター経由もふくむ）は
+    `dashboard.html` に数えず、`dashboard_coach.html` だけに出る（「メンバーごと」の節は出さない）。
+    2 枚の見出しの下に、おたがいへのリンクがある。
+  - 手で作り直すとき: `uv run python scripts/trial_dashboard.py --open`（「動かなかった」も数えるときは `--include-error`）。
+  - どちらも生成物なので git には入れない（`.gitignore`）。
+- プレゼン用の集計は `uv run python scripts/trial_report.py`（`--since` / `--mission` / `--by day` / `--diff`）。
   `docs/trials/report.md` と `docs/trials/charts/*.png` を生成します。仕様は
   `docs/trial_log_spec.md`。
 
@@ -194,10 +260,119 @@ stdout を tee しつつ `docs/logs/<script>/<YYYYMMDD_HHMMSS>.log` に保存し
 | B | 右駆動モーター | CW | ✅ |
 | E | 左リフト | CW | ❌（NullMotor でフォールバック） |
 | A | 右リフト | CW | ❌（NullMotor でフォールバック） |
-| C | ForceSensor（開始ボタン兼用） | — | selector 使用時のみ必須 |
+| D | ForceSensor（開始ボタン兼用） | — | selector 使用時のみ必須 |
 
+フォースセンサーは 2026-09-19 に Port C → **Port D** に変わりました（今シーズンの機体は D に付いている）。
 ハブ姿勢: `PrimeHub(top_side=Axis.Z, front_side=Axis.X)`。
 ロボット本体の向きを変えるとここも修正が必要です。
+
+### 3.5 手押しティーチング: `teach_record.py` ＋ `scripts/teach.py`（2026-10-02 追加）
+
+ロボットを**手で押して動かしたルート**を記録し、そこから run ファイルのコード
+（`robot.straight` / `robot.turn` / `robot.curve` とアームの `run_angle`）を起こす道具です。
+「だいたいこう動かしたい」を先に形にし、数字はあとから実走で詰める、という使い方を想定しています。
+
+```bash
+# ① 記録して、そのままコードにする（いちばん楽。中で ② の teach_record.py を走らせる）
+uv run python scripts/teach.py --name "Pybricks Hub3"
+uv run python scripts/teach.py --name "Pybricks Hub3" --out run_M05_kanna.py  # run_template.py の形で書き出す（上書きはしない）
+
+# ② 記録だけする（teach_record.py をハブで走らせる。ログは docs/logs/teach_record/<日時>.log）
+uv run python run_with_log.py teach_record.py --name "Pybricks Hub3" --no-trial
+
+# ③ 記録をあとからコードにする（PC 側だけ。ハブは要らない）
+uv run python scripts/teach.py                                    # いちばん新しい記録
+uv run python scripts/teach.py docs/logs/teach_record/<日時>.log   # 指定した記録
+uv run python scripts/teach.py docs/logs/teach_record/<日時>.log --out run_M05_kanna.py
+```
+
+- `--name`（いまから記録する）とログのパスは同時に指定できない。
+- `"Pybricks Hub3"` は本番機のハブ名。ほかの機体ならそのハブ名にする。
+
+#### `teach_record.py` の動かし方
+
+| やりたいこと | やり方 |
+|---|---|
+| 記録して、そのままコードにする | `uv run python scripts/teach.py --name "Pybricks Hub3"`（上の ①） |
+| 記録だけする（ターミナル） | `uv run python run_with_log.py teach_record.py --name "Pybricks Hub3" --no-trial`（上の ②） |
+| 記録だけする（VS Code） | `teach_record.py` を開いて `📝 Robot 3 + Log (Pybricks Hub3)` で F5 → 成否を聞かれたら `s`（記録しない） |
+| 止める | ハブの真ん中のボタン。PC 側の Ctrl+C でも止まり、そこまでの記録はログに残る |
+
+- **`🤖 Robot N`（ログなし）の F5 では走らせない**。ログが残らないので `scripts/teach.py` で読めない。
+- 中の定数（`teach_record.py` の先頭）: 読み取り間隔 `SAMPLE_MS = 40` ms / 止まっていても 1 行出す間隔 `HEARTBEAT_MS = 1000` ms /
+  「1 つの動きのおわり」とみなす停止 `PAUSE_MS = 500` ms（`scripts/teach.py --pause` の既定値と同じ）/
+  タイヤが止まっていても 1 行出す向きの変化 `HEADING_STEP = 5`（0.1 度単位＝0.5°）。
+- ハブの設定は書きかえない。
+
+1. スタート位置に置いて**手を離してから**実行する（`initialize_robot()` が止まったまま 2 秒待つ）。
+2. ピーと鳴ってライトが緑になったら手で押す。1 つの動き（直進・その場回転・アーム）ごとに手を止める
+   （約 0.5 秒止まるとピッと鳴り、画面に「動き N: …」が出る）。**持ち上げない**（タイヤが床で回らないと距離が分からない）。アームは手で回せば記録される。
+3. 終わったらハブの真ん中のボタンで止める → PC 側でコードが画面に出る（`--out` なら run ファイルに書き出す）。
+
+#### 記録（`docs/logs/teach_record/<日時>.log`）の記法
+
+ログには初期化のメッセージなども入るが、`scripts/teach.py` が読むのは `# teach:` の行と `P,` で始まる行だけ。
+実物（`docs/logs/teach_record/20261002_205805.log` から抜粋）:
+
+```text
+# teach: wheel=62.32 axle=114.48 hub=Pybricks Hub3
+# 列: P,ms,左タイヤ(度),右タイヤ(度),向き(0.1度),左アーム(度),右アーム(度)
+● 記録スタート: 手で押して動かしてね。1 つの動きごとに手を止める（ピッと鳴る）
+● 終わったら、ハブの真ん中のボタンで止める
+P,0,0,0,0,0,0
+P,482,-1,0,0,0,0
+● 動き 2 : 進んだ 675 mm / 向き -39.3 ° / 左アーム 1 ° / 右アーム -1 °
+P,19655,1432,1603,-437,1,-1
+```
+
+| 行 | 書き方 | 意味 |
+|---|---|---|
+| 機体の値 | `# teach: wheel=<車輪径mm> axle=<トレッドmm> hub=<ハブ名>` | 校正表 `ROBOT_PROFILES` の値。`scripts/teach.py` が角度を mm に直すのに使う。無いときは 62.32 / 114.48 で計算する |
+| 列の説明 | `# 列: …` | 下の `P,` 行の並び（読み飛ばされる） |
+| 記録 | `P,<ms>,<左タイヤ>,<右タイヤ>,<向き>,<左アーム>,<右アーム>` | 1 行＝1 回の読み取り。下の表 |
+| 区切りの合図 | `● 動き N : 進んだ … mm / 向き … ° / 左アーム … ° / 右アーム … °` | 約 0.5 秒止まったときに出る目安。本当の区切りは `scripts/teach.py` が決め直す |
+
+| `P,` 行の列 | 単位 | 中身 |
+|---|---|---|
+| `ms` | ミリ秒 | プログラムを始めてからの時間（記録スタートが 0） |
+| 左タイヤ・右タイヤ | 度 | 駆動モーターの角度。前に押すと増える |
+| 向き | 0.1 度 | ジャイロの向き ×10 の整数。**時計回り（右）が＋**。`-437` は左に 43.7° |
+| 左アーム・右アーム | 度 | リフトのモーター角度 |
+
+例: `P,19655,1432,1603,-437,1,-1` ＝ 始めて 19.655 秒、左タイヤ 1432°・右タイヤ 1603°、左に 43.7° 向いている、アームはほぼ 0°。
+行が出るのは、タイヤかアームの角度が変わったとき・向きが 0.5° 以上変わったとき・止まっていても 1 秒ごと。
+
+#### `scripts/teach.py` が出すコードの記法
+
+上の記録を `uv run python scripts/teach.py docs/logs/teach_record/20261002_205805.log` に通した実際の出力:
+
+```text
+    await robot.curve(1365, 26)  # カーブ 半径 1365mm・右 26°（前進 619mm）
+    await robot.curve(-49, 65)   # カーブ 半径 49mm・左 65°（前進 55mm）
+    await robot.turn(-3)         # 向きを合わせる 左 3°
+    await robot.straight(151)    # 前進 151mm
+
+確認: このコードの終点は、手で押した終点から 26mm・向き -1.7° ずれ（すべりの無い計算上の値）
+```
+
+| 動き | 出るコード | 符号 |
+|---|---|---|
+| 直進 | `await robot.straight(<距離mm>)` | ＋前進 / −後退 |
+| その場回転 | `await robot.turn(<角度>)` | ＋右 / −左。直進・カーブの前に「向きを合わせる」回転が入ることがある |
+| カーブ | `await robot.curve(<半径mm>, <角度>)` | 半径 ＋右回りの円 / −左回りの円、角度 ＋前進 / −後退 |
+| アーム | `await left_lift.run_angle(<速さ>, <角度>)`（右は `right_lift`） | 角度 −は逆回し。速さは `--arm-speed`（既定 500）。走りながら動かしていたら「同時にするなら multitask」と注記が付く |
+
+- 数字はすべて整数。直進・回転・カーブの速さは書かない（`setup.py` の既定値で走る）。
+- そのまま `run()` の中に貼れる字下げ（4 文字）で出る。`--out` なら `run_template.py` の
+  「ここにロボットの動作を記述してください」の下に「↓ 手押しの記録から起こした（<ログのパス>）」と一緒に入る。
+- `run_M04_coach.py` はこの出力をもとに `curve(1365, 27)`・`turn(-7.5)`・`straight(163)` などへ手で直したもの。
+- `scripts/teach.py` は手を止めたところで区切り、各区間を折れ線で近似して直進・回転・カーブに分け、
+  同じ向きの続きは 1 つにまとめる。回転とカーブの角度はジャイロの向きに合わせる。
+  最後に「起こしたコードの終点は、手で押した終点から何 mm ずれるか」を出す（すべりの無い計算上の値）。
+- 調整用の引数: `--pause`（区切り ms・既定 500）/ `--tol`（近似のずれ mm・既定 8）/ `--min-dist` / `--min-turn` /
+  `--min-radius` / `--min-arm` / `--arm-speed`（アームの速さ・既定 500deg/s）。
+- **起こしたコードはそのままでは使えないことが多い**。2026-10-02 の `run_M03_coach.py` / `run_M04_coach.py` も、
+  起こしたコードをもとに距離・速さ・打ち切り時間を手で直している。小数の角度（`turn(-7.5)` など）は整数に丸められる点にも注意。
 
 ---
 
@@ -210,11 +385,23 @@ Python の版は `.python-version`（3.12）、ライブラリの版は `uv.lock
 Windows / macOS / Linux のどこで実行しても同じ環境が `.venv` に再現されます。
 
 ```bash
-uv sync                    # .venv 作成 + Python 3.12 取得 + 依存インストール (全 OS 共通)
-uv run pre-commit install  # commit 時に ruff を自動実行
+uv sync                      # .venv 作成 + Python 3.12 取得 + 依存インストール (全 OS 共通)
+sh scripts/install-hooks.sh  # 変更履歴フック（端末ごとに 1 回。Windows は Git-Bash か WSL で）
+uv run pre-commit install    # ruff フック（任意。入れるなら必ず install-hooks.sh のあと）
 ```
 
 - `uv sync` は既存の `.venv` があれば差分だけ更新します（作り直しは不要）。
+- **git のフックは 2 種類あり、どちらも `.git/hooks/pre-commit` に入ります**（`docs/architecture.md` §7.3）。
+  - 変更履歴フック（`sh scripts/install-hooks.sh`）: `run_*.py`（ルートと `verification/`）を commit すると、
+    先頭の【更新履歴】・`docs/logs/<名前>/HISTORY.md`・`docs/logs/<名前>/YYYYMMDD_作業ログ.md` に 1 行要約と diff を書く。
+    要約は agy（Antigravity CLI）が書き、使えない端末では「+N/-M 行」の機械文になる（記録は止まらない）。入れ方は `docs/agy_setup.md`。
+  - ruff フック（`uv run pre-commit install`）: commit 時に ruff check/format。
+  - **両方入れるときは順番が大事**: `sh scripts/install-hooks.sh` → `uv run pre-commit install` の順なら、
+    pre-commit が既存のフックを `pre-commit.legacy` に移して先に走らせるので両方効く（2026-10-03 に確認）。
+    逆の順だと `install-hooks.sh` が上書きして ruff フックが消える。
+  - ruff は F5 のたび（`ruff: all`）と push 時の CI（§4.6）でも走るので、変更履歴フックだけでも足りる。
+- **WSL から `/mnt/c/…` のこのリポジトリで `uv sync` しない**。Windows 用の `.venv` が Linux 用に
+  置き換わって F5 が壊れます。WSL 側で確かめたいときは `UV_PROJECT_ENVIRONMENT=<別の場所> uv sync --locked`。
 - 依存を追加するときは `uv add <pkg>`（実行時）/ `uv add --group dev <pkg>`（開発用）。
   `pyproject.toml` と `uv.lock` が更新されるので両方 commit してください。
 - `requirements.txt` は廃止しました。uv を入れられない端末では
@@ -224,19 +411,21 @@ uv run pre-commit install  # commit 時に ruff を自動実行
 
 1. Chrome で https://code.pybricks.com にアクセス
 2. USB 接続のハブに Pybricks firmware を書き込む
-3. ハブ名を `Pybricks Hub` / `Pybricks Hub2` / … / `Pybricks Hub5` のいずれかに設定
+3. ハブ名を `Pybricks Hub` / `Pybricks Hub2` / … / `Pybricks Hub6` のいずれかに設定
 4. `launch.json` の既存構成がそのまま使える
+5. 機体に載せたら、ジャイロの校正と校正表 `ROBOT_PROFILES` への登録をする（§3.1「1 台を表に足す手順」）
 
-ハブ名が 6 台目以上になる場合は `launch.json` に構成を追加してください
-（Robot 1-5 のブロックをコピーして `--name "Pybricks Hub6"` にするだけ）。
+ハブ名が 7 台目以上になる場合は `launch.json` に構成を追加してください（§4.5 Step 3）。
 
 ### 4.3 VS Code からの実行
 
-- **通常実行**: `🤖 Robot N (Pybricks HubN)`（1〜5）
-- **ログ付き実行**: `📝 Robot N + Log (Pybricks HubN)`（1〜5）
+- **通常実行**: `🤖 Robot N (Pybricks HubN)`（1〜6）
+- **ログ付き実行**: `📝 Robot N + Log (Pybricks HubN)`（1〜6）
+  - 試行記録（成否の入力）とダッシュボードの更新はこちらだけで動く。ミッションの走行はこちらを使う。
+- 6 台目の構成は表示名が「(Pybricks Hub5)」のままだが、送り先は `Pybricks Hub6`（`--name` の値が正）。
 - すべての構成で `preLaunchTask: "ruff: all"` が走り、
-  アクティブファイルが `.py` であることの検証 → `ruff format` → `ruff check --fix`
-  の順で自動整形・自動修正が行われます。
+  アクティブファイルが `.py` であることの検証 → `ruff format .` → `ruff check --fix .`
+  の順で自動整形・自動修正が行われます（**対象は開いているファイルだけでなくリポジトリ全体**）。
 - BLE 接続がうまくいかない場合は、ハブの Bluetooth ボタンを押して
   ペアリング状態にしてから F5 を押してください。
 
@@ -267,13 +456,17 @@ cd FLL-2026-2027-Season-Robot-Game
 # 2. 仮想環境作成 + 依存インストール (全 OS 共通)
 uv sync
 
-# 3. pre-commit フック有効化
-uv run pre-commit install
+# 3. git フック（§4.1。変更履歴フック → ruff フックの順）
+sh scripts/install-hooks.sh
+uv run pre-commit install    # 任意
 
-# 4. # 5. 動作確認
+# 4. 動作確認
 uv run python -m pybricksdev --version
 uv run ruff --version
 ```
+
+変更履歴の 1 行要約を AI に書かせたい端末は、`docs/agy_setup.md` に沿って agy も入れてください
+（入れなくても記録は機械文で残ります）。
 
 `.venv` を有効化（activate）すれば `uv run` を付けずに `pybricksdev` / `ruff` を直接呼べます。
 VS Code の F5 実行は `.venv` の Python を使うため、uv の有無に関係なく動きます。
@@ -313,7 +506,7 @@ git switch -c feature/<member>-<topic>
 
 #### ハブ名と `launch.json` の整合
 
-既存の `launch.json` は `Pybricks Hub` / `Pybricks Hub2` 〜 `Pybricks Hub5` を想定しています。
+既存の `launch.json` は `Pybricks Hub` / `Pybricks Hub2` 〜 `Pybricks Hub6` を想定しています。
 新しいハブを追加する詳細手順は **§4.5** を参照してください。
 
 ### 4.5 新しいハブを追加する手順
@@ -348,7 +541,8 @@ Pybricks Hub2     ← 2 台目
 Pybricks Hub3     ← 3 台目
 Pybricks Hub4     ← 4 台目
 Pybricks Hub5     ← 5 台目
-Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
+Pybricks Hub6     ← 6 台目
+Pybricks Hub7     ← 7 台目以降（launch.json 追加が必要）
 ...
 ```
 
@@ -360,35 +554,36 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 - 既存ハブと重複しないこと。BLE スキャンで衝突して接続が不安定になります。
 - 名前は Pybricks Code からいつでも変更可能（Hub 設定メニュー）。ミスに気づいたら修正を。
 
-#### Step 3: launch.json の更新（6 台目以降のみ）
+#### Step 3: launch.json の更新（7 台目以降のみ）
 
-5 台目までは既存の構成で動作するため追加不要です。
-6 台目以降を追加する場合、`.vscode/launch.json` に **通常構成** と **ログ付き構成** の
+6 台目までは既存の構成で動作するため追加不要です。
+7 台目以降を追加する場合、`.vscode/launch.json` に **通常構成** と **ログ付き構成** の
 2 ブロックを追記します。
 
 ```jsonc
 {
-    "name": "🤖 Robot 6 (Pybricks Hub6)",
+    "name": "🤖 Robot 7 (Pybricks Hub7)",
     "type": "debugpy",
     "request": "launch",
     "preLaunchTask": "ruff: all",
     "module": "pybricksdev",
-    "args": ["run", "ble", "${file}", "--name", "Pybricks Hub6"],
+    "args": ["run", "ble", "${file}", "--name", "Pybricks Hub7"],
     "env": { "PYTHONUTF8": "1" }
 },
 {
-    "name": "📝 Robot 6 + Log (Pybricks Hub6)",
+    "name": "📝 Robot 7 + Log (Pybricks Hub7)",
     "type": "debugpy",
     "request": "launch",
     "preLaunchTask": "ruff: all",
     "program": "${workspaceFolder}/run_with_log.py",
-    "args": ["${file}", "--name", "Pybricks Hub6"],
+    "args": ["${file}", "--name", "Pybricks Hub7"],
     "env": { "PYTHONUTF8": "1" }
 }
 ```
 
-既存の「Robot 5」ブロックをコピーし、**3 箇所**（`name` の絵文字以降、`--name` の値）
-を置き換えるのが確実です。`preLaunchTask` と `env.PYTHONUTF8` は必ず残すこと。
+既存の「Robot 5」ブロックをコピーし、`name`（Robot 番号と括弧の中のハブ名）と `--name` の値を
+**両方**置き換えるのが確実です（Robot 6 の構成は括弧の中を直し忘れて「Pybricks Hub5」のままになっている）。
+`preLaunchTask` と `env.PYTHONUTF8` は必ず残すこと。
 
 編集後は必ず JSON として妥当か VS Code で確認（赤波線が出ないこと）し、
 コミットしてチーム全員に配布してください。
@@ -401,18 +596,22 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 - [ ] **Port B**: 右駆動モーター、`Direction.CLOCKWISE` が前進
 - [ ] **Port E**: 左リフト（未接続でも可、NullMotor でフォールバック）
 - [ ] **Port A**: 右リフト（未接続でも可、NullMotor でフォールバック）
-- [ ] **Port C**: ForceSensor（`selector.py` を使う場合は必須）
+- [ ] **Port D**: ForceSensor（`selector.py` を使う場合は必須）
 - [ ] ハブ姿勢が `top_side=Axis.Z, front_side=Axis.X` と一致している
-- [ ] タイヤ径が 62mm、トレッドが 85mm と一致している
-  （異なる場合は `setup.py` の `DriveBase` パラメータ調整が必要 — ロボット固有化を検討）
+- [ ] 車輪径・トレッドを測る。本番機（ローバー型）は 62.32mm / 114.48mm（`DEFAULT_PROFILE`）。
+  違う機体なら `setup.py` の `ROBOT_PROFILES` にそのハブ名で `wheel` / `axle` を足す
+- [ ] ジャイロの 3 軸校正 → モーター 5 周の実測をして、`ROBOT_PROFILES` に `heading_correction` を書く（§3.1・約 15 分）。
+  表に無いハブは起動時に「校正表に無いハブです」と出て、`DEFAULT_PROFILE`（`heading_correction` なし）で走る
 
 #### Step 5: 動作確認
 
 1. VS Code で `run_template.py`（または簡単な直進テスト）を開く
 2. デバッグ構成から追加したハブの `🤖 Robot N` を選択
-3. F5 → ハブの BLE 広告待機（中央ボタン押下で青点滅）→ 自動接続
+3. 機体を置いて**手を離してから** F5 → ハブの BLE 広告待機（中央ボタン押下で青点滅）→ 自動接続
+   （起動時に「✓ ジャイロの待ち完了」が出るまでさわらない）
 4. 走行完了メッセージが出力されることを確認
 5. 続けて `📝 Robot N + Log` でも実行し、`docs/logs/run_template/` にログが生成されることを確認
+   （成否を聞かれたら `s`＝記録しない。確認だけなら `--no-trial` 付きでコマンドから走らせてもよい）
 6. `selector.py` も通しで動くことを確認（本番投入前に必須）
 
 #### Step 6: 台帳管理（推奨）
@@ -447,6 +646,7 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 - [ ] `pre-commit run --all-files` が完了する
 - [ ] VS Code で任意の `run_*.py` を開き、F5 → ハブ選択 → 実行できる
 - [ ] `📝 Robot N + Log` 構成で実行し、`docs/logs/<script>/` にログが生成される
+- [ ] `.git/hooks/pre-commit` に変更履歴フックが入っている（`run_*.py` をコミットすると `docs/logs/<名前>/HISTORY.md` に 1 行増える）
 - [ ] `git pull` / `git push` が認証を含めて通る
 
 ### 4.6 Lint / Format / Pre-commit
@@ -455,8 +655,13 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 - `select = ["E", "F", "I", "B", "UP"]`、`ignore = ["E501"]`（長い行は許容）。
 - `run*.py` と `run_template.py` は `F401`（未使用 import）と `I001`（import ソート）を除外
   → 子どもが学習用に意図的に残している import を壊さないため。
+  `verification/*.py` はさらに `E402`（import の位置）も除外。
 - `archive/`・`.hub_stage/`・`.venv` は ruff の検査対象外。
-- `.pre-commit-config.yaml` は `ruff check --fix` と `ruff format` をローカルフックで実行。
+- `.pre-commit-config.yaml` は `ruff check --fix` と `ruff format` をローカルフックで実行（入れ方と変更履歴フックとの順番は §4.1）。
+- ruff は `<0.16` に固定（0.16 は Markdown の中のコードも整形するため。上げるときは README などの .md を先に整形する）。
+- **CI（`.github/workflows/lint.yml`）**: push / PR のたびに Ubuntu・Windows・macOS で
+  `uv sync --locked` → `ruff check .` → `ruff format --check .` → `pybricksdev` の import を確認。
+  format の崩れは CI で落ちるので、push 前に一度 F5（`ruff: all`）か `uv run ruff format .` を通しておく。
 
 ---
 
@@ -464,12 +669,17 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 
 子どもと一緒に作業するときの標準フロー:
 
-1. `run_template.py` を `run<番号>_<ミッション>_<名前>.py` にコピー
-2. `async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift)` 内に動作を記述
-3. 単体テストは `if __name__ == "__main__":` ブロックから F5 で実行
+1. `run_template.py` を `run_<ミッション>_<名前>.py` にコピー（M 番号を必ず入れる。コーチ用なら名前に `coach`）
+   - **手押しから始める手もある**: `uv run python scripts/teach.py --name "Pybricks Hub3" --out run_M05_kanna.py`
+     で、手で押したルートを `run_template.py` の形のファイルに書き出せる（§3.5）。
+2. `async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift)` 内の
+   「ここにロボットの動作を記述してください」の下に動作を書き、テンプレートの例の直進は消すか書きかえる
+3. 単体テストは `if __name__ == "__main__":` ブロックから F5 で実行（機体を置いて手を離してから）。
+   成否を記録したい走行は `📝 Robot N + Log` で走らせる
 4. 本番投入する場合は `selector.py` の先頭で `import` し、
    `programs = [...]` に `{"module": <module>, "display_number": <int>}` を追加
-5. `pre-commit` がフォーマット・Lint を自動修正するので、そのままコミット可
+5. コミットすると変更履歴フックが【更新履歴】と `docs/logs/<名前>/` を書き足す（§4.1）。
+   フォーマットは F5 のたびに ruff がそろえる
 
 `run_template.py` には典型的な `straight` / `turn` / `curve` / `run_angle` の例が
 コメントとして書かれています。子どもへの説明は `README.md` の該当セクションが参考になります。
@@ -481,6 +691,12 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 | ファイル | 内容 | 想定利用シーン |
 |----------|------|---------------|
 | `integrated-guide-v1.md` | 科学的アプローチの総合ガイド（114KB） | 学期通しての指導計画 |
+| `docs/architecture.md` | しくみの説明（コードが動く場所・ファイル同士のお約束・道具） | 初めて関わる人への説明 |
+| `docs/agy_setup.md` | 変更履歴フックの AI 要約（agy）の入れ方 | 端末の追加 |
+| `docs/trial_log_spec.md` | 試行記録・ダッシュボード・集計の仕様 | 記録の読み方・数え方の確認 |
+| `docs/trials/dashboard.html` / `dashboard_coach.html` | いま何点取れそうか・次に手を入れるミッション（チーム / コーチ） | 練習のふりかえり（生成物。git に無いときは §3.3 のコマンドで作る） |
+| `docs/compare/compare_trials.csv` | 新旧 setup の比較走行（2026-09-17〜18） | new / old の見きわめ |
+| `docs/gyro_trace/` | ジャイロの 2 状態の調査（2026-09-19） | 回転のズレを疑うとき |
 | `docs/ayumu_roadmap.md` | 4 フェーズのロードマップ | 次に何をやるかの意思決定 |
 | `docs/ayumu_guide_progress.md` | 進捗管理 | 毎週のふりかえり |
 | `docs/how_to_reduce_SD.md` | 走行ばらつきの低減手順 | トラブル時の PID / 機体調整 |
@@ -488,16 +704,26 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 | `docs/square_test_evaluation.md` | 正方形走行の評価 | キャリブレーション |
 | `docs/curve_test_evaluation.md` | カーブ走行の評価 | カーブパラメータ選定 |
 | `docs/tread_ratio_summary.md` | トレッド比の検証 | 機体設計の検討 |
-| `docs/logs/` | 自動保存された実行ログ | 回帰調査・ばらつき解析 |
+| `docs/logs/` | 自動保存された実行ログ・変更履歴（`HISTORY.md`・`作業ログ.md`）・手押しの記録（`teach_record/`） | 回帰調査・ばらつき解析・だれが何を変えたか |
+
+もとになった測定と判断の経緯は、隣のリポジトリ `FLL-2026-2027-Season-Robot-Game-replication-study`
+（`groups/R/` と `06-本番機セットアップ確定の指示書.md`）にあります。ワークスペースファイルで一緒に開けます。
 
 ---
 
 ## 7. メンター向け注意事項
 
 - **子どもの run ファイルを勝手に整形しない**
-  pre-commit が走ると import 順やスペースが変わり、子どもが混乱します。
+  ruff が走ると import 順やスペースが変わり、子どもが混乱します。
   `run*.py` 向けの per-file ignore は既に設定済みですが、
+  F5 の `ruff: all` はリポジトリ全体を整形するので、他人の未コミットの変更にも手が入ることがあります。
   構造変更を伴うリファクタは必ず本人と一緒に行ってください。
+- **走らせる前に「置いて、手を離す」**
+  `initialize_robot()` は機体が止まったまま 2 秒待ってから走り出します（ジャイロの状態 A を避けるため・§3.1）。
+  手で持ったままだと待ちが終わらず、10 秒で「⚠ ジャイロの待ち」を出して進みます（回転が約 1.4% ずれるかもしれない）。
+- **コーチの確認走行は名前に `coach` を入れたファイルで**
+  チームのダッシュボードの成功率・見こみ点にコーチの走行が混ざらないようにするため（§3.3）。
+  手押しから起こしたコードを試すときも同じ（`run_M04_coach.py` など）。
 - **`setup.py` の変更は影響範囲が広い**
   全 run が依存しているため、物理パラメータや PID を変更した場合は
   必ず直線・スクエア・カーブの再評価を行い、`docs/` に記録を残してください。
@@ -507,6 +733,8 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 - **ログの扱い**
   `docs/logs/` は現状 Git 管理対象です。ファイル数が増えて diff がうるさくなったら、
   `.gitignore` への追加や別リポジトリへの分離を検討してください。
+  手押しの記録（`docs/logs/teach_record/`）からコードを起こしたら、もとの記録も一緒にコミットする
+  （起こしたファイルの「↓ 手押しの記録から起こした（…）」がそのログを指しているため）。
 - **複数 PC 運用時の衝突**
   各メンバーが別ブランチで作業し、メンターがマージする運用が安全です。
   同じファイルを複数人で同時編集させないようにしてください
@@ -526,6 +754,15 @@ Pybricks Hub6     ← 6 台目以降（launch.json 追加が必要）
 | ロボットがまっすぐ進まない | PID / トレッド / タイヤ径 | `docs/how_to_reduce_SD.md` の手順で再調整 |
 | リフトが動かない | `Port.A` / `Port.E` 未接続 → NullMotor | 物理接続を確認。意図的に外している場合は想定通り |
 | ボタン連打で二重実行 | `selector.py` の `wait(50)` デバウンス不足 | 必要なら待機時間を延ばす |
+| セレクターでフォースセンサーを押しても走らない | センサーが Port D に付いていない（昨シーズンは C） | Port D につなぐ（§3.4） |
+| 起動時に「⚠ ジャイロの待ち」 | 機体が動いていて 10 秒たっても止まらなかった | 置いて手を離してから走らせ直す |
+| 起動時に「校正表に無いハブです」 | `ROBOT_PROFILES` にそのハブ名が無い | 本番機ならハブ名を確認。新しい機体なら §3.1 の手順で校正して表に足す |
+| 回転の角度がずれる（90° でおよそ 1° 以上） | ファームの入れ直しで 3 軸校正が消えた / ハブ・重いアタッチメントを付けかえた | §3.1 の ②（モーター 5 周）からやり直す |
+| `verification/` のスクリプトで `setup` が見つからない（ImportError） | pybricksdev で直接送った（F5 の `🤖 Robot N` など） | `run_with_log.py` 経由で走らせる（`.hub_stage/` に setup.py を写して送る） |
+| `teach.py` で「動きが見つかりませんでした」 | タイヤもアームも回っていない（持ち上げて動かした など） | 床に置いたまま押す。アームは手で回す |
+| `teach.py` で「持ち上げて回した？」の注意 | タイヤが止まっている間に向きが 5° 以上変わった | 向きは次の回転で取り戻されるが、その間に動いた距離は入っていない。押し直すか、起こしたコードを手で直す |
+| ダッシュボードにコーチの走行が混ざる | ファイル名に `coach` が入っていない | コーチ用のファイルは名前に `coach` を入れる（過去の行は `trials.csv` の `script` 列で決まる） |
+| CI（lint）が落ちる | `ruff format --check` で整形の崩れ | `uv run ruff format .` → コミットし直す |
 
 ---
 
