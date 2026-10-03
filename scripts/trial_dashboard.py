@@ -40,6 +40,12 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   秒数は trials.csv の run_sec 列だけを使う（run_with_log.py が「=== ロボット初期化完了 ===」→「# 走行完了！」を測った値。
   セレクター経由はプログラムの「実行中 → 実行完了」）。ハブを探す・接続・送る・ジャイロの待ちは入らない。
   run_sec の無い 2026-10-03 より前の記録は、時間の集計に入れない（elapsed_sec はそれらをふくむので使わない）。
+
+【見こみ点と時間の合計】（2026-10-03）
+  点数マップの最後に「合計」の行（満点・挑戦・見こみ点・平均秒の和）を出し、数字の帯の「いまの見こみ点」にも時間の合計を添える。
+  ミッションの平均秒は、成功した回の run_sec をその本で挑戦したミッションの数で割った「1 ミッションぶんの目安」の平均
+  （複数ミッションの run の時間を、ミッションごとに重ねて数えないため）。ホームでの付けかえは入らないので、
+  本当の通しの時間は ② 通しで見る。
 dashboard.html は生成物なので git には入れない（.gitignore）。コーチ用の dashboard_coach.html は共有のため git に入れる（2026-10-03）。プレゼン用の表と PNG は trial_report.py。
 """
 
@@ -105,6 +111,8 @@ EXTRA_CSS = """
   table.shipped tbody td { white-space: nowrap; padding: 11px 10px; }
   table.shipped tbody td.note { white-space: normal; min-width: 12em; color: var(--gray-700); font-size: 13px; }
   table.shipped tbody tr.idle td { color: var(--gray-500); }
+  table.shipped tbody tr.total td { font-weight: 600; border-top: 2px solid var(--gray-300); }
+  .over-mark { color: var(--rust); }
   .mission-en { display: block; color: var(--gray-500); font-size: 11px; }
   .risk-dot.none { background: var(--gray-300); }
   .stat-num small { font-size: 16px; color: var(--gray-500); }
@@ -222,6 +230,7 @@ def score_map(rows):
         else:
             stage = "stable" if stable else "dev"
         expected = m["max"] * rec["rate"] / 100 if rec["n"] else 0.0
+        secs = [time_share(r) for r, _, res in atts if res == "success" and seconds_of(r) > 0]
         out.append(
             {
                 "m": m,
@@ -231,9 +240,36 @@ def score_map(rows):
                 "rec": rec,
                 "stage": stage,
                 "expected": expected,
+                "sec": sum(secs) / len(secs) if secs else None,
             }
         )
     return out
+
+
+def time_share(row):
+    """1 本の run_sec を、その本で挑戦したミッションの数で割った 1 ミッションぶんの時間（目安）。"""
+    tried = [m for m, res in tr.results_of(row) if res != "unreached"]
+    return seconds_of(row) / max(1, len(tried))
+
+
+def score_totals(smap):
+    """点数マップの合計: 満点・挑戦・見こみ点・時間（平均秒のあるミッションだけの和）。"""
+    timed = [x["sec"] for x in smap if x["sec"]]
+    return {
+        "max": sum(x["m"]["max"] for x in smap),
+        "tries": sum(x["t"]["n"] for x in smap),
+        "expected": sum(x["expected"] for x in smap),
+        "sec": sum(timed) if timed else None,
+        "timed": len(timed),
+    }
+
+
+def time_total_text(totals):
+    """「時間の合計 7 秒 / 150 秒」。150 秒をこえたら「・オーバー」。"""
+    if totals["sec"] is None:
+        return "時間の記録はまだ無い"
+    over = "・オーバー" if totals["sec"] > bm.MATCH_SECONDS else ""
+    return f"時間の合計 {totals['sec']:.0f} 秒 / {bm.MATCH_SECONDS} 秒{over}"
 
 
 def gain_of(x):
@@ -428,7 +464,8 @@ def round_labels(rounds):
 
 # ===== 節 =====
 def render_summary(rows, smap, today):
-    expected = round(sum(x["expected"] for x in smap))
+    totals = score_totals(smap)
+    expected = round(totals["expected"])
     started = sum(1 for x in smap if x["t"]["n"])
     stable = sum(1 for x in smap if x["stage"] in ("stable", "selstable"))
     in_selector = sum(1 for x in smap if x["stage"] in ("sel", "selstable"))
@@ -448,8 +485,8 @@ def render_summary(rows, smap, today):
         (
             f"{expected}<small> / {bm.MISSION_MAX_TOTAL}</small>",
             "いまの見こみ点",
-            f"満点は合計 {bm.GRAND_TOTAL} 点",
-            "flat",
+            f"満点は合計 {bm.GRAND_TOTAL} 点・{time_total_text(totals)}",
+            "down" if totals["sec"] is not None and totals["sec"] > bm.MATCH_SECONDS else "flat",
         ),
         (
             f"{started}<small> / {len(smap)}</small>",
@@ -511,7 +548,7 @@ def render_score_map(smap):
     body, classes = [], []
     for x in smap:
         t, rec = x["t"], x["rec"]
-        sec = mean_seconds([r for r, _, res in x["atts"] if res == "success"])
+        sec = x["sec"]
         label, kind = STAGES[x["stage"]]
         body.append(
             [
@@ -529,6 +566,28 @@ def render_score_map(smap):
             ]
         )
         classes.append("" if t["n"] else "idle")
+    tot = score_totals(smap)
+    over = tot["sec"] is not None and tot["sec"] > bm.MATCH_SECONDS
+    body.append(
+        [
+            "<strong>合計</strong>",
+            tot["max"],
+            "",
+            tot["tries"] or "",
+            "",
+            round(tot["expected"]),
+            (
+                meter(100 * tot["sec"] / bm.MATCH_SECONDS, over)
+                + f"{tot['sec']:.1f}"
+                + (' <span class="over-mark">オーバー</span>' if over else "")
+            )
+            if tot["sec"] is not None
+            else "",
+            "",
+            "",
+        ]
+    )
+    classes.append("total")
     heads = [
         "ミッション",
         "満点",
@@ -553,6 +612,9 @@ def render_score_map(smap):
         f"見こみ点は 満点 × 直近 {RECENT_N} 回の成功率。安定は 直近 {STABLE_MIN} 回以上で {STABLE_RATE}% 以上。"
         "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
         "平均秒は成功した回の 本番でもかかる時間（初期化完了 → 走行完了）で、2026-10-03 より前の記録には無い。"
+        "複数ミッションの run は、その本の時間を挑戦したミッションの数で割った目安。"
+        f"合計の行の時間は 平均秒の和で、試合の {bm.MATCH_SECONDS} 秒と比べる"
+        "（ホームでの付けかえは入らないので、本当の通しの時間は ② 通しで見る）。"
     )
     inner = legend + table(heads, body, num_cols=(1, 3, 5, 6), row_classes=classes)
     inner += f"<details><summary>採点の条件を見る</summary>{conditions}</details>"
