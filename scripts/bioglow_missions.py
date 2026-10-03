@@ -147,11 +147,18 @@ MISSIONS = [
     },
 ]
 
-# ミッション以外の点
+# ミッション以外の点（英語版ルールブック p.8・Rule 15 / 2026-10-03 に読み直して確認。Challenge Updates 09-02 で変更なし）
 EQUIPMENT_INSPECTION = 20  # 試合前の点検: ロボットと装備が 1 つの発進エリアと高さ 305mm に収まる
 PRECISION_TOKENS = {0: 0, 1: 10, 2: 15, 3: 25, 4: 35, 5: 50, 6: 50}  # 残ったトークンの数 → 点
+# ダッシュボードで「取れる前提」の参考値として合計に足す点（名前, 点, 取れる条件）
+EXTRA_POINTS = [
+    ("装備の点検", EQUIPMENT_INSPECTION, "ロボットと装備が 1 つの発進エリアと高さ 305mm に収まる"),
+    ("精密トークン", PRECISION_TOKENS[6], "ホームの外で手を出さず、6 つのうち 5 つ以上残す"),
+]
+# グレイシャス・プロフェッショナリズム（2〜4 点）はロボットゲームの得点ではなく、審査のコアバリューの点に足される（p.17）ので入れない
 MATCH_SECONDS = 150
 
 MISSION_MAX_TOTAL = sum(m["max"] for m in MISSIONS)  # 460
-GRAND_TOTAL = MISSION_MAX_TOTAL + EQUIPMENT_INSPECTION + PRECISION_TOKENS[6]  # 530
+EXTRA_TOTAL = sum(p for _, p, _ in EXTRA_POINTS)  # 70
+GRAND_TOTAL = MISSION_MAX_TOTAL + EXTRA_TOTAL  # 530
 assert GRAND_TOTAL == 530, GRAND_TOTAL
