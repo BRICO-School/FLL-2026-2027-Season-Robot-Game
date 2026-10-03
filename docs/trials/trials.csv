@@ -15,3 +15,5 @@ trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit
 20261003_115423,2026-10-03,11:54:23,run_coach_M12.py,M12,coach,Pybricks Hub3,partial,27.4,0,4de03be,M12成功,docs/logs/run_coach_M12/20261003_115423.log,32b9675f,docs/trials/snapshots/32b9675f,
 20261003_115716,2026-10-03,11:57:16,run_coach_M12.py,M12,coach,Pybricks Hub3,fail,43.8,0,4de03be,M12以降がうまくいかなかった,docs/logs/run_coach_M12/20261003_115716.log,21ec71d5,docs/trials/snapshots/21ec71d5,
 20261003_120019,2026-10-03,12:00:19,run_coach_M12.py,M12,coach,Pybricks Hub3,fail,43.5,0,4de03be,"M12 x,M11 x, M06 o, M07 o",docs/logs/run_coach_M12/20261003_120019.log,332f846c,docs/trials/snapshots/332f846c,
+20261003_125837,2026-10-03,12:58:37,run_coach_M03.py,M03,coach,Pybricks Hub3,success,18.2,0,1bad40d,,docs/logs/run_coach_M03/20261003_125837.log,dd1ec4fc,docs/trials/snapshots/dd1ec4fc,
+20261003_130013,2026-10-03,13:00:13,run_coach_M02.py,M02,coach,Pybricks Hub3,success,23.8,0,1bad40d,,docs/logs/run_coach_M02/20261003_130013.log,aea71c8e,docs/trials/snapshots/aea71c8e,
