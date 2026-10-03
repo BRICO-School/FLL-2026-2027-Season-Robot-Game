@@ -40,7 +40,7 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   秒数は trials.csv の run_sec 列だけを使う（run_with_log.py が「=== ロボット初期化完了 ===」→「# 走行完了！」を測った値。
   セレクター経由はプログラムの「実行中 → 実行完了」）。ハブを探す・接続・送る・ジャイロの待ちは入らない。
   run_sec の無い 2026-10-03 より前の記録は、時間の集計に入れない（elapsed_sec はそれらをふくむので使わない）。
-dashboard.html と dashboard_coach.html は生成物なので git には入れない（.gitignore）。プレゼン用の表と PNG は trial_report.py。
+dashboard.html は生成物なので git には入れない（.gitignore）。コーチ用の dashboard_coach.html は共有のため git に入れる（2026-10-03）。プレゼン用の表と PNG は trial_report.py。
 """
 
 import argparse

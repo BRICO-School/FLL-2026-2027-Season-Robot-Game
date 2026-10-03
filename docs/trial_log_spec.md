@@ -199,7 +199,7 @@ uv run python scripts/trial_dashboard.py --open
 ボーナスだけ・一部だけ取れた点、精密トークン（ホームの外で手を出した回数）は記録していない。
 ミッション番号はファイル名から読む（`run_M04_kanna.py` → M04、`run_M07M09_x.py` → M07+M09）ので、**run ファイルの名前に M 番号を走る順に入れること**。
 成功率の分母は そのミッションの 成功＋途中まで＋失敗（「届かなかった」は入れない。「動かなかった」は `--include-error` のときだけ数える）。
-`dashboard.html` と `dashboard_coach.html` は生成物なので **git には入れない**（`.gitignore`）。プレゼン用の表と PNG は下の `trial_report.py`。
+`dashboard.html` は生成物なので **git には入れない**（`.gitignore`）。コーチ用の `dashboard_coach.html` は、生成物だが共有のため **git に入れる**（2026-10-03）。プレゼン用の表と PNG は下の `trial_report.py`。
 
 ## 5. 集計・可視化 `scripts/trial_report.py`
 

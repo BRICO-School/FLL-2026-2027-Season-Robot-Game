@@ -17,8 +17,8 @@ Thumbs.db
 .hub_stage/
 
 # scripts/trial_dashboard.py が trials.csv から作る生成物（記録のたびに作り直す）
+# コーチ用の dashboard_coach.html は git に入れて共有する（2026-10-03）。チーム用の dashboard.html は入れない
 docs/trials/dashboard.html
-docs/trials/dashboard_coach.html
 
 # Python のキャッシュ
 __pycache__/

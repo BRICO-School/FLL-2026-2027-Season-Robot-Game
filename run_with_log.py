@@ -43,7 +43,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
   docs/trials/trials.csv                            … 試行の記録（1 行 = 1 走行）
   docs/trials/snapshots/<code_hash>/                … 走行したコードのコピー
   docs/trials/dashboard.html                        … 集計ダッシュボード（記録のたびに作り直す。git には入れない）
-  docs/trials/dashboard_coach.html                  … 名前に coach が入る run ファイルだけの集計（同上。チームの方には数えない）
+  docs/trials/dashboard_coach.html                  … 名前に coach が入る run ファイルだけの集計（記録のたびに作り直す。チームの方には数えない。git に入れる）
 
 ※ このファイルは PC 側だけで動く。ハブへ送るコード（setup.py / run_*.py）には
    一切手を入れないので、ロボットの動きには影響しない。
@@ -59,6 +59,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
 - 2026-10-02: コーチ確認用の集計ダッシュボードを分けて自動生成するようにした。
 - 2026-10-03: 走行後の成否をミッションごとに個別記録できるよう変更した。
 - 2026-10-03: ロボットの実走行時間を計測して試行ログに記録する機能を追加した
+- 2026-10-03: コーチ用ダッシュボードの説明文をGit管理対象に修正した
 """
 
 import csv

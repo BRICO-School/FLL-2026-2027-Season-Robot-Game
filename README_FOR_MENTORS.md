@@ -128,7 +128,7 @@ FLL-2026-2027-Season-Robot-Game/
 │   ├── tread_ratio_summary.md
 │   ├── logs/<script>/<YYYYMMDD_HHMMSS>.log  # 実行ログの自動保存先（HISTORY.md・作業ログ.md は変更履歴フックが書く）
 │   ├── trial_log_spec.md       # 試行記録の仕様
-│   ├── trials/                 # 試行記録 CSV・コードのスナップショット・ダッシュボード（dashboard*.html は生成物）
+│   ├── trials/                 # 試行記録 CSV・コードのスナップショット・ダッシュボード（生成物。dashboard_coach.html だけ git に入れる）
 │   ├── compare/                # 新旧 setup の比較走行の記録（compare_trials.csv）
 │   └── gyro_trace/             # ジャイロの 2 状態の調査（2026-09-19）の時系列 CSV
 └── scripts/
@@ -267,7 +267,7 @@ stdout を tee しつつ `docs/logs/<script>/<YYYYMMDD_HHMMSS>.log` に保存し
     `dashboard.html` に数えず、`dashboard_coach.html` だけに出る（「メンバーごと」の節は出さない）。
     2 枚の見出しの下に、おたがいへのリンクがある。
   - 手で作り直すとき: `uv run python scripts/trial_dashboard.py --open`（「動かなかった」も数えるときは `--include-error`）。
-  - どちらも生成物なので git には入れない（`.gitignore`）。
+  - どちらも生成物。チーム用の `dashboard.html` は git に入れない（`.gitignore`）。コーチ用の `dashboard_coach.html` は git に入れて共有する（2026-10-03）。
 - プレゼン用の集計は `uv run python scripts/trial_report.py`（`--since` / `--mission` / `--by day` / `--diff`）。
   `docs/trials/report.md` と `docs/trials/charts/*.png` を生成します。仕様は
   `docs/trial_log_spec.md`。
@@ -714,7 +714,7 @@ Pybricks Hub7     ← 7 台目以降（launch.json 追加が必要）
 | `docs/architecture.md` | しくみの説明（コードが動く場所・ファイル同士のお約束・道具） | 初めて関わる人への説明 |
 | `docs/agy_setup.md` | 変更履歴フックの AI 要約（agy）の入れ方 | 端末の追加 |
 | `docs/trial_log_spec.md` | 試行記録・ダッシュボード・集計の仕様 | 記録の読み方・数え方の確認 |
-| `docs/trials/dashboard.html` / `dashboard_coach.html` | いま何点取れそうか・次に手を入れるミッション（チーム / コーチ） | 練習のふりかえり（生成物。git に無いときは §3.3 のコマンドで作る） |
+| `docs/trials/dashboard.html` / `dashboard_coach.html` | いま何点取れそうか・次に手を入れるミッション（チーム / コーチ） | 練習のふりかえり（生成物。コーチ用は git にある。チーム用は無いので §3.3 のコマンドで作る） |
 | `docs/compare/compare_trials.csv` | 新旧 setup の比較走行（2026-09-17〜18） | new / old の見きわめ |
 | `docs/gyro_trace/` | ジャイロの 2 状態の調査（2026-09-19） | 回転のズレを疑うとき |
 | `docs/ayumu_roadmap.md` | 4 フェーズのロードマップ | 次に何をやるかの意思決定 |
