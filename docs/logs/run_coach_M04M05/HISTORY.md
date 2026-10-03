@@ -1,7 +1,7 @@
-# 修正履歴: run_coach_M04M06.py
+# 修正履歴: run_coach_M04M05.py
 
 **担当**:   
-**ファイル**: `run_coach_M04M06.py`
+**ファイル**: `run_coach_M04M05.py`
 
 ---
 

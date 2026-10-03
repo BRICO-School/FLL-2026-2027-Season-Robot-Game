@@ -12,7 +12,7 @@ make-html compose 型 — README_FOR_MENTORS.md（2026-10-03 更新）から生�
   いまの状況            → context（p×2＋stat-card 4）        → §0.1
   開発の流れと実行モード → funnel（.flow 3 段・here 1）        → §0・§0.1・§3.1
   実行モードの決まり     → gotchas（callout ul 3）            → §0 ルール 3 項
-  ルートにある run ファイル → evidence（table.kit 13 行）     → §0.1 表 13 行
+  ルートにある run ファイル → evidence（table.kit 12 行）     → §0.1 表 12 行
   最近の変更            → timeline（milestone 6）             → §3.1・§3.2・§3.4・§3.5
   しくみを順に追う       → steps（details 5・中に表 5 行）     → §3.1〜§3.5
   setup.py で決まっていること → basis（9 項）                 → §3.1
@@ -289,7 +289,7 @@ dl.faq dd { font-size: 14px; margin: 4px 0 0; }
   <p>いまは run ファイルでミッションごとの要素開発をしている段階。セレクターからの通し練習はまだ始まっていない。</p>
   <div class="summary-band">
     <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">チームの run</div><div class="stat-delta">yuri・sakuto・soichiro</div></div>
-    <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">コーチ確認用の run</div><div class="stat-delta">手押しから 3 本</div></div>
+    <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">コーチ確認用の run</div><div class="stat-delta">手押しから 3 本</div></div>
     <div class="stat-card warn"><div class="stat-num">1</div><div class="stat-label">セレクターの登録</div><div class="stat-delta down">run_template だけ</div></div>
     <div class="stat-card"><div class="stat-num">360.1</div><div class="stat-label">Hub3 の校正表</div><div class="stat-delta">2026-09-19・暫定</div></div>
   </div>
@@ -331,10 +331,9 @@ dl.faq dd { font-size: 14px; margin: 4px 0 0; }
       <tr><td class="mono"><a href="run_coach_M01.py">run_coach_M01.py</a></td><td>コーチ確認用</td><td>前進 650mm</td></tr>
       <tr><td class="mono"><a href="run_coach_M02.py">run_coach_M02.py</a></td><td>コーチ確認用</td><td>前進 30mm → 右 43° → 前進 400mm → 右アームを逆に 576° → 後退 120mm → 左 180° → 半径 1000mm のカーブ 20°</td></tr>
       <tr><td class="mono"><a href="run_coach_M03.py">run_coach_M03.py</a></td><td>コーチ確認用</td><td>前進 290mm → 後退 290mm・300mm/s</td></tr>
-      <tr><td class="mono"><a href="run_coach_M04M06.py">run_coach_M04M06.py</a></td><td>コーチ確認用</td><td>半径 1900mm のカーブ 20° → 左 47°。そのあとはコメントアウト中</td></tr>
+      <tr><td class="mono"><a href="run_coach_M04M05.py">run_coach_M04M05.py</a></td><td>コーチ確認用・手押しから</td><td>M04: カーブ 2 本 → 向き合わせ → 前進 165mm → 左アームを逆に 2 回転 → M05: 右アームを逆に 420° → 右 32°</td></tr>
       <tr><td class="mono"><a href="run_coach_M09.py">run_coach_M09.py</a></td><td>コーチ確認用</td><td>左アーム 25 回転・1000deg/s</td></tr>
       <tr><td class="mono"><a href="run_coach_M03_teach.py">run_coach_M03_teach.py</a></td><td>コーチ確認用・手押しから</td><td>前進 210mm → 後ろ向きのカーブ 30°・1 秒で打ち切り → 後退 300mm</td></tr>
-      <tr><td class="mono"><a href="run_coach_M04.py">run_coach_M04.py</a></td><td>コーチ確認用・手押しから</td><td>カーブ 2 本 → 向き合わせ → 前進 163mm → 左アームを逆に 2 回転</td></tr>
       <tr><td class="mono"><a href="run_coach_M12M11M06M07.py">run_coach_M12M11M06M07.py</a></td><td>コーチ確認用・手押しから</td><td>M12 → M11 → M06 → M07 を 1 本で回る。10/3 に 11 本走らせ、記録は改名前の run_coach_M12.py の名前で残る。起こしたままの版は archive/2026/run_coach_M12_bak.py</td></tr>
       <tr><td class="mono"><a href="run_left_arm_test.py">run_left_arm_test.py</a></td><td>機構の確認</td><td>前進 500mm・300mm/s。名前は左アームだが中身は直進</td></tr>
       <tr><td class="mono"><a href="run_template.py">run_template.py</a></td><td>ひな形</td><td>前進 500mm・500mm/s</td></tr>
@@ -402,7 +401,7 @@ dl.faq dd { font-size: 14px; margin: 4px 0 0; }
     <div class="body">
       <p>ハブ側の teach_record.py が手で押したルートを記録し、PC 側の scripts/teach.py が straight・turn・curve と run_angle のコードを起こす。記録は docs/logs/teach_record/ に残る。</p>
       <p>1 つの動きごとに手を止め、持ち上げない。タイヤが床で回らないと距離が分からない。</p>
-      <p>起こしたコードはそのまま使えないことが多い。run_coach_M03_teach.py と run_coach_M04.py も距離や速さを手で直している。</p>
+      <p>起こしたコードはそのまま使えないことが多い。run_coach_M03_teach.py と run_coach_M04M05.py も距離や速さを手で直している。</p>
     </div>
   </details>
 </section>
