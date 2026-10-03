@@ -18,6 +18,11 @@ docs/trials/trials.csv（run_with_log.py が貯める記録）を集計して、
 
 グラフには matplotlib が必要（`uv sync` で dev グループとして入る）。
 無ければ表だけ作って、グラフはスキップする。
+
+【ミッションごとの成否】（2026-10-03）
+  1 本の走行に複数のミッションがあるとき（run_M01M02M03_kanna.py など）は、ミッションごとに分けて集計する
+  （trials.csv の mission_results 列。読み方は scripts/trial_results.py）。成功率はミッション単位で、
+  「届かなかった（unreached）」は分母に入れない。「試行」は走らせた本数。
 """
 
 import argparse
@@ -28,13 +33,16 @@ import sys
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import trial_results as tr  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_DIR = os.path.join(ROOT, "docs", "trials")
 TRIALS_CSV = os.path.join(TRIALS_DIR, "trials.csv")
 REPORT_MD = os.path.join(TRIALS_DIR, "report.md")
 CHARTS_DIR = os.path.join(TRIALS_DIR, "charts")
 
-COUNTED = ("success", "fail", "partial")  # 成功率の分母に入れる結果
+COUNTED = tr.COUNTED  # 成功率の分母に入れる結果（届かなかった unreached は入れない）
 
 
 # ===== 読み込み =====
@@ -50,10 +58,32 @@ def load_trials(include_error):
             if r["result"] not in COUNTED and not (include_error and r["result"] == "error"):
                 continue
             r["_date"] = datetime.strptime(r["date"], "%Y-%m-%d").date()
-            r["_mission"] = r.get("mission") or os.path.splitext(r.get("script", ""))[0]
             rows.append(r)
     rows.sort(key=lambda r: (r["date"], r.get("time", "")))
     return rows
+
+
+def mission_attempts(rows):
+    """走行をミッションごとに分けた一覧。1 つが {"_date", "_mission", "result", "code_hash", "snapshot"}。
+
+    ミッションの無い走行（名前に M 番号が無い）は、ファイル名をミッションの代わりにする。届かなかったミッションは入れない。
+    """
+    out = []
+    for r in rows:
+        pairs = tr.results_of(r) or [(os.path.splitext(r.get("script", ""))[0], r["result"])]
+        for m, res in pairs:
+            if res == "unreached":
+                continue
+            out.append(
+                {
+                    "_date": r["_date"],
+                    "_mission": m,
+                    "result": res,
+                    "code_hash": r.get("code_hash", ""),
+                    "snapshot": r.get("snapshot", ""),
+                }
+            )
+    return out
 
 
 def bucket_of(d, by):
@@ -71,7 +101,7 @@ def bucket_label(b, by):
 
 # ===== 集計 =====
 def summarize(rows, by):
-    """mission -> OrderedDict(bucket -> {"n", "ok"}) を返す。"""
+    """mission -> OrderedDict(bucket -> {"n", "ok"}) を返す。rows は mission_attempts() の形。"""
     per = defaultdict(lambda: defaultdict(lambda: {"n": 0, "ok": 0}))
     for r in rows:
         b = bucket_of(r["_date"], by)
@@ -83,7 +113,7 @@ def summarize(rows, by):
 
 
 def code_changes(rows):
-    """mission -> [(初出日, code_hash, snapshot), ...] コードが切り替わった点。"""
+    """mission -> [(初出日, code_hash, snapshot), ...] コードが切り替わった点。rows は mission_attempts() の形。"""
     out = defaultdict(list)
     seen = defaultdict(set)
     for r in rows:
@@ -124,19 +154,21 @@ def snapshot_diff(prev_dir, cur_dir):
     return "\n".join(chunks) if chunks else "（差分なし）"
 
 
-def write_report(rows, summary, changes, by, args):
+def write_report(rows, atts, summary, changes, by, args):
     lines = []
     lines.append("# 試行記録レポート")
     lines.append("")
     lines.append(f"生成: {datetime.now().strftime('%Y-%m-%d %H:%M')}  ")
     period = f"{rows[0]['date']} 〜 {rows[-1]['date']}" if rows else "-"
     lines.append(f"期間: {period}  ")
-    n = len(rows)
-    ok = sum(1 for r in rows if r["result"] == "success")
-    lines.append(f"試行: **{n} 回**、成功: **{ok} 回**、成功率: **{rate(ok, n)}**")
+    n, tried = len(rows), len(atts)
+    ok = sum(1 for a in atts if a["result"] == "success")
+    lines.append(
+        f"試行: **{n} 本**（ミッションの挑戦 {tried} 回）、成功: **{ok} 回**、成功率: **{rate(ok, tried)}**"
+    )
     lines.append("")
     lines.append(
-        "> 成功率 = success ÷ (success + fail + partial)。"
+        "> 成功率 = success ÷ (success + fail + partial)。ミッションごとに数え、届かなかった（unreached）は入れない。"
         + ("error も分母に含む。" if args.include_error else "error（動かなかった）は除外。")
     )
     lines.append("")
@@ -148,7 +180,7 @@ def write_report(rows, summary, changes, by, args):
         buckets = summary[mission]
         total_n = sum(c["n"] for c in buckets.values())
         total_ok = sum(c["ok"] for c in buckets.values())
-        lines.append(f"### {mission}（{total_n} 回、成功率 {rate(total_ok, total_n)}）")
+        lines.append(f"### {mission}（挑戦 {total_n} 回、成功率 {rate(total_ok, total_n)}）")
         lines.append("")
         lines.append(f"| {unit} | 試行 | 成功 | 成功率 |")
         lines.append("|---|---:|---:|---:|")
@@ -178,24 +210,27 @@ def write_report(rows, summary, changes, by, args):
 
     lines.append("## メンバー別の試行数")
     lines.append("")
-    per_member = defaultdict(lambda: {"n": 0, "ok": 0})
+    per_member = defaultdict(lambda: {"runs": 0, "n": 0, "ok": 0})
     for r in rows:
-        m = r.get("member") or "(不明)"
-        per_member[m]["n"] += 1
-        per_member[m]["ok"] += r["result"] == "success"
-    lines.append("| メンバー | 試行 | 成功 | 成功率 |")
-    lines.append("|---|---:|---:|---:|")
-    for m, c in sorted(per_member.items(), key=lambda kv: -kv[1]["n"]):
-        lines.append(f"| {m} | {c['n']} | {c['ok']} | {rate(c['ok'], c['n'])} |")
+        c = per_member[r.get("member") or "(不明)"]
+        c["runs"] += 1
+        for a in mission_attempts([r]):
+            c["n"] += 1
+            c["ok"] += a["result"] == "success"
+    lines.append("| メンバー | 試行（本） | ミッションの挑戦 | 成功 | 成功率 |")
+    lines.append("|---|---:|---:|---:|---:|")
+    for m, c in sorted(per_member.items(), key=lambda kv: -kv[1]["runs"]):
+        lines.append(f"| {m} | {c['runs']} | {c['n']} | {c['ok']} | {rate(c['ok'], c['n'])} |")
     lines.append("")
 
     lines.append("## 直近 10 試行")
     lines.append("")
-    lines.append("| 日時 | ミッション | 結果 | メモ | コード |")
+    lines.append("| 日時 | スクリプト | 結果 | メモ | コード |")
     lines.append("|---|---|---|---|---|")
     for r in rows[-10:][::-1]:
+        what = tr.describe(tr.results_of(r)) or r["result"]
         lines.append(
-            f"| {r['date']} {r.get('time', '')} | {r['_mission']} | {r['result']} "
+            f"| {r['date']} {r.get('time', '')} | {r.get('script', '')} | {what} "
             f"| {r.get('note', '')} | `{r.get('code_hash', '')}` |"
         )
     lines.append("")
@@ -288,19 +323,22 @@ def chart_mission(plt, ja, mission, buckets, changes, by):
     return path
 
 
-def chart_all(plt, ja, rows, by):
+def chart_all(plt, ja, rows, atts, by):
+    """全体: 累計の試行（本数）と、区切りごとの成功率（ミッション単位）。"""
     L = label_set(ja)
-    per_day = defaultdict(lambda: {"n": 0, "ok": 0})
+    per_day = defaultdict(lambda: {"runs": 0, "n": 0, "ok": 0})
     for r in rows:
-        b = bucket_of(r["_date"], by)
+        per_day[bucket_of(r["_date"], by)]["runs"] += 1
+    for a in atts:
+        b = bucket_of(a["_date"], by)
         per_day[b]["n"] += 1
-        per_day[b]["ok"] += r["result"] == "success"
+        per_day[b]["ok"] += a["result"] == "success"
     xs = sorted(per_day)
     cum, total = [], 0
     for x in xs:
-        total += per_day[x]["n"]
+        total += per_day[x]["runs"]
         cum.append(total)
-    rates = [100 * per_day[x]["ok"] / per_day[x]["n"] for x in xs]
+    rates = [100 * per_day[x]["ok"] / per_day[x]["n"] if per_day[x]["n"] else 0 for x in xs]
 
     fig, ax1 = plt.subplots(figsize=(8, 4))
     ax1.plot(xs, cum, color="#1c7ed6", marker="s", linewidth=2, label=L["cum"])
@@ -322,7 +360,7 @@ def chart_all(plt, ja, rows, by):
     return path
 
 
-def make_charts(rows, summary, changes, by):
+def make_charts(rows, atts, summary, changes, by):
     mp = setup_matplotlib()
     if mp is None:
         return
@@ -334,7 +372,7 @@ def make_charts(rows, summary, changes, by):
     for mission, buckets in summary.items():
         p = chart_mission(plt, ja, mission, buckets, changes.get(mission, []), by)
         print(f"📈 {os.path.relpath(p, ROOT)}")
-    p = chart_all(plt, ja, rows, by)
+    p = chart_all(plt, ja, rows, atts, by)
     print(f"📈 {os.path.relpath(p, ROOT)}")
 
 
@@ -353,17 +391,20 @@ def main():
     if args.since:
         since = datetime.strptime(args.since, "%Y-%m-%d").date()
         rows = [r for r in rows if r["_date"] >= since]
+    atts = mission_attempts(rows)
     if args.mission:
-        rows = [r for r in rows if r["_mission"] == args.mission]
+        want = (tr.missions_in_name(args.mission)[0] or [args.mission])[0]  # 'M9' → 'M09'
+        atts = [a for a in atts if a["_mission"] == want]
+        rows = [r for r in rows if want in tr.missions_of(r)]
     if not rows:
         print("条件に合う記録がありません")
         sys.exit(1)
 
-    summary = summarize(rows, args.by)
-    changes = code_changes(rows)
+    summary = summarize(atts, args.by)
+    changes = code_changes(atts)
     if not args.no_charts:
-        make_charts(rows, summary, changes, args.by)
-    write_report(rows, summary, changes, args.by, args)
+        make_charts(rows, atts, summary, changes, args.by)
+    write_report(rows, atts, summary, changes, args.by, args)
 
 
 if __name__ == "__main__":

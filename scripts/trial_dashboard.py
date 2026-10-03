@@ -29,7 +29,12 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   数字 4 つ → ハイライト → 点数マップ（15 ミッション）→ ① 要素開発（run ファイルごと）→ ② 通し（セレクター）
   → 日ごとの試行 → メンバーごと → 最近の試行 → 次に手を入れるところ
 
-成功率の分母は 成功 + 途中まで + 失敗。見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安。
+【ミッションごとの成否】（2026-10-03）
+  1 本の走行に複数のミッションがあるとき（run_M01M02M03_kanna.py など）、成否はミッションごとに記録される
+  （trials.csv の mission_results 列。読み方は scripts/trial_results.py）。成功率はミッション単位で数える:
+  分母は そのミッションを 成功 + 途中まで + 失敗 した数で、「届かなかった」は入れない。
+  「試行」はいままでどおり走らせた本数。
+見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安（届かなかったぶんを入れないので「届けば取れる点」）。
 dashboard.html と dashboard_coach.html は生成物なので git には入れない（.gitignore）。プレゼン用の表と PNG は trial_report.py。
 """
 
@@ -44,6 +49,7 @@ from html import escape
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bioglow_missions as bm  # noqa: E402
+import trial_results as tr  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
@@ -56,9 +62,15 @@ SCORESHEET_URL = (
 )
 
 COACH_WORD = "coach"  # run ファイルの名前にこれが入る記録は、コーチ用のダッシュボードへ分ける
-COUNTED = ("success", "partial", "fail")  # 成功率の分母に入れる結果
-RESULT_LABEL = {"success": "成功", "partial": "途中まで", "fail": "失敗", "error": "動かなかった"}
-RESULT_DOT = {"success": "low", "partial": "med", "fail": "high", "error": "none"}
+COUNTED = tr.COUNTED  # 成功率の分母に入れる結果（届かなかった unreached は入れない）
+RESULT_LABEL = tr.RESULT_LABEL
+RESULT_DOT = {
+    "success": "low",
+    "partial": "med",
+    "fail": "high",
+    "error": "none",
+    "unreached": "none",
+}
 
 RECENT_N = 10  # 「直近」の本数
 STABLE_RATE = 80  # 安定とみなす成功率 (%)
@@ -142,8 +154,13 @@ def stamp(row):
 
 
 def missions_of(row):
-    """'M07+M09' → ['M07', 'M09']"""
-    return [m for m in row.get("mission", "").split("+") if m]
+    """'M07+M09' → ['M07', 'M09']（'M9' は 'M09' にそろえる）"""
+    return tr.missions_of(row)
+
+
+def attempts(rows):
+    """ミッションごとの試行 [(行, ミッション, 結果)]。届かなかったミッションは入れない。"""
+    return [(r, m, res) for r in rows for m, res in tr.results_of(r) if res != "unreached"]
 
 
 def is_selector(row):
@@ -158,20 +175,23 @@ def seconds_of(row):
 
 
 # ===== 集計 =====
-def tally(rows):
-    t = {"n": len(rows), "success": 0, "partial": 0, "fail": 0, "error": 0}
-    for r in rows:
-        t[r["result"]] = t.get(r["result"], 0) + 1
+def tally_attempts(atts):
+    """ミッション単位の集計。atts は attempts() の形。"""
+    t = {"n": len(atts), "success": 0, "partial": 0, "fail": 0, "error": 0}
+    for _, _, res in atts:
+        t[res] = t.get(res, 0) + 1
     t["rate"] = round(100 * t["success"] / t["n"]) if t["n"] else None
     return t
 
 
-def recent(rows):
-    return tally(rows[-RECENT_N:])
+def mission_tally(rows):
+    """走行の一覧を、ミッション単位で集計する（成功率はこちらを使う）。"""
+    return tally_attempts(attempts(rows))
 
 
 def mean_seconds(rows):
-    ok = [seconds_of(r) for r in rows if r["result"] == "success" and seconds_of(r) > 0]
+    """成功した走行の平均秒（rows はもう「成功した走行」にしぼってある）。"""
+    ok = [seconds_of(r) for r in rows if seconds_of(r) > 0]
     return sum(ok) / len(ok) if ok else None
 
 
@@ -182,9 +202,11 @@ def members_of(rows):
 def score_map(rows):
     """15 ミッションぶんの 段階・成功率・見こみ点。"""
     out = []
+    every = attempts(rows)
     for m in bm.MISSIONS:
-        mine = [r for r in rows if m["id"] in missions_of(r)]
-        t, rec = tally(mine), recent(mine)
+        atts = [a for a in every if a[1] == m["id"]]
+        mine = [r for r, _, _ in atts]
+        t, rec = tally_attempts(atts), tally_attempts(atts[-RECENT_N:])
         stable = rec["n"] >= STABLE_MIN and rec["rate"] >= STABLE_RATE
         in_selector = any(is_selector(r) for r in mine)
         if not mine:
@@ -194,7 +216,17 @@ def score_map(rows):
         else:
             stage = "stable" if stable else "dev"
         expected = m["max"] * rec["rate"] / 100 if rec["n"] else 0.0
-        out.append({"m": m, "rows": mine, "t": t, "rec": rec, "stage": stage, "expected": expected})
+        out.append(
+            {
+                "m": m,
+                "rows": mine,
+                "atts": atts,
+                "t": t,
+                "rec": rec,
+                "stage": stage,
+                "expected": expected,
+            }
+        )
     return out
 
 
@@ -240,19 +272,21 @@ def to_rounds(rows):
             current["end"] = end
             last_end = end
     for x in rounds:
-        x["t"] = tally(x["rows"])
+        x["n_runs"] = len(x["rows"])
+        x["t"] = mission_tally(x["rows"])
         x["sec"] = round((x["end"] - x["start"]).total_seconds())
-        done = {m for r in x["rows"] if r["result"] == "success" for m in missions_of(r)}
+        done = {m for r in x["rows"] for m, res in tr.results_of(r) if res == "success"}
         x["points"] = sum(max_of.get(m, 0) for m in done)
     rounds.sort(key=lambda x: x["start"])
     return rounds
 
 
 def daily(rows):
+    """[(日付, 走らせた本数, ミッション単位の集計)]"""
     days = OrderedDict()
     for r in rows:
         days.setdefault(r["date"], []).append(r)
-    return [(d, tally(v)) for d, v in days.items()][-CHART_DAYS:]
+    return [(d, len(v), mission_tally(v)) for d, v in days.items()][-CHART_DAYS:]
 
 
 def member_table(rows):
@@ -266,7 +300,7 @@ def window_rate(rows, today, first_day_ago, last_day_ago):
     """today から数えて first_day_ago〜last_day_ago 日前（両端ふくむ）の集計。"""
     lo = (today - timedelta(days=first_day_ago)).strftime("%Y-%m-%d")
     hi = (today - timedelta(days=last_day_ago)).strftime("%Y-%m-%d")
-    return tally([r for r in rows if lo <= r["date"] <= hi])
+    return mission_tally([r for r in rows if lo <= r["date"] <= hi])
 
 
 # ===== 部品 =====
@@ -285,11 +319,12 @@ def meter(rate, over=False):
     return f'<span class="{cls}"><b style="width:{min(rate, 100):.0f}%"></b></span>'
 
 
-def strip(rows):
+def strip(pairs):
+    """直近の並び。pairs は [(行, 結果)]（ミッションごとの結果でも、走行ぜんたいの結果でもよい）。"""
     cells = "".join(
-        f'<i class="{RESULT_DOT.get(r["result"], "none")}" '
-        f'title="{escape(r["date"])} {escape(r.get("time", "")[:5])} {RESULT_LABEL.get(r["result"], "")}"></i>'
-        for r in rows[-STRIP_N:]
+        f'<i class="{RESULT_DOT.get(res, "none")}" '
+        f'title="{escape(r["date"])} {escape(r.get("time", "")[:5])} {RESULT_LABEL.get(res, "")}"></i>'
+        for r, res in pairs[-STRIP_N:]
     )
     return f'<span class="strip">{cells}</span>'
 
@@ -362,6 +397,11 @@ def section(title, inner, lead=""):
     return f'<section><h2>{title}</h2><hr class="rule">{lead_html}{inner}</section>'
 
 
+def mission_dots(row):
+    """1 本の走行のミッションごとの結果を、色の点つきで並べる。ミッションが無ければ空。"""
+    return " ".join(dot(RESULT_DOT.get(res, "none"), m) for m, res in tr.results_of(row))
+
+
 def mission_name(m):
     return f'<strong>{m["id"]}</strong> {escape(m["name"])} <span class="mission-en">{escape(m["en"])}</span>'
 
@@ -387,14 +427,17 @@ def render_summary(rows, smap, today):
     stable = sum(1 for x in smap if x["stage"] in ("stable", "selstable"))
     in_selector = sum(1 for x in smap if x["stage"] in ("sel", "selstable"))
     this_week, last_week = window_rate(rows, today, 6, 0), window_rate(rows, today, 13, 7)
-    today_t = tally([r for r in rows if r["date"] == today.strftime("%Y-%m-%d")])
+    today_rows = [r for r in rows if r["date"] == today.strftime("%Y-%m-%d")]
+    today_t = mission_tally(today_rows)
     if this_week["rate"] is None or last_week["rate"] is None:
         delta, delta_cls = "前の 7 日の記録なし", "flat"
     else:
         diff = this_week["rate"] - last_week["rate"]
         delta = f"前の 7 日より {diff:+d} ポイント"
         delta_cls = "up" if diff > 0 else "down" if diff < 0 else "flat"
-    today_note = f"成功 {today_t['success']} 本" if today_t["n"] else "まだ記録なし"
+    today_note = (
+        f"ミッションの成功 {today_t['success']}/{today_t['n']}" if today_rows else "まだ記録なし"
+    )
     cards = [
         (
             f"{expected}<small> / {bm.MISSION_MAX_TOTAL}</small>",
@@ -409,7 +452,7 @@ def render_summary(rows, smap, today):
             "flat",
         ),
         (pct(this_week), "この 7 日の成功率", delta, delta_cls),
-        (str(today_t["n"]), "今日の試行", today_note, "flat"),
+        (str(len(today_rows)), "今日の試行", today_note, "flat"),
     ]
     inner = "".join(
         f'<div class="stat-card{" warn" if cls == "down" else ""}"><div class="stat-num">{num}</div>'
@@ -462,7 +505,7 @@ def render_score_map(smap):
     body, classes = [], []
     for x in smap:
         t, rec = x["t"], x["rec"]
-        sec = mean_seconds(x["rows"])
+        sec = mean_seconds([r for r, _, res in x["atts"] if res == "success"])
         label, kind = STAGES[x["stage"]]
         body.append(
             [
@@ -476,7 +519,7 @@ def render_score_map(smap):
                 round(x["expected"]) if t["n"] else "",
                 f"{sec:.1f}" if sec else "",
                 escape(members_of(x["rows"])),
-                strip(x["rows"]),
+                strip([(r, res) for r, _, res in x["atts"]]),
             ]
         )
         classes.append("" if t["n"] else "idle")
@@ -484,8 +527,8 @@ def render_score_map(smap):
         "ミッション",
         "満点",
         "段階",
-        "試行",
-        f"直近 {RECENT_N} 本",
+        "挑戦",
+        f"直近 {RECENT_N} 回",
         "見こみ点",
         "平均秒",
         "担当",
@@ -500,10 +543,25 @@ def render_score_map(smap):
         ],
         num_cols=(2,),
     )
-    lead = f"見こみ点は 満点 × 直近 {RECENT_N} 本の成功率。安定は 直近 {STABLE_MIN} 本以上で {STABLE_RATE}% 以上。"
+    lead = (
+        f"見こみ点は 満点 × 直近 {RECENT_N} 回の成功率。安定は 直近 {STABLE_MIN} 回以上で {STABLE_RATE}% 以上。"
+        "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
+    )
     inner = legend + table(heads, body, num_cols=(1, 3, 5, 6), row_classes=classes)
     inner += f"<details><summary>採点の条件を見る</summary>{conditions}</details>"
     return section("点数マップ", inner, lead)
+
+
+def per_mission(runs):
+    """run ファイルのミッションごとの 成功/挑戦（'M12 0/11 · M11 1/2'）。1 ミッションならその名前だけ。"""
+    order = OrderedDict()
+    for _, m, res in attempts(runs):
+        cell = order.setdefault(m, [0, 0])
+        cell[1] += 1
+        cell[0] += res == "success"
+    if len(order) <= 1:
+        return escape(runs[-1].get("mission", ""))
+    return " &middot; ".join(f"{m} {ok}/{n}" for m, (ok, n) in order.items())
 
 
 def render_scripts(rows):
@@ -512,20 +570,21 @@ def render_scripts(rows):
         return ""
     body = []
     for script, runs in groups:
-        t, rec, sec = tally(runs), recent(runs), mean_seconds(runs)
+        t, rec = mission_tally(runs), mission_tally(runs[-RECENT_N:])
+        sec = mean_seconds([r for r in runs if r["result"] == "success"])
         versions = len({r["code_hash"] for r in runs if r.get("code_hash")})
         body.append(
             [
                 f'<span class="pr-link">{escape(script)}</span>',
-                escape(runs[-1].get("mission", "")),
+                per_mission(runs),
                 f'<span class="author">{escape(runs[-1].get("member", ""))}</span>',
-                t["n"],
-                meter(rec["rate"]) + pct(rec),
+                len(runs),
+                meter(rec["rate"]) + pct(rec) if rec["n"] else "",
                 pct(t),
                 f"{sec:.1f}" if sec else "",
                 versions or "",
                 short_date(runs[-1]["date"]),
-                strip(runs),
+                strip([(r, r["result"]) for r in runs]),
             ]
         )
     heads = [
@@ -545,7 +604,10 @@ def render_scripts(rows):
         + "".join(dot(RESULT_DOT[k], RESULT_LABEL[k]) for k in COUNTED)
         + "</div>"
     )
-    lead = "run ファイルを 1 本ずつ走らせた記録。並びは左が古く右が新しい。"
+    lead = (
+        f"run ファイルを 1 本ずつ走らせた記録。試行は本数、直近 {RECENT_N} 本と通算の成功率はミッション単位。"
+        "ミッションの列は ミッションごとの 成功/挑戦。並びは走行ぜんたいの結果で、左が古く右が新しい。"
+    )
     return section("① 要素開発", legend + table(heads, body, num_cols=(3, 5, 6, 7)), lead)
 
 
@@ -557,14 +619,14 @@ def render_rounds(rounds):
     for x in reversed(shown):
         over = x["sec"] > bm.MATCH_SECONDS
         order = "　".join(
-            dot(RESULT_DOT.get(r["result"], "none"), r.get("mission") or r["script"])
+            mission_dots(r) or dot(RESULT_DOT.get(r["result"], "none"), r["script"])
             for r in x["rows"]
         )
         body.append(
             [
                 x["start"].strftime("%m/%d %H:%M"),
-                x["t"]["n"],
-                x["t"]["success"],
+                x["n_runs"],
+                f"{x['t']['success']}/{x['t']['n']}",
                 x["points"],
                 meter(100 * x["sec"] / bm.MATCH_SECONDS, over)
                 + f"{x['sec']} 秒"
@@ -577,7 +639,7 @@ def render_rounds(rounds):
             (
                 label,
                 x["points"],
-                f"{x['start']:%m/%d %H:%M} 成功 {x['t']['success']} / {x['t']['n']} 本・{x['sec']} 秒",
+                f"{x['start']:%m/%d %H:%M} ミッションの成功 {x['t']['success']} / {x['t']['n']}・{x['sec']} 秒",
             )
             for label, x in zip(round_labels(rounds)[-ROUND_ROWS:], shown, strict=True)
         ],
@@ -586,7 +648,7 @@ def render_rounds(rounds):
     best = max(rounds, key=lambda x: x["points"])
     caption = f"通しの 1 回ごとの見こみ点。これまでの最高は {best['start'].strftime('%m/%d %H:%M')} の回である。"
     lead = f"セレクターから続けて走らせた記録。時間は最初のスタートから最後のゴールまでで、試合は {bm.MATCH_SECONDS} 秒。"
-    heads = ["はじめた時刻", "本数", "成功", "見こみ点", "時間", "走らせた順"]
+    heads = ["はじめた時刻", "本数", "成功したミッション", "見こみ点", "時間", "走らせた順"]
     inner = (
         chart_panel(chart, caption)
         + '<div class="gap"></div>'
@@ -600,24 +662,25 @@ def render_daily(rows):
     if not days:
         return ""
 
-    def note(d, t):
-        return f"{d} 成功 {t['success']}・途中まで {t['partial']}・失敗 {t['fail']}"
+    def note(d, n, t):
+        return f"{d} {n} 本・ミッションの 成功 {t['success']}・途中まで {t['partial']}・失敗 {t['fail']}"
 
-    counts = bar_chart([(short_date(d), t["n"], note(d, t)) for d, t in days], "日ごとの試行数")
+    counts = bar_chart([(short_date(d), n, note(d, n, t)) for d, n, t in days], "日ごとの試行数")
     rates = bar_chart(
-        [(short_date(d), t["rate"], note(d, t)) for d, t in days],
+        [(short_date(d), t["rate"] or 0, note(d, n, t)) for d, n, t in days],
         "日ごとの成功率",
         unit="%",
         y_max=100,
     )
-    busiest = max(days, key=lambda x: x[1]["n"])
-    best = max(days, key=lambda x: x[1]["rate"])
+    busiest = max(days, key=lambda x: x[1])
+    best = max(days, key=lambda x: x[2]["rate"] or 0)
     panels = chart_panel(
         counts, f"日ごとの試行数。いちばん多く走らせたのは {short_date(busiest[0])} である。"
     )
     panels += '<div class="gap"></div>'
     panels += chart_panel(
-        rates, f"日ごとの成功率。いちばん高かったのは {short_date(best[0])} である。"
+        rates,
+        f"日ごとの成功率（ミッション単位）。いちばん高かったのは {short_date(best[0])} である。",
     )
     return section("日ごとの試行", panels)
 
@@ -628,19 +691,26 @@ def render_members(rows):
         return ""
     body = []
     for name, runs in groups:
-        t, rec = tally(runs), recent(runs)
+        t, rec = mission_tally(runs), mission_tally(runs[-RECENT_N:])
         missions = len({m for r in runs for m in missions_of(r)})
         body.append(
             [
                 f'<span class="author">{escape(name)}</span>',
-                t["n"],
-                t["success"],
+                len(runs),
+                f"{t['success']}/{t['n']}",
                 pct(t),
                 meter(rec["rate"]) + pct(rec),
                 missions,
             ]
         )
-    heads = ["メンバー", "試行", "成功", "通算の成功率", f"直近 {RECENT_N} 本", "ミッションの数"]
+    heads = [
+        "メンバー",
+        "試行",
+        "成功したミッション",
+        "通算の成功率",
+        f"直近 {RECENT_N} 本",
+        "ミッションの数",
+    ]
     return section("メンバーごと", table(heads, body, num_cols=(1, 2, 3, 5)))
 
 
@@ -659,7 +729,7 @@ def render_recent(rows):
                 f"{short_date(r['date'])} {r.get('time', '')[:5]}",
                 "② 通し" if is_selector(r) else "① 単体",
                 f'<span class="pr-link">{escape(r["script"])}</span>',
-                escape(r.get("mission", "")),
+                mission_dots(r),
                 f'<span class="author">{escape(r.get("member", ""))}</span>',
                 dot(
                     RESULT_DOT.get(r["result"], "none"), RESULT_LABEL.get(r["result"], r["result"])
