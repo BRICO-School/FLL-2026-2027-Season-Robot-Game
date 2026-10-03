@@ -1,0 +1,67 @@
+=== 実行ログ ===
+スクリプト: run_M06_yuri.py
+実行日時 : 2026-10-03 18:57:05
+ハブ     : --name Pybricks Hub3
+==================================================
+
+Searching for Pybricks Hub3...
+Traceback (most recent call last):
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/bleak/backends/corebluetooth/CentralManagerDelegate.py", line 299, in connect
+    await future
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/nakamegurokoumylab/.cursor/extensions/ms-python.debugpy-2026.6.0-darwin-arm64/bundled/libs/debugpy/_vendored/pydevd/pydevd.py", line 3740, in <module>
+    main()
+  File "/Users/nakamegurokoumylab/.cursor/extensions/ms-python.debugpy-2026.6.0-darwin-arm64/bundled/libs/debugpy/_vendored/pydevd/pydevd.py", line 3725, in main
+    globals = debugger.run(setup["file"], None, None, is_module)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.cursor/extensions/ms-python.debugpy-2026.6.0-darwin-arm64/bundled/libs/debugpy/_vendored/pydevd/pydevd.py", line 2709, in run
+    return self._exec(is_module, entry_point_fn, module_name, file, globals, locals)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.cursor/extensions/ms-python.debugpy-2026.6.0-darwin-arm64/bundled/libs/debugpy/_vendored/pydevd/pydevd.py", line 2728, in _exec
+    globals = pydevd_runpy._run_module_as_main(module_name, alter_argv=False)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.cursor/extensions/ms-python.debugpy-2026.6.0-darwin-arm64/bundled/libs/debugpy/_vendored/pydevd/_pydevd_bundle/pydevd_runpy.py", line 228, in _run_module_as_main
+    return _run_code(code, main_globals, None, "__main__", mod_spec)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.cursor/extensions/ms-python.debugpy-2026.6.0-darwin-arm64/bundled/libs/debugpy/_vendored/pydevd/_pydevd_bundle/pydevd_runpy.py", line 118, in _run_code
+    exec(code, run_globals)
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/pybricksdev/__main__.py", line 9, in <module>
+    main()
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "/Users/nakamegurokoumylab/.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/pybricksdev/cli/__init__.py", line 236, in run
+    await hub.connect()
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/pybricksdev/connections/pybricks.py", line 303, in connect
+    await self._client_connect()
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/pybricksdev/connections/pybricks.py", line 851, in _client_connect
+    await self._client.connect()
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/bleak/__init__.py", line 660, in connect
+    await self._backend.connect(self._pair_before_connect, **kwargs)
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/bleak/backends/corebluetooth/client.py", line 139, in connect
+    await manager.connect(self._peripheral, disconnect_callback, timeout=timeout)
+  File "/Users/nakamegurokoumylab/Desktop/FLL-2026-2027-Season-Robot-Game/.venv/lib/python3.12/site-packages/bleak/backends/corebluetooth/CentralManagerDelegate.py", line 298, in connect
+    async with async_timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nakamegurokoumylab/.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+==================================================
+終了コード: 1
+終了日時  : 2026-10-03 18:57:36
+実行時間  : 31.4 秒
+接続〜初期化完了: 測れず（「=== ロボット初期化完了 ===」の行が無い）
+走行: 測れず（「# 走行完了！」の行が無い。途中で止まった？）
