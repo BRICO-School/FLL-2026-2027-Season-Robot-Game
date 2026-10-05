@@ -15,8 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
-- 2026-10-05: M01用の走行プログラムを新規作成した
-- 2026-10-05: 空行の末尾にある不要な空白を削除しました
+- 2026-10-01: ミッションM02用の走行プログラムを新規作成した
 """
 
 from pybricks.hubs import PrimeHub
@@ -45,7 +44,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.turn(180, rate=300)                      # 300deg/sで180度回転
     await robot.turn(90, timeout=1500)                   # 1.5秒以内に90度回転
 
-    await robot.curve(200, 90)                           # 半径200mmで90度カーブ
+    await robot.curve(200, 90)                           # 半径200mmで90度カーブw
     await robot.curve(300, 45, speed=150)                # 150mm/sで半径300mm、45度カーブ
     await robot.curve(150, 60, timeout=2000)             # 2秒以内にカーブ
 
@@ -66,17 +65,11 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     #######################################
     # ここにロボットの動作を記述してください
-    # ここにロボットの動作を記述してください
     #######################################
-
-    await robot.straight(750, speed=500)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
-    # await robot.turn(-45)
-    await robot.curve(70, -60)
-
-    await robot.curve(70, 60)
-
-    await robot.straight(-800, speed=500)
-
+    await robot.straight(200)
+    await right_lift.run_angle(300, 180)
+    await robot.straight(-260)
+    right_lift.run_angle(300, 180)
     # ロボットを停止
     robot.stop()
     print("# 走行完了！")
