@@ -53,6 +53,12 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   合計の前に「数えない」行を出して合計は 530 のまま。項目が 2 つ以上のミッションは、ミッション名の下に項目ごとの直近 3 回を出し、
   のびしろの文に「取りこぼしがいちばん大きい項目」を添える。② 通しの回の点も、取れた点の合計。
 
+【1 つのミッションを別々の run でやる】（2026-10-05・§11.8）
+  どの項目でも「-」（この run ではやらない）と記録できる。点が分かれているミッションの見こみ点は、項目ごとに
+  「その項目に挑戦した直近 3 回」の平均点を足す（支柱は支柱をやった run、サポートタイはサポートタイをやった run から）。
+  安定は どの項目も 直近 10 回のうち 5 回以上挑戦して 80% 以上。まだ挑戦していない項目は「まだ記録なし」とのびしろに出る。
+  ② 通しの回の点は、回の中の run を合わせて 項目ごとにいちばん良い点を足す。
+
 【数えるのは 2026-10-05 16:30 から】（オーナー 2026-10-05「過去のログは捨てていい」）
   それより前の記録は項目ごとの記録が無く、項目のあるミッションの点を正しく出せないので数えない（scripts/trial_results.py の COUNT_FROM）。
   trials.csv の行は消さない（追記だけの決まり・union マージ）。見返すときは --all。
@@ -260,7 +266,20 @@ def score_map(rows):
         mine = [r for r, _, _ in atts]
         t, rec = tally_attempts(atts), tally_attempts(atts[-RECENT_N:])
         est = tally_attempts(atts[-EXPECTED_N:])
-        stable = rec["n"] >= STABLE_MIN and rec["rate"] >= STABLE_RATE
+        recent = atts[-EXPECTED_N:]
+        parts = tr.PARTS[m["id"]] if tr.parts_of(m["id"]) else []
+        if parts:
+            # 項目ごとに、その項目に挑戦した回（「-」でない回）だけで見る（§11.8。別々の run でやる項目を合わせられる）
+            series = part_series(m["id"], atts)
+            expected = sum(mean_points(q, series[q["id"]][-EXPECTED_N:]) for q in parts)
+            stable = all(part_stable(q, series[q["id"]][-RECENT_N:]) for q in parts)
+        else:
+            expected = (
+                sum(tr.points_in(r, m["id"], res) for r, _, res in recent) / len(recent)
+                if recent
+                else 0.0
+            )
+            stable = rec["n"] >= STABLE_MIN and rec["rate"] >= STABLE_RATE
         in_selector = any(is_selector(r) for r in mine)
         if not mine:
             stage = "none"
@@ -268,12 +287,6 @@ def score_map(rows):
             stage = "selstable" if stable else "sel"
         else:
             stage = "stable" if stable else "dev"
-        recent = atts[-EXPECTED_N:]
-        expected = (
-            sum(tr.points_in(r, m["id"], res) for r, _, res in recent) / len(recent)
-            if recent
-            else 0.0
-        )
         timed = [r for r in rows if seconds_of(r) > 0 and m["id"] in missions_of(r)]
         secs = [seconds_of(r) for r in timed if missions_of(r)[0] == m["id"]]
         out.append(
@@ -285,7 +298,7 @@ def score_map(rows):
                 "rec": rec,
                 "est": est,
                 "full": tr.full_points(m["id"]),
-                "parts": part_stats(m["id"], recent),
+                "parts": part_stats(m["id"], series) if len(parts) >= 2 else [],
                 "stage": stage,
                 "expected": expected,
                 "sec": sum(secs) / len(secs) if secs else None,
@@ -296,24 +309,43 @@ def score_map(rows):
     return out
 
 
-def part_stats(mid, atts):
-    """項目が 2 つ以上のミッションの、項目ごとの集計（atts は直近の試行）。項目の分からない古い行は数えない。"""
-    parts = tr.PARTS.get(mid, [])
-    if len(parts) < 2:
-        return []
-    known = [v for v in (tr.values_in(r, mid, res) for r, _, res in atts) if v is not None]
+def part_series(mid, atts):
+    """{項目: 挑戦した回の値の並び（時刻の順）}。「-」（この run ではやらない）の回と、項目の分からない古い行は入れない。"""
+    series = {p["id"]: [] for p in tr.PARTS.get(mid, [])}
+    for r, _, res in atts:
+        values = tr.values_in(r, mid, res)
+        for pid, v in (values or {}).items():
+            if v is not None:
+                series[pid].append(v)
+    return series
+
+
+def mean_points(part, values):
+    """その項目の平均点（挑戦した回が無ければ 0）。"""
+    return sum(tr.part_points(part, v) for v in values) / len(values) if values else 0.0
+
+
+def part_stable(part, values):
+    """その項目が安定しているか（values は直近 RECENT_N 回。STABLE_MIN 回以上で、満点の割合が STABLE_RATE% 以上）。"""
+    if len(values) < STABLE_MIN:
+        return False
+    full = sum(1 for v in values if tr.part_points(part, v) >= bm.part_full(part))
+    return 100 * full / len(values) >= STABLE_RATE
+
+
+def part_stats(mid, series):
+    """項目ごとの集計（その項目に挑戦した直近 EXPECTED_N 回）。挑戦していない項目は n=0・取りこぼし＝満点。"""
     out = []
-    for p in parts:
-        vals = [v[p["id"]] for v in known]
+    for p in tr.PARTS[mid]:
+        vals = series[p["id"]][-EXPECTED_N:]
         n = len(vals)
-        got = sum(tr.part_points(p, v) for v in vals)
         out.append(
             {
                 "part": p,
                 "n": n,
                 "got": sum(1 for v in vals if v),
                 "avg": sum(vals) / n if n else None,
-                "lost": bm.part_full(p) - got / n if n else 0,
+                "lost": bm.part_full(p) - mean_points(p, vals),
             }
         )
     return out
@@ -336,14 +368,15 @@ def part_text(st):
 
 
 def weakest_text(x):
-    """取りこぼしがいちばん大きい項目の一言（項目が 2 つ以上で、取りこぼしがあるときだけ）。"""
-    lost = [st for st in x["parts"] if st["n"] and st["lost"] > 0]
+    """取りこぼしがいちばん大きい項目の一言（項目が 2 つ以上で、取りこぼしがあるときだけ）。まだ挑戦していない項目もふくむ。"""
+    lost = [st for st in x["parts"] if st["lost"] > 0]
     if not lost:
         return ""
     st = max(lost, key=lambda st: st["lost"])
+    how = f"直近 {st['n']} 回で {escape(part_value(st))}" if st["n"] else "まだ記録なし"
     return (
         f"取りこぼしがいちばん大きいのは {escape(st['part']['label'])}"
-        f"（直近 {st['n']} 回で {escape(part_value(st))}・{bm.part_full(st['part'])} 点）。"
+        f"（{how}・{bm.part_full(st['part'])} 点）。"
     )
 
 
@@ -413,11 +446,18 @@ def to_rounds(rows):
         x["n_runs"] = len(x["rows"])
         x["t"] = mission_tally(x["rows"])
         x["sec"] = round((x["end"] - x["start"]).total_seconds())
-        best = {}  # ミッションごとの取れた点（同じミッションが 2 本あれば多いほう）
+        best = {}  # (ミッション, 項目) ごとの取れた点。回の中の run を合わせて、いちばん良い点（§11.8）
         for r in x["rows"]:
             for m, res in tr.results_of(r):
-                if res != "unreached":
-                    best[m] = max(best.get(m, 0), tr.points_in(r, m, res))
+                if res == "unreached":
+                    continue
+                if tr.parts_of(m):
+                    values = tr.values_in(r, m, res) or {}
+                    for q in tr.PARTS[m]:
+                        got = tr.part_points(q, values.get(q["id"]))
+                        best[(m, q["id"])] = max(best.get((m, q["id"]), 0), got)
+                else:
+                    best[(m, None)] = max(best.get((m, None), 0), tr.points_in(r, m, res))
         x["points"] = sum(best.values())
     rounds.sort(key=lambda x: x["start"])
     return rounds
@@ -768,9 +808,10 @@ def render_score_map(smap):
         num_cols=(2,),
     )
     lead = (
-        f"見こみ点は 直近 {EXPECTED_N} 回の平均点（項目ごとに記録した点。項目の記録が無い古い行は 成功＝満点・それ以外＝0 点）。"
+        f"見こみ点は 直近 {EXPECTED_N} 回の平均点。点が分かれているミッションは、項目ごとに その項目に挑戦した直近 {EXPECTED_N} 回"
+        "（「-」＝その run ではやらない回は数えない）の平均点を足す（別々の run でやる項目も合わせて数える）。"
         "満点は記録できる満点で、M07 の相手チームとのボーナスは数えない。"
-        f"安定は 直近 {RECENT_N} 回のうち {STABLE_MIN} 回以上挑戦して {STABLE_RATE}% 以上。"
+        f"安定は 直近 {RECENT_N} 回のうち {STABLE_MIN} 回以上挑戦して {STABLE_RATE}% 以上（点が分かれているミッションは、どの項目も）。"
         "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
         "平均秒は 本番でもかかる時間（初期化完了 → 走行完了）の、測れた本の平均（成否に関わらず）で、2026-10-03 より前の記録には無い。"
         "続けて回る run は 1 本の時間を最初のミッションに出し、ほかのミッションは「-」。"

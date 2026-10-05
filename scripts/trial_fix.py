@@ -63,7 +63,7 @@ def item_of(row):
             if not tr.parts_of(m):
                 answers[m] = tr.KEY_OF.get(res, "o")
             elif res == "unreached":
-                answers[m] = "-"
+                parts[m] = {q["id"]: tr.SKIP for q in tr.PARTS[m]}  # 全部「-」＝届かなかった
             else:
                 values = tr.values_in(
                     row, m, res
@@ -76,7 +76,9 @@ def item_of(row):
 
 
 def key_of_value(mission, part_id, value):
-    """項目の値 → 入れ直しの初期値のキー（yesno は o / x、個数・段階は x か数字）。"""
+    """項目の値 → 入れ直しの初期値のキー（yesno は o / x、個数・段階は x か数字、None は「-」）。"""
+    if value is None:
+        return tr.SKIP
     part = next(p for p in tr.PARTS[mission] if p["id"] == part_id)
     if part["kind"] == "yesno":
         return "o" if value else "x"
