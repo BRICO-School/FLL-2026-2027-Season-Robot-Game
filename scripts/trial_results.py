@@ -19,11 +19,23 @@ PC 側だけで動く。ハブには関係ない。仕様は docs/trial_log_spec
 
 【result 列】ミッションごとの結果から自動で決める
   届いたミッションが全部成功 → success、成功か途中までが 1 つでもある → partial、それ以外 → fail
+
+【項目ごとの記録】（2026-10-05・仕様は docs/trial_log_spec.md の §11）
+  点の取れる項目がいくつもあるミッション（M12 の支柱とサポートタイなど。定義は bioglow_missions.py の parts）は、
+  ミッションの結果は聞かずに、毎回すべての項目を聞く。答えは part_results 列に書く:
+    M12.staff=1 M12.tie=0 M02.seeds=2 M04.leaves=1
+  値は 1/0（取れた・取れない）・個数・段階で、点数は書かない。mission_results は項目から決める
+  （満点 → success、1 点でも → partial、0 点 → fail）。part_results が空の古い行は、success＝全部取れた・
+  fail＝全部 0・それ以外は「項目は分からない」（点は 0 として数える）。
+  どの項目でも「-」＝この run ではやらない・とどかなかった（値は None。記録は M12.tie=-）。1 つのミッションを
+  別々の run でやるときに使う。1 本の結果はやった項目だけで決め、全部「-」ならミッションごと届かなかった（§11.8）。
 """
 
 import csv
 import io
 import re
+
+import bioglow_missions as bm  # 項目の定義（parts）
 
 MISSION_COUNT = 15  # BIOGLOW のミッションは M01〜M15
 MISSION_RE = re.compile(r"[Mm](\d{1,2})")
@@ -42,6 +54,24 @@ MISSION_KEYS = {"o": "success", "x": "fail", "d": "partial", "-": "unreached"}
 WHOLE_KEYS = {"e": "error", "s": None}
 KEY_OF = {v: k for k, v in MISSION_KEYS.items()}
 BACK = "b"
+SKIP = "-"  # 項目の「この run ではやらない・とどかなかった」（値は None・§11.8）
+PARTS = {m["id"]: m["parts"] for m in bm.MISSIONS}
+
+# 数える記録の始まり（trial_id と同じ形）。これより前の記録は項目ごとの記録が無いので、ダッシュボードなどで数えない
+# （オーナー 2026-10-05「過去のログは捨てていい」・docs/trial_log_spec.md §11.7）。
+# trials.csv の行は消さない（追記だけの決まり。union マージなので、消すとほかの PC から戻ってくる）
+COUNT_FROM = "20261005_163000"
+
+
+def is_counted(row):
+    """数える記録か（COUNT_FROM 以後）。"""
+    return (row.get("trial_id") or "") >= COUNT_FROM
+
+
+def count_from_text():
+    """'2026-10-05 16:30'"""
+    d, t = COUNT_FROM.split("_")
+    return f"{d[:4]}-{d[4:6]}-{d[6:]} {t[:2]}:{t[2:4]}"
 
 
 # ===== ミッションの並び =====
@@ -91,6 +121,159 @@ def format_results(pairs):
     return " ".join(f"{m}={r}" for m, r in pairs)
 
 
+# ===== 項目（2026-10-05・§11） =====
+def parts_of(mid):
+    """項目ごとに聞くミッションの項目。取れた／取れないの 1 項目だけのミッションは []（いままでどおり o / x / d で聞く）。"""
+    parts = PARTS.get(mid, [])
+    if len(parts) == 1 and parts[0]["kind"] == "yesno":
+        return []
+    return parts
+
+
+def full_points(mid):
+    """記録できる満点（M07 は相手チームとのボーナスを数えないので 20）。"""
+    return sum(bm.part_full(p) for p in PARTS.get(mid, []))
+
+
+def part_top(part, values):
+    """その項目に入れられるいちばん上の値。count に cap があると、その項目の値まで（M14 のマット ≤ ステーション）。"""
+    if part["kind"] == "yesno":
+        return 1
+    if part["kind"] == "level":
+        return len(part["points"]) - 1
+    top = part["most"]
+    cap = values.get(part["cap"], 0) if part.get("cap") else None
+    if cap is not None:  # cap の項目が「-」（別の run でやる）なら、上限は most のまま
+        top = min(top, cap)
+    return top
+
+
+def part_open(part, values):
+    """その項目を聞くか。前提（needs＝ボーナスの「かつ」）が全部 0 か、入れられる値が無ければ聞かずに 0。
+
+    前提の項目が「-」（別の run でやる）なら聞く。
+    """
+    needs = part.get("needs")
+    if needs and all(values.get(n, 0) == 0 for n in needs):
+        return False
+    return part_top(part, values) > 0
+
+
+def settle(mid, values):
+    """前提と上限をあてはめた値 {項目: 値}（点数表の項目の順に決める。前提が外れた項目は 0、上限をこえた分は切る）。
+
+    None（「-」＝この run ではやらない）はそのまま。書いていない項目は 0。
+    """
+    out = {}
+    for p in PARTS.get(mid, []):
+        raw = values.get(p["id"], 0)
+        if raw is None:
+            out[p["id"]] = None
+        elif not part_open(p, out):
+            out[p["id"]] = 0
+        else:
+            out[p["id"]] = max(0, min(int(raw), part_top(p, out)))
+    return out
+
+
+def all_values(mid, got):
+    """全部取れた（got=True）か、全部 0（got=False）の値。"""
+    out = {}
+    for p in PARTS.get(mid, []):
+        out[p["id"]] = part_top(p, out) if got and part_open(p, out) else 0
+    return out
+
+
+def part_points(part, value):
+    if value is None:
+        return 0
+    if part["kind"] == "yesno":
+        return part["points"] if value else 0
+    if part["kind"] == "count":
+        return part["points"] * value
+    return part["points"][value]
+
+
+def points_of_values(mid, values):
+    """項目の値から、そのミッションで取れた点。"""
+    values = settle(mid, values)
+    return sum(part_points(p, values[p["id"]]) for p in PARTS.get(mid, []))
+
+
+def tried_full(mid, values):
+    """やった項目（「-」でない項目）の満点の合計。"""
+    values = settle(mid, values)
+    return sum(bm.part_full(p) for p in PARTS.get(mid, []) if values[p["id"]] is not None)
+
+
+def result_of_values(mid, values):
+    """項目の値から、そのミッションの結果。やった項目だけで決める（満点 → success、1 点でも → partial、0 点 → fail）。
+
+    全部の項目が「-」なら unreached（届かなかった）。
+    """
+    full = tried_full(mid, values)
+    if not full:
+        return "unreached"
+    points = points_of_values(mid, values)
+    if points >= full:
+        return "success"
+    return "partial" if points > 0 else "fail"
+
+
+def parse_parts(text):
+    """'M12.staff=1 M12.tie=-' → {'M12': {'staff': 1, 'tie': None}}（「-」＝この run ではやらない は None）"""
+    out = {}
+    for part in (text or "").split():
+        key, _, value = part.partition("=")
+        mid, _, pid = key.partition(".")
+        if mid and pid and (value.isdigit() or value == SKIP):
+            out.setdefault(mid, {})[pid] = None if value == SKIP else int(value)
+    return out
+
+
+def format_parts(by_mission):
+    """{'M12': {'staff': 1, 'tie': 0}} → 'M12.staff=1 M12.tie=0'（項目は点数表の順）"""
+    out = []
+    for mid, values in by_mission.items():
+        values = settle(mid, values)
+        out += [
+            f"{mid}.{p['id']}={SKIP if values[p['id']] is None else values[p['id']]}"
+            for p in PARTS.get(mid, [])
+        ]
+    return " ".join(out)
+
+
+def values_in(row, mid, result):
+    """その行のそのミッションの項目の値。part_results にあればそれ、無ければ 成功＝全部取れた・失敗＝全部 0。
+
+    項目のあるミッションの「途中まで」で part_results が無い古い行は None（項目は分からない）。
+    """
+    given = parse_parts(row.get("part_results")).get(mid)
+    if given is not None:
+        return settle(mid, given)
+    if result == "success":
+        return all_values(mid, True)
+    if result != "partial" or not parts_of(mid):
+        return all_values(mid, False)
+    return None
+
+
+def points_in(row, mid, result):
+    """その行のそのミッションで取れた点。項目の分からない古い「途中まで」は 0 点（それまでと同じ数え方）。"""
+    values = values_in(row, mid, result)
+    return points_of_values(mid, values) if values is not None else 0
+
+
+def value_text(part, value):
+    if value is None:
+        return "－"
+    if part["kind"] == "yesno":
+        return "○" if value else "×"
+    if part["kind"] == "level":
+        return part["levels"][value]
+    return str(value)
+
+
 def results_of(row):
     """1 行の [(ミッション, 結果)]。mission_results が空の古い行は、result を全部のミッションに当てる。"""
     given = parse_results(row.get("mission_results"))
@@ -109,9 +292,26 @@ def run_result(results):
     return "fail"
 
 
-def describe(pairs):
-    """[('M12', 'fail'), ...] → 'M12 失敗 / M11 成功'"""
-    return " / ".join(f"{m} {RESULT_LABEL.get(r, r)}" for m, r in pairs)
+def describe(pairs, parts=None):
+    """[('M12', 'partial'), ...] → 'M12 20/30 点（支柱 ○・サポートタイ ×） / M11 成功'。parts は parse_parts() の形。"""
+    parts = parts or {}
+    out = []
+    for m, r in pairs:
+        if m in parts and parts_of(m) and r != "unreached":
+            values = settle(m, parts[m])
+            detail = "・".join(f"{p['label']} {value_text(p, values[p['id']])}" for p in PARTS[m])
+            points = points_of_values(m, values)
+            some_skipped = any(v is None for v in values.values())  # 「-」があると満点は出さない
+            score = f"{points} 点" if some_skipped else f"{points}/{full_points(m)} 点"
+            out.append(f"{m} {score}（{detail}）")
+        else:
+            out.append(f"{m} {RESULT_LABEL.get(r, r)}")
+    return " / ".join(out)
+
+
+def describe_row(row):
+    """trials.csv の 1 行のミッションごとの結果（項目があれば点と項目も）。"""
+    return describe(results_of(row), parse_parts(row.get("part_results")))
 
 
 # ===== trials.csv の読み書き =====
@@ -169,17 +369,57 @@ def replace_row(path, index, new_row):
 
 
 # ===== ターミナルで聞く =====
-def new_item(title, missions, default="o", answers=None, note="", whole=None):
-    """聞く 1 本ぶん。missions が空なら、ミッションを分けずに 1 回だけ聞く。"""
+def new_item(title, missions, default="o", answers=None, note="", whole=None, parts=None):
+    """聞く 1 本ぶん。missions が空なら、ミッションを分けずに 1 回だけ聞く。
+
+    answers は {ミッション: キー}（項目のないミッションの o / x / d / -。項目のあるミッションは「-」だけ入る）、
+    parts は {ミッション: {項目: キー}}（o / x / 数字）。
+    """
     return {
         "title": title,
         "missions": list(missions),
         "default": default,
         "answers": dict(answers or {}),
+        "parts": {m: dict(v) for m, v in (parts or {}).items()},
         "whole": whole,  # None / "e"（動かなかった）/ "s"（記録しない）
-        "whole_at": None,
+        "whole_at": None,  # e / s を押した質問（step_key()）
         "note": note,
     }
+
+
+def step_key(mission, part=None):
+    """質問 1 つの名前（'M12' か 'M12.staff'）。"""
+    return mission if part is None else f"{mission}.{part['id']}"
+
+
+def first_step_key(missions):
+    """その本の最初の質問の名前（trial_fix.py が「動かなかった」を最初の質問に出すのに使う）。"""
+    first = (missions or [None])[0]
+    parts = parts_of(first) if first else []
+    return step_key(first, parts[0] if parts else None)
+
+
+def key_value(key):
+    """項目の答えのキー → 値（- → None、x → 0、o → 1、数字 → その数）。"""
+    if key == SKIP:
+        return None
+    if key == "x":
+        return 0
+    if key == "o":
+        return 1
+    return int(key)
+
+
+def item_values(item, mission):
+    """聞いた答えから、そのミッションの項目の値（前提と上限をあてはめたもの）。"""
+    keys = item["parts"].get(mission, {})
+    return settle(mission, {pid: key_value(k) for pid, k in keys.items()})
+
+
+def mission_result(item, mission):
+    if parts_of(mission):
+        return result_of_values(mission, item_values(item, mission))
+    return MISSION_KEYS[item["answers"][mission]]
 
 
 def item_results(item):
@@ -190,8 +430,21 @@ def item_results(item):
         return "error", ""
     if not item["missions"]:
         return MISSION_KEYS[item["answers"][None]], ""
-    pairs = [(m, MISSION_KEYS[item["answers"][m]]) for m in item["missions"]]
+    pairs = [(m, mission_result(item, m)) for m in item["missions"]]
     return run_result([r for _, r in pairs]), format_results(pairs)
+
+
+def item_parts(item):
+    """聞きおえた 1 本の part_results（項目のあるミッションで、届いたもの＝全部「-」ではないものだけ）。"""
+    if item["whole"] in ("s", "e"):
+        return ""
+    return format_parts(
+        {
+            m: item_values(item, m)
+            for m in item["missions"]
+            if parts_of(m) and mission_result(item, m) != "unreached"
+        }
+    )
 
 
 def _summary_line(n, item, skip_label):
@@ -202,9 +455,40 @@ def _summary_line(n, item, skip_label):
     elif not item["missions"]:
         what = RESULT_LABEL[MISSION_KEYS[item["answers"][None]]]
     else:
-        what = describe([(m, MISSION_KEYS[item["answers"][m]]) for m in item["missions"]])
+        pairs = [(m, mission_result(item, m)) for m in item["missions"]]
+        what = describe(pairs, {m: item_values(item, m) for m in item["missions"] if parts_of(m)})
     note = f" ／ メモ: {item['note']}" if item["note"] and item["whole"] != "s" else ""
     return f" {n}  {item['title']}  {what}{note}"
+
+
+def part_prompt(mission, part, top, default):
+    """項目 1 つの質問（'M12 支柱は とれた？（20 点）[o] > '）。子どもも答えるので、ひらがな多めの短い言葉で。"""
+    if part["kind"] == "yesno":
+        how = f"は とれた？（{part['points']} 点）"
+    elif part["kind"] == "count":
+        how = f"は いくつ？ 0〜{top}（1 つ {part['points']} 点）"
+    else:
+        steps = [
+            f"{'x' if i == 0 else i}={name}" + (f" {pts} 点" if i else "")
+            for i, (name, pts) in enumerate(zip(part["levels"], part["points"], strict=True))
+        ]
+        how = "（" + "・".join(steps) + "）"
+    return f"{mission} {part['label']}{how}[{default}] > "
+
+
+def part_key(part, key, top):
+    """項目の答えをそろえる（yesno は o / x、個数・段階は x か数字、どれも「-」）。使えないキーなら None。"""
+    if key == SKIP:
+        return SKIP
+    if part["kind"] == "yesno":
+        return {"o": "o", "1": "o", "x": "x", "0": "x"}.get(key)
+    if key in ("x", "0"):
+        return "x"
+    if key == "o":
+        return str(top) if top else "x"
+    if key.isdigit() and 1 <= int(key) <= top:
+        return key
+    return None
 
 
 def ask_trials(
@@ -221,30 +505,59 @@ def ask_trials(
     ・どの質問でも b を押すと 1 つ前の質問に戻る（前の本にも戻れる）
     ・確認の画面で番号を押すと、その本だけ入れ直せる
     ・確認で Enter を押すまで、呼び出し元は何も書かない約束
+    ・項目のあるミッション（parts_of()）は、ミッションの結果ではなく項目を 1 つずつ聞く。
+      前提（ボーナスの「かつ」）が全部 0 の項目と、入れられる値が無い項目は聞かない。「-」はどの項目でも打てる
     skip_label は質問で s を押したときの意味（ふつうは「記録しない」、trial_fix.py では「この記録を消す」）。
     """
     ask = ask or input  # 呼んだときの input / print を使う（テストで差しかえられるように）
     out = out or print
     if cancel_label is None:
         cancel_label = "記録しない" if len(items) == 1 else "全部記録しない"
-    steps = []  # (種類, 本の番号, ミッション)
+    steps = []  # (種類, 本の番号, ミッション, 項目)
     first, note_at = {}, {}
     for i, it in enumerate(items):
         first[i] = len(steps)
         for m in it["missions"] or [None]:
-            steps.append(("result", i, m))
+            parts = parts_of(m) if m else []
+            for p in parts or [None]:
+                steps.append(("part" if p else "result", i, m, p))
         note_at[i] = len(steps)
-        steps.append(("note", i, None))
+        steps.append(("note", i, None, None))
     confirm = len(steps)
     pos, history, back_to_confirm, shown = 0, [], False, None
 
-    def default_key(it, m):
-        if it["whole"] and it["whole_at"] == m:
+    def skipped(step):
+        kind, i, m, p = step
+        return kind == "part" and not part_open(p, item_values(items[i], m))
+
+    def advance(at):
+        at += 1
+        while at < confirm and skipped(steps[at]):
+            at += 1
+        return at
+
+    def default_key(it, m, p=None):
+        key = step_key(m, p)
+        if it["whole"] and it["whole_at"] == key:
             return it["whole"]
-        if m in it["answers"]:
+        if p is None and m in it["answers"]:
             return it["answers"][m]
-        is_first = m == (it["missions"] or [None])[0]
-        return it["default"] if is_first or it["default"] != "e" else "o"
+        if p is not None:
+            given = it["parts"].get(m, {}).get(p["id"])
+            if given is not None:
+                top = part_top(p, item_values(it, m))
+                return given if not given.isdigit() or int(given) <= top else str(top)
+        # 前回の「-」は覚えない・前の項目が「-」でも既定値は o のまま（オーナー 2026-10-05・§11.8）
+        is_first = key == first_step_key(it["missions"])
+        d = it["default"] if is_first or it["default"] != "e" else "o"
+        if p is None or d != "o":
+            return d
+        top = part_top(p, item_values(it, m))
+        return "o" if p["kind"] == "yesno" else (str(top) if top else "x")
+
+    def clear_whole(it, key):
+        if it["whole_at"] == key:
+            it["whole"], it["whole_at"] = None, None
 
     try:
         while True:
@@ -270,35 +583,51 @@ def ask_trials(
                 out(f"   Enter / 1〜{len(items)} の番号 / b / s のどれかを入力してね")
                 continue
 
-            kind, i, m = steps[pos]
+            kind, i, m, p = steps[pos]
             it = items[i]
             if shown != i:
                 out("")
                 out(it["title"])
                 keys = "o=成功  x=失敗  d=途中まで" + ("  -=届かなかった" if it["missions"] else "")
                 out(f"   {keys} ／ e=動かなかった  s={skip_label} ／ b=1 つ前に戻る")
+                if any(parts_of(x) for x in it["missions"]):
+                    out(
+                        "   ぶぶんごとに聞くよ: o=とれた  x=とれなかった  すうじ=いくつ・どこまで"
+                        "  -=この run ではやらない・とどかなかった"
+                    )
                 shown = i
 
-            if kind == "result":
-                d = default_key(it, m)
-                label = f"{m} の結果" if m else "結果"
-                key = ask(f"{label} [{d}] > ").strip().lower() or d
+            if kind in ("result", "part"):
+                d = default_key(it, m, p)
+                if p is None:
+                    prompt = f"{m} の結果 [{d}] > " if m else f"結果 [{d}] > "
+                else:
+                    top = part_top(p, item_values(it, m))
+                    prompt = part_prompt(m, p, top, d)
+                key = ask(prompt).strip().lower() or d
                 if key == BACK:
                     if history:
                         pos = history.pop()
                     else:
                         out("   これより前には戻れません")
                     continue
-                if key in MISSION_KEYS and (m or key != "-"):
+                if p is None and key in MISSION_KEYS and (m or key != "-"):
                     it["answers"][m] = key
-                    if it["whole_at"] == m:
-                        it["whole"], it["whole_at"] = None, None
-                    nxt = pos + 1
+                    clear_whole(it, step_key(m))
+                    nxt = advance(pos)
+                elif p is not None and part_key(p, key, top) is not None:
+                    it["parts"].setdefault(m, {})[p["id"]] = part_key(p, key, top)
+                    clear_whole(it, step_key(m, p))
+                    nxt = advance(pos)
                 elif key in WHOLE_KEYS:
-                    it["whole"], it["whole_at"] = key, m
+                    it["whole"], it["whole_at"] = key, step_key(m, p)
                     nxt = note_at[i] if key == "e" else note_at[i] + 1
                 else:
-                    keys = "o / x / d / - / e / s / b" if m else "o / x / d / e / s / b"
+                    if p is None:
+                        keys = "o / x / d / - / e / s / b" if m else "o / x / d / e / s / b"
+                    else:
+                        values = "o / x" if p["kind"] == "yesno" else f"x / 1〜{top} / o"
+                        keys = f"{values} / - / e / s / b"
                     out(f"   {keys} のどれかを入力してね")
                     continue
             else:
@@ -315,7 +644,7 @@ def ask_trials(
                     it["note"] = ""
                 elif text:
                     it["note"] = text
-                nxt = pos + 1
+                nxt = advance(pos)
 
             history.append(pos)
             if back_to_confirm and (nxt >= confirm or steps[nxt][1] != i):

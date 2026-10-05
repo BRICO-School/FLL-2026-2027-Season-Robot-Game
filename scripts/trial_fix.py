@@ -11,8 +11,9 @@ docs/trials/trials.csv に記録したあとで、成否やメモのまちがい
    b で 1 つ前に戻る。s を押すと「この記録を消す」（まちがえて記録したとき）
 3. 確認の画面で Enter を押すと、その 1 行だけを書きかえて、ダッシュボードを作り直す
 
-trials.csv は追記だけが決まりだが、この道具を通したときだけ、その 1 行の result・mission_results・note の書きかえ
-（または行の削除）を許す。ほかの列と、ほかの行には触らない。仕様は docs/trial_log_spec.md の §9。
+trials.csv は追記だけが決まりだが、この道具を通したときだけ、その 1 行の result・mission_results・part_results・note の
+書きかえ（または行の削除）を許す。ほかの列と、ほかの行には触らない。仕様は docs/trial_log_spec.md の §9・§11。
+項目のあるミッション（M12 の支柱とサポートタイなど）は、項目ごとに入れ直す（2026-10-05）。
 """
 
 import argparse
@@ -24,7 +25,7 @@ import trial_results as tr  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
-COLUMNS = ["mission_results", "run_sec"]  # 古い trials.csv の見出しに足す列
+COLUMNS = ["mission_results", "run_sec", "part_results"]  # 古い trials.csv の見出しに足す列
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -38,7 +39,7 @@ def label_of(row):
     if row.get("result") == "error" or not pairs:
         what = tr.RESULT_LABEL.get(row.get("result", ""), row.get("result", ""))
     else:
-        what = tr.describe(pairs)
+        what = tr.describe_row(row)
     via = f" [{row['via']}]" if row.get("via") else ""
     note = f" ／ メモ: {row['note']}" if row.get("note") else ""
     return f"{row.get('date', '')[5:]} {row.get('time', '')[:5]}  {row.get('script', '')}{via}  {what}{note}"
@@ -53,13 +54,35 @@ def item_of(row):
     result = row.get("result", "")
     if result == "error":
         item = tr.new_item(title, missions, whole="e")
-        item["whole_at"] = (missions or [None])[0]  # 最初の質問に「e」が出る
+        item["whole_at"] = tr.first_step_key(missions)  # 最初の質問に「e」が出る
         return item
+    parts = {}
     if missions:
-        answers = {m: tr.KEY_OF.get(res, "o") for m, res in tr.results_of(row)}
+        answers = {}
+        for m, res in tr.results_of(row):
+            if not tr.parts_of(m):
+                answers[m] = tr.KEY_OF.get(res, "o")
+            elif res == "unreached":
+                parts[m] = {q["id"]: tr.SKIP for q in tr.PARTS[m]}  # 全部「-」＝届かなかった
+            else:
+                values = tr.values_in(
+                    row, m, res
+                )  # 項目の分からない古い「途中まで」は None → 既定値で聞く
+                if values is not None:
+                    parts[m] = {pid: key_of_value(m, pid, v) for pid, v in values.items()}
     else:
         answers = {None: tr.KEY_OF.get(result, "o")}
-    return tr.new_item(title, missions, answers=answers, note=row.get("note", ""))
+    return tr.new_item(title, missions, answers=answers, note=row.get("note", ""), parts=parts)
+
+
+def key_of_value(mission, part_id, value):
+    """項目の値 → 入れ直しの初期値のキー（yesno は o / x、個数・段階は x か数字、None は「-」）。"""
+    if value is None:
+        return tr.SKIP
+    part = next(p for p in tr.PARTS[mission] if p["id"] == part_id)
+    if part["kind"] == "yesno":
+        return "o" if value else "x"
+    return str(value) if value else "x"
 
 
 def main():
@@ -111,7 +134,13 @@ def main():
         tr.replace_row(args.csv, index, None)
         print(f"🗑 消しました: {label_of(row)}")
     else:
-        new = dict(row, result=result, mission_results=mission_results, note=item["note"])
+        new = dict(
+            row,
+            result=result,
+            mission_results=mission_results,
+            part_results=tr.item_parts(item),
+            note=item["note"],
+        )
         tr.replace_row(args.csv, index, new)
         print(f"✓ 直しました: {label_of(new)}")
 

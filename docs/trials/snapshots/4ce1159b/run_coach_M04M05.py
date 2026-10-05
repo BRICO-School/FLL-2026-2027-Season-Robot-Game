@@ -17,8 +17,6 @@
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-02: 手押し記録をもとにM04の走行プログラムを新規作成した
 - 2026-10-03: 手押し記録をもとにM04とM05の走行とアーム動作を実装した。
-- 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
-- 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -85,7 +83,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await right_lift.run_angle(500, -460)  # 右アームを逆に 6°
     await robot.turn(20)  # 右 32°
 
-    await right_lift.run_angle(500, 280)  # 右アームを逆に 6°
+    await right_lift.run_angle(500, 240)  # 右アームを逆に 6°
 
     # ロボットを停止
     robot.stop()
