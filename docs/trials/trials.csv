@@ -42,3 +42,14 @@ trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit
 20261003_210053,2026-10-03,21:00:53,run_coach_M02.py,M02,coach,Pybricks Hub3,success,21.6,0,7acbe6d,,docs/logs/run_coach_M02/20261003_210053.log,aea71c8e,docs/trials/snapshots/aea71c8e,,M02=success,7.9
 20261003_210207,2026-10-03,21:02:07,run_coach_M04M05.py,M04+M05,coach,Pybricks Hub3,fail,20.6,0,7acbe6d,,docs/logs/run_coach_M04M05/20261003_210207.log,a7300f22,docs/trials/snapshots/a7300f22,,M04=fail M05=fail,7.7
 20261003_210317,2026-10-03,21:03:17,run_coach_M04M05.py,M04+M05,coach,Pybricks Hub3,fail,20.9,0,7acbe6d,,docs/logs/run_coach_M04M05/20261003_210317.log,a7300f22,docs/trials/snapshots/a7300f22,,M04=fail M05=fail,7.7
+20261003_171819,2026-10-03,17:18:19,run_coach_M01-2.py,M01,coach,Pybricks Hub3,fail,18.4,0,0dc354c,,docs/logs/run_coach_M01-2/20261003_171819.log,f1d42b68,docs/trials/snapshots/f1d42b68,,M01=fail,
+20261003_171858,2026-10-03,17:18:58,run_coach_M01-2.py,M01,coach,Pybricks Hub3,fail,14.3,0,0dc354c,,docs/logs/run_coach_M01-2/20261003_171858.log,f1d42b68,docs/trials/snapshots/f1d42b68,,M01=fail,
+20261005_133700,2026-10-05,13:37:00,run_coach_M01-2.py,M01,coach,Pybricks Hub3,success,23.0,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_133700.log,f889bbf2,docs/trials/snapshots/f889bbf2,,M01=success,
+20261005_133816,2026-10-05,13:38:16,run_coach_M01-2.py,M01,coach,Pybricks Hub3,success,20.6,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_133816.log,f889bbf2,docs/trials/snapshots/f889bbf2,,M01=success,
+20261005_134025,2026-10-05,13:40:25,run_coach_M01-2.py,M01,coach,Pybricks Hub3,fail,12.5,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_134025.log,252a62a6,docs/trials/snapshots/252a62a6,,M01=fail,3.1
+20261005_134137,2026-10-05,13:41:37,run_coach_M01-2.py,M01,coach,Pybricks Hub3,fail,15.1,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_134137.log,b26358d2,docs/trials/snapshots/b26358d2,,M01=fail,5.6
+20261005_134419,2026-10-05,13:44:19,run_coach_M01-2.py,M01,coach,Pybricks Hub3,fail,19.9,0,0dc354c,x,docs/logs/run_coach_M01-2/20261005_134419.log,89bd9908,docs/trials/snapshots/89bd9908,,M01=fail,10.4
+20261005_134532,2026-10-05,13:45:32,run_coach_M01-2.py,M01,coach,Pybricks Hub3,success,17.5,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_134532.log,f35a49e3,docs/trials/snapshots/f35a49e3,,M01=success,
+20261005_134614,2026-10-05,13:46:14,run_coach_M01-2.py,M01,coach,Pybricks Hub3,success,16.1,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_134614.log,f35a49e3,docs/trials/snapshots/f35a49e3,,M01=success,6.5
+20261005_134648,2026-10-05,13:46:48,run_coach_M01-2.py,M01,coach,Pybricks Hub3,fail,18.5,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_134648.log,a2b3d377,docs/trials/snapshots/a2b3d377,,M01=fail,8.4
+20261005_134938,2026-10-05,13:49:38,run_coach_M01-2.py,M01,coach,Pybricks Hub3,success,15.7,0,0dc354c,,docs/logs/run_coach_M01-2/20261005_134938.log,a2b3d377,docs/trials/snapshots/a2b3d377,,M01=success,6.4
