@@ -425,11 +425,11 @@ def _summary_line(n, item, skip_label):
 
 
 def part_prompt(mission, part, top, default):
-    """項目 1 つの質問（'M12 支柱（20 点）[o] > '）。"""
+    """項目 1 つの質問（'M12 支柱は とれた？（20 点）[o] > '）。子どもも答えるので、ひらがな多めの短い言葉で。"""
     if part["kind"] == "yesno":
-        how = f"（{part['points']} 点）"
+        how = f"は とれた？（{part['points']} 点）"
     elif part["kind"] == "count":
-        how = f" 0〜{top}（1 つ {part['points']} 点）"
+        how = f"は いくつ？ 0〜{top}（1 つ {part['points']} 点）"
     else:
         steps = [
             f"{'x' if i == 0 else i}={name}" + (f" {pts} 点" if i else "")
@@ -560,7 +560,8 @@ def ask_trials(
                 out(f"   {keys} ／ e=動かなかった  s={skip_label} ／ b=1 つ前に戻る")
                 if any(parts_of(x) for x in it["missions"]):
                     out(
-                        "   項目は o=取れた  x=取れない（0）  数字=個数・段階 ／ 最初の項目で -=届かなかった"
+                        "   ぶぶんごとに聞くよ: o=とれた  x=とれなかった  すうじ=いくつ・どこまで"
+                        " ／ さいしょの質問で -=とどかなかった"
                     )
                 shown = i
 

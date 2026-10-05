@@ -48,7 +48,7 @@ MISSIONS = [
         "max": 30,
         "items": [("茎から離れた種 1 つにつき（3 つまで）", 10)],
         "parts": [
-            {"id": "seeds", "label": "種子", "kind": "count", "points": 10, "most": 3},
+            {"id": "seeds", "label": "はなれた種子", "kind": "count", "points": 10, "most": 3},
         ],
     },
     {
@@ -83,7 +83,7 @@ MISSIONS = [
                 "label": "葉っぱ",
                 "kind": "level",
                 "points": (0, 10, 30),
-                "levels": ("0 点", "1 枚", "2 枚目まで"),
+                "levels": ("0 点", "1 まい", "2 まい・キリギリスそのまま"),
             },
         ],
     },
@@ -99,7 +99,7 @@ MISSIONS = [
                 "label": "根",
                 "kind": "level",
                 "points": (0, 10, 20),
-                "levels": ("のびていない", "一部", "完全"),
+                "levels": ("のびていない", "少しのびた", "ぜんぶのびた"),
             },
         ],
     },
@@ -160,7 +160,7 @@ MISSIONS = [
         "max": 20,
         "items": [("クモのすみかが元の位置のまま", 10), ("カタツムリのすみかが元の位置のまま", 10)],
         "parts": [
-            {"id": "spider", "label": "蜘蛛の生息地", "kind": "yesno", "points": 10},
+            {"id": "spider", "label": "クモの生息地", "kind": "yesno", "points": 10},
             {"id": "snail", "label": "カタツムリの生息地", "kind": "yesno", "points": 10},
         ],
     },
@@ -210,14 +210,14 @@ MISSIONS = [
         "parts": [
             {
                 "id": "station",
-                "label": "再生ステーションの種子",
+                "label": "ステーションに入った種子",
                 "kind": "count",
                 "points": 5,
                 "most": 4,
             },
             {
                 "id": "mat",
-                "label": "そのうちマットに接触",
+                "label": "そのうちマットにさわっている種子",
                 "kind": "count",
                 "points": 5,
                 "most": 4,
