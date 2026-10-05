@@ -68,3 +68,11 @@ trial_id,date,time,script,mission,member,hub,result,elapsed_sec,exit_code,commit
 20261005_145533,2026-10-05,14:55:33,run_coach_M12.py,M12,coach,Pybricks Hub3,success,16.5,0,3509d60,,docs/logs/run_coach_M12/20261005_145533.log,50881c87,docs/trials/snapshots/50881c87,,M12=success,6.5
 20261005_145623,2026-10-05,14:56:23,run_coach_M12.py,M12,coach,Pybricks Hub3,success,15.9,0,3509d60,,docs/logs/run_coach_M12/20261005_145623.log,16141789,docs/trials/snapshots/16141789,,M12=success,6.5
 20261005_145724,2026-10-05,14:57:24,run_coach_M12.py,M12,coach,Pybricks Hub3,success,16.6,0,3509d60,,docs/logs/run_coach_M12/20261005_145724.log,16141789,docs/trials/snapshots/16141789,,M12=success,7.1
+20261005_161350,2026-10-05,16:13:50,run_coach_M14.py,M14,coach,Pybricks Hub3,fail,15.1,0,6426f21,,docs/logs/run_coach_M14/20261005_161350.log,befb937e,docs/trials/snapshots/befb937e,,M14=fail,5.2
+20261005_161749,2026-10-05,16:17:49,run_coach_M14.py,M14,coach,Pybricks Hub3,fail,16.8,0,6426f21,,docs/logs/run_coach_M14/20261005_161749.log,d491dce0,docs/trials/snapshots/d491dce0,,M14=fail,7.0
+20261005_162142,2026-10-05,16:21:42,run_coach_M14.py,M14,coach,Pybricks Hub3,fail,21.7,0,6426f21,,docs/logs/run_coach_M14/20261005_162142.log,ed7babde,docs/trials/snapshots/ed7babde,,M14=fail,12.0
+20261005_162624,2026-10-05,16:26:24,run_coach_M14.py,M14,coach,Pybricks Hub3,partial,19.4,0,6426f21,,docs/logs/run_coach_M14/20261005_162624.log,ed7babde,docs/trials/snapshots/ed7babde,,M14=partial,
+20261005_163247,2026-10-05,16:32:47,run_coach_M14.py,M14,coach,Pybricks Hub3,partial,20.4,0,6426f21,,docs/logs/run_coach_M14/20261005_163247.log,eb183d08,docs/trials/snapshots/eb183d08,,M14=partial,10.1
+20261005_163345,2026-10-05,16:33:45,run_coach_M14.py,M14,coach,Pybricks Hub3,partial,22.1,0,6426f21,,docs/logs/run_coach_M14/20261005_163345.log,eb183d08,docs/trials/snapshots/eb183d08,,M14=partial,10.7
+20261005_163916,2026-10-05,16:39:16,run_coach_M14.py,M14,coach,Pybricks Hub3,partial,19.7,0,6426f21,,docs/logs/run_coach_M14/20261005_163916.log,eb183d08,docs/trials/snapshots/eb183d08,,M14=partial,10.1
+20261005_164121,2026-10-05,16:41:21,run_coach_M14.py,M14,coach,Pybricks Hub3,partial,19.8,0,6426f21,,docs/logs/run_coach_M14/20261005_164121.log,eb183d08,docs/trials/snapshots/eb183d08,,M14=partial,10.1
