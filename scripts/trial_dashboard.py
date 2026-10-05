@@ -40,6 +40,11 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   「試行」はいままでどおり走らせた本数。
 見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安（届かなかったぶんを入れないので「届けば取れる点」）。
 
+【見こみ点は直近 3 回】（2026-10-05 オーナー）
+  見こみ点は そのミッションの直近 3 回（EXPECTED_N）の成功率で計算する（それまでは直近 10 回）。
+  点数マップの成功率の列・のびしろの文も同じ 3 回。安定の判定（直近 10 回のうち 5 回以上で 80% 以上）と、
+  ① 要素開発・メンバーごとの表の「直近」は 10 回（RECENT_N）のまま。
+
 【時間は本番でもかかるぶんだけ】（2026-10-03）
   秒数は trials.csv の run_sec 列だけを使う（run_with_log.py が「=== ロボット初期化完了 ===」→「# 走行完了！」を測った値。
   セレクター経由はプログラムの「実行中 → 実行完了」）。ハブを探す・接続・送る・ジャイロの待ちは入らない。
@@ -90,7 +95,8 @@ RESULT_DOT = {
     "unreached": "none",
 }
 
-RECENT_N = 10  # 「直近」の本数
+RECENT_N = 10  # 「直近」の本数（安定の判定・run ファイルごとの表）
+EXPECTED_N = 3  # 見こみ点に使う「直近」の回数（オーナー 2026-10-05）
 STABLE_RATE = 80  # 安定とみなす成功率 (%)
 STABLE_MIN = 5  # 安定とみなすのに要る本数
 ROUND_GAP_SEC = 90  # 通しの途中でこれ以上あいたら、次の回として数える (秒)
@@ -240,6 +246,7 @@ def score_map(rows):
         atts = [a for a in every if a[1] == m["id"]]
         mine = [r for r, _, _ in atts]
         t, rec = tally_attempts(atts), tally_attempts(atts[-RECENT_N:])
+        est = tally_attempts(atts[-EXPECTED_N:])
         stable = rec["n"] >= STABLE_MIN and rec["rate"] >= STABLE_RATE
         in_selector = any(is_selector(r) for r in mine)
         if not mine:
@@ -248,7 +255,7 @@ def score_map(rows):
             stage = "selstable" if stable else "sel"
         else:
             stage = "stable" if stable else "dev"
-        expected = m["max"] * rec["rate"] / 100 if rec["n"] else 0.0
+        expected = m["max"] * est["rate"] / 100 if est["n"] else 0.0
         timed = [r for r in rows if seconds_of(r) > 0 and m["id"] in missions_of(r)]
         secs = [seconds_of(r) for r in timed if missions_of(r)[0] == m["id"]]
         out.append(
@@ -258,6 +265,7 @@ def score_map(rows):
                 "atts": atts,
                 "t": t,
                 "rec": rec,
+                "est": est,
                 "stage": stage,
                 "expected": expected,
                 "sec": sum(secs) / len(secs) if secs else None,
@@ -535,12 +543,13 @@ def render_highlights(rows, smap, rounds, coach=False):
         items.append(
             f"<strong>まだ記録がない。</strong> 「📝 Robot N + Log」で{which}を走らせ、成否を 1 キーで入れると、ここに集計が出る。"
         )
-    growing = [x for x in smap if x["stage"] in ("dev", "sel")]
+    # 直近 3 回で満点でも、直近 10 回ではまだ安定していないことがある。ふえる点が 0 のものはのびしろに出さない
+    growing = [x for x in smap if x["stage"] in ("dev", "sel") and gain_of(x) > 0]
     if growing:
         x = max(growing, key=gain_of)
         items.append(
             f"<strong>{x['m']['id']} {escape(x['m']['name'])} がいちばんのびしろが大きい。</strong> "
-            f"直近の成功率は {pct(x['rec'])} で、安定すれば見こみ点が {round(gain_of(x))} 点ふえる。"
+            f"直近 {EXPECTED_N} 回の成功率は {pct(x['est'])} で、安定すれば見こみ点が {round(gain_of(x))} 点ふえる。"
         )
     ready = [x for x in smap if x["stage"] == "stable"]
     if ready:
@@ -570,7 +579,7 @@ def render_score_map(smap):
     )
     body, classes = [], []
     for x in smap:
-        t, rec = x["t"], x["rec"]
+        t, est = x["t"], x["est"]
         sec = x["sec"]
         label, kind = STAGES[x["stage"]]
         body.append(
@@ -579,8 +588,8 @@ def render_score_map(smap):
                 x["m"]["max"],
                 dot(kind, label),
                 t["n"] or "",
-                meter(rec["rate"]) + f"{pct(rec)}（{rec['success']}/{rec['n']}）"
-                if rec["n"]
+                meter(est["rate"]) + f"{pct(est)}（{est['success']}/{est['n']}）"
+                if est["n"]
                 else "",
                 round(x["expected"]) if t["n"] else "",
                 f"{sec:.1f}" if sec else ("-" if x["in_first"] else ""),
@@ -648,7 +657,7 @@ def render_score_map(smap):
         "満点",
         "段階",
         "挑戦",
-        f"直近 {RECENT_N} 回",
+        f"直近 {EXPECTED_N} 回",
         "見こみ点",
         "平均秒",
         "担当",
@@ -664,7 +673,8 @@ def render_score_map(smap):
         num_cols=(2,),
     )
     lead = (
-        f"見こみ点は 満点 × 直近 {RECENT_N} 回の成功率。安定は 直近 {STABLE_MIN} 回以上で {STABLE_RATE}% 以上。"
+        f"見こみ点は 満点 × 直近 {EXPECTED_N} 回の成功率。"
+        f"安定は 直近 {RECENT_N} 回のうち {STABLE_MIN} 回以上挑戦して {STABLE_RATE}% 以上。"
         "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
         "平均秒は 本番でもかかる時間（初期化完了 → 走行完了）の、測れた本の平均（成否に関わらず）で、2026-10-03 より前の記録には無い。"
         "続けて回る run は 1 本の時間を最初のミッションに出し、ほかのミッションは「-」。"
@@ -883,9 +893,13 @@ def render_recent(rows):
 def render_next(smap, rounds):
     """見本の「持ち越し」にあたる節。次に手を入れるところを、のびしろの大きい順に出す。"""
     items = []
-    growing = sorted((x for x in smap if x["stage"] in ("dev", "sel")), key=gain_of, reverse=True)
+    growing = sorted(
+        (x for x in smap if x["stage"] in ("dev", "sel") and gain_of(x) > 0),
+        key=gain_of,
+        reverse=True,
+    )
     for x in growing[:2]:
-        body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 直近の成功率は {pct(x['rec'])}。安定すれば {round(gain_of(x))} 点ふえる。"
+        body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 直近 {EXPECTED_N} 回の成功率は {pct(x['est'])}。安定すれば {round(gain_of(x))} 点ふえる。"
         items.append(("のびしろ", body, members_of(x["rows"])))
     for x in [x for x in smap if x["stage"] == "stable"][:2]:
         body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 単体で安定した。セレクターの programs に足す。"
