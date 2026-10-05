@@ -60,6 +60,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
 - 2026-10-03: 走行後の成否をミッションごとに個別記録できるよう変更した。
 - 2026-10-03: ロボットの実走行時間を計測して試行ログに記録する機能を追加した
 - 2026-10-03: コーチ用ダッシュボードの説明文をGit管理対象に修正した
+- 2026-10-05: 試行ログに項目別の結果記録と集計対象の判定処理を追加した。
 """
 
 import csv
@@ -99,6 +100,7 @@ CSV_COLUMNS = [
     "via",  # selector 経由なら "selector P1" のように入る。直接実行なら空
     "mission_results",  # ミッションごとの成否「M12=fail M11=success」（2026-10-03 追加）
     "run_sec",  # 本番でもかかる時間（初期化完了 → 走行完了。セレクターはプログラムの実行中 → 実行完了）（2026-10-03 追加）
+    "part_results",  # 項目ごとの値「M12.staff=1 M12.tie=0」（2026-10-05 追加・docs/trial_log_spec.md §11）
 ]
 
 # selector.py が画面に出す行（この文字列を PC 側で読むだけ。ハブ側は変更しない）
@@ -283,14 +285,14 @@ def append_trial(root, row):
 
 
 def today_tally(root, date, missions):
-    """その日の、ミッションごとの (成功数, 試行数) を返す。届かなかった・動かなかったは数えない。"""
+    """その日の、ミッションごとの (成功数, 試行数) を返す。届かなかった・動かなかった・数える前（tr.COUNT_FROM）は数えない。"""
     path = os.path.join(root, TRIALS_CSV)
     out = {m: [0, 0] for m in missions}
     if not os.path.exists(path):
         return out
     with open(path, encoding="utf-8", newline="") as f:
         for r in csv.DictReader(f):
-            if r.get("date") != date:
+            if r.get("date") != date or not tr.is_counted(r):
                 continue
             for m, result in tr.results_of(r):
                 if m in out and result in tr.COUNTED:
@@ -312,6 +314,7 @@ def write_trial(
     note,
     via="",
     run_sec=None,
+    part_results="",
 ):
     """1 試行分を CSV に追記し、コードのコピーを残す。run_sec は本番でもかかる時間（測れなければ None）。"""
     script_base = os.path.basename(run_file)
@@ -337,11 +340,12 @@ def write_trial(
         "snapshot": snap_rel,
         "via": via,
         "mission_results": mission_results,
+        "part_results": part_results,
         "run_sec": f"{run_sec:.1f}" if run_sec is not None else "",
     }
     append_trial(root, row)
     pairs = tr.results_of(row)
-    what = tr.describe(pairs) if pairs else tr.RESULT_LABEL.get(result, result)
+    what = tr.describe_row(row) if pairs else tr.RESULT_LABEL.get(result, result)
     tally = today_tally(root, date, [m for m, _ in pairs])
     today = "・".join(f"{m} {ok}/{n}" for m, (ok, n) in tally.items() if n)
     print(f"📊 記録しました: {what}" + (f"（今日の成功: {today}）" if today else ""))
@@ -399,6 +403,7 @@ def record_trial(root, run_file, hub_args, start_time, elapsed, exit_code, log_p
         mission_results,
         item["note"],
         run_sec=run_sec,
+        part_results=tr.item_parts(item),
     )
     refresh_dashboard(root)
 
@@ -448,6 +453,7 @@ def record_selector_trials(root, hub_args, watcher, exit_code, log_path):
             run_sec=seconds
             if run["end"]
             else None,  # セレクターは実行中 → 実行完了がそのまま本番の時間
+            part_results=tr.item_parts(item),
         )
         wrote += 1
     if wrote:

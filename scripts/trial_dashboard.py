@@ -9,6 +9,7 @@ PC 側だけで動く。ハブには関係ない。外部のライブラリも�
   uv run python scripts/trial_dashboard.py          # docs/trials/dashboard.html と dashboard_coach.html を作る
   uv run python scripts/trial_dashboard.py --open   # 作ってからブラウザで開く
   uv run python scripts/trial_dashboard.py --include-error   # 「動かなかった (error)」も試行に数える
+  uv run python scripts/trial_dashboard.py --all             # 数える前（2026-10-05 16:30 より前）の記録も入れる（見返す用）
 
 run_with_log.py で成否を記録するたびに自動で作り直されるので、ふだんは開いたまま再読みこみするだけでよい。
 
@@ -38,12 +39,23 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   （trials.csv の mission_results 列。読み方は scripts/trial_results.py）。成功率はミッション単位で数える:
   分母は そのミッションを 成功 + 途中まで + 失敗 した数で、「届かなかった」は入れない。
   「試行」はいままでどおり走らせた本数。
-見こみ点は「成功＝満点・それ以外＝0 点」で数えた目安（届かなかったぶんを入れないので「届けば取れる点」）。
+見こみ点は届かなかったぶんを入れないので「届けば取れる点」の目安。
 
 【見こみ点は直近 3 回】（2026-10-05 オーナー）
   見こみ点は そのミッションの直近 3 回（EXPECTED_N）の成功率で計算する（それまでは直近 10 回）。
   点数マップの成功率の列・のびしろの文も同じ 3 回。安定の判定（直近 10 回のうち 5 回以上で 80% 以上）と、
   ① 要素開発・メンバーごとの表の「直近」は 10 回（RECENT_N）のまま。
+
+【項目ごとの点】（2026-10-05・docs/trial_log_spec.md の §11）
+  M12 の支柱とサポートタイのように点の取れる項目がいくつもあるミッションは、項目ごとに記録される（part_results 列）。
+  見こみ点は 直近 3 回の「取れた点」の平均（1 項目だけのミッションは 満点 × 成功率 と同じ）。
+  項目の記録が無い古い行は 成功＝満点・それ以外＝0 点。満点は記録できる満点（M07 は相手チームとのボーナス 20 を数えず 20）で、
+  合計の前に「数えない」行を出して合計は 530 のまま。項目が 2 つ以上のミッションは、ミッション名の下に項目ごとの直近 3 回を出し、
+  のびしろの文に「取りこぼしがいちばん大きい項目」を添える。② 通しの回の点も、取れた点の合計。
+
+【数えるのは 2026-10-05 16:30 から】（オーナー 2026-10-05「過去のログは捨てていい」）
+  それより前の記録は項目ごとの記録が無く、項目のあるミッションの点を正しく出せないので数えない（scripts/trial_results.py の COUNT_FROM）。
+  trials.csv の行は消さない（追記だけの決まり・union マージ）。見返すときは --all。
 
 【時間は本番でもかかるぶんだけ】（2026-10-03）
   秒数は trials.csv の run_sec 列だけを使う（run_with_log.py が「=== ロボット初期化完了 ===」→「# 走行完了！」を測った値。
@@ -159,10 +171,11 @@ EXTRA_CSS = """
 
 
 # ===== 読みこみ =====
-def load_rows(csv_path, include_error=False, coach=False):
+def load_rows(csv_path, include_error=False, coach=False, include_old=False):
     """trials.csv を読んで、数える行だけを時刻の順に返す。
 
     coach=False ならコーチの記録（is_coach）を除いたチームの行、True ならコーチの行だけ。
+    include_old=False なら、数える前（tr.COUNT_FROM より前）の行は入れない。
     """
     if not os.path.exists(csv_path):
         return []
@@ -175,7 +188,7 @@ def load_rows(csv_path, include_error=False, coach=False):
             ):
                 continue
             row = {k: (v or "") for k, v in r.items() if k}
-            if is_coach(row) != coach:
+            if is_coach(row) != coach or not (include_old or tr.is_counted(row)):
                 continue
             rows.append(row)
     rows.sort(key=stamp)
@@ -255,7 +268,12 @@ def score_map(rows):
             stage = "selstable" if stable else "sel"
         else:
             stage = "stable" if stable else "dev"
-        expected = m["max"] * est["rate"] / 100 if est["n"] else 0.0
+        recent = atts[-EXPECTED_N:]
+        expected = (
+            sum(tr.points_in(r, m["id"], res) for r, _, res in recent) / len(recent)
+            if recent
+            else 0.0
+        )
         timed = [r for r in rows if seconds_of(r) > 0 and m["id"] in missions_of(r)]
         secs = [seconds_of(r) for r in timed if missions_of(r)[0] == m["id"]]
         out.append(
@@ -266,6 +284,8 @@ def score_map(rows):
                 "t": t,
                 "rec": rec,
                 "est": est,
+                "full": tr.full_points(m["id"]),
+                "parts": part_stats(m["id"], recent),
                 "stage": stage,
                 "expected": expected,
                 "sec": sum(secs) / len(secs) if secs else None,
@@ -276,11 +296,62 @@ def score_map(rows):
     return out
 
 
+def part_stats(mid, atts):
+    """項目が 2 つ以上のミッションの、項目ごとの集計（atts は直近の試行）。項目の分からない古い行は数えない。"""
+    parts = tr.PARTS.get(mid, [])
+    if len(parts) < 2:
+        return []
+    known = [v for v in (tr.values_in(r, mid, res) for r, _, res in atts) if v is not None]
+    out = []
+    for p in parts:
+        vals = [v[p["id"]] for v in known]
+        n = len(vals)
+        got = sum(tr.part_points(p, v) for v in vals)
+        out.append(
+            {
+                "part": p,
+                "n": n,
+                "got": sum(1 for v in vals if v),
+                "avg": sum(vals) / n if n else None,
+                "lost": bm.part_full(p) - got / n if n else 0,
+            }
+        )
+    return out
+
+
+def part_value(st):
+    """'2/3'（取れた回数/回数）。個数・段階は '平均 2.3/4'。"""
+    p = st["part"]
+    if not st["n"]:
+        return "–"
+    if p["kind"] == "yesno":
+        return f"{st['got']}/{st['n']}"
+    top = p["most"] if p["kind"] == "count" else len(p["points"]) - 1
+    return f"平均 {st['avg']:.1f}/{top}"
+
+
+def part_text(st):
+    """'支柱 2/3'"""
+    return f"{st['part']['label']} {part_value(st)}"
+
+
+def weakest_text(x):
+    """取りこぼしがいちばん大きい項目の一言（項目が 2 つ以上で、取りこぼしがあるときだけ）。"""
+    lost = [st for st in x["parts"] if st["n"] and st["lost"] > 0]
+    if not lost:
+        return ""
+    st = max(lost, key=lambda st: st["lost"])
+    return (
+        f"取りこぼしがいちばん大きいのは {escape(st['part']['label'])}"
+        f"（直近 {st['n']} 回で {escape(part_value(st))}・{bm.part_full(st['part'])} 点）。"
+    )
+
+
 def score_totals(smap):
     """点数マップの合計: 満点・挑戦・見こみ点・時間（平均秒のあるミッションだけの和）。"""
     timed = [x["sec"] for x in smap if x["sec"]]
     return {
-        "max": sum(x["m"]["max"] for x in smap),
+        "max": sum(x["full"] for x in smap),
         "tries": sum(x["t"]["n"] for x in smap),
         "expected": sum(x["expected"] for x in smap),
         "sec": sum(timed) if timed else None,
@@ -300,7 +371,7 @@ def time_total_text(totals):
 
 def gain_of(x):
     """そのミッションが安定したら、見こみ点があと何点ふえるか。"""
-    return x["m"]["max"] - x["expected"]
+    return x["full"] - x["expected"]
 
 
 def script_table(rows):
@@ -318,7 +389,6 @@ def to_rounds(rows):
     同じログ（＝セレクターを 1 回起動したあいだ）の中で、同じプログラムがもう一度出たとき、
     または前のゴールから ROUND_GAP_SEC より長くあいたときに、次の回として数える。
     """
-    max_of = {m["id"]: m["max"] for m in bm.MISSIONS}
     by_log = OrderedDict()
     for r in rows:
         if is_selector(r):
@@ -343,8 +413,12 @@ def to_rounds(rows):
         x["n_runs"] = len(x["rows"])
         x["t"] = mission_tally(x["rows"])
         x["sec"] = round((x["end"] - x["start"]).total_seconds())
-        done = {m for r in x["rows"] for m, res in tr.results_of(r) if res == "success"}
-        x["points"] = sum(max_of.get(m, 0) for m in done)
+        best = {}  # ミッションごとの取れた点（同じミッションが 2 本あれば多いほう）
+        for r in x["rows"]:
+            for m, res in tr.results_of(r):
+                if res != "unreached":
+                    best[m] = max(best.get(m, 0), tr.points_in(r, m, res))
+        x["points"] = sum(best.values())
     rounds.sort(key=lambda x: x["start"])
     return rounds
 
@@ -475,8 +549,12 @@ def mission_dots(row):
     return " ".join(dot(RESULT_DOT.get(res, "none"), m) for m, res in tr.results_of(row))
 
 
-def mission_name(m):
-    return f'<strong>{m["id"]}</strong> {escape(m["name"])} <span class="mission-en">{escape(m["en"])}</span>'
+def mission_name(m, parts=None):
+    """ミッション名のセル。parts（part_stats()）に記録があれば、英語名の下に項目ごとの直近を出す。"""
+    cell = f'<strong>{m["id"]}</strong> {escape(m["name"])} <span class="mission-en">{escape(m["en"])}</span>'
+    if parts and any(st["n"] for st in parts):
+        cell += f'<span class="mission-en">{" &middot; ".join(escape(part_text(st)) for st in parts)}</span>'
+    return cell
 
 
 def short_date(d):
@@ -550,6 +628,7 @@ def render_highlights(rows, smap, rounds, coach=False):
         items.append(
             f"<strong>{x['m']['id']} {escape(x['m']['name'])} がいちばんのびしろが大きい。</strong> "
             f"直近 {EXPECTED_N} 回の成功率は {pct(x['est'])} で、安定すれば見こみ点が {round(gain_of(x))} 点ふえる。"
+            + weakest_text(x)
         )
     ready = [x for x in smap if x["stage"] == "stable"]
     if ready:
@@ -584,8 +663,8 @@ def render_score_map(smap):
         label, kind = STAGES[x["stage"]]
         body.append(
             [
-                mission_name(x["m"]),
-                x["m"]["max"],
+                mission_name(x["m"], x["parts"]),
+                x["full"],
                 dot(kind, label),
                 t["n"] or "",
                 meter(est["rate"]) + f"{pct(est)}（{est['success']}/{est['n']}）"
@@ -623,6 +702,22 @@ def render_score_map(smap):
         ]
     )
     classes.append("total")
+    for m in bm.MISSIONS:
+        for name, points in m.get("uncounted", []):
+            body.append(
+                [
+                    f"{m['id']} {escape(name)}",
+                    points,
+                    "数えない",
+                    "",
+                    "",
+                    0,
+                    "",
+                    "",
+                    "",
+                ]
+            )
+            classes.append("ref")
     for name, points, cond in bm.EXTRA_POINTS:
         body.append(
             [
@@ -673,7 +768,8 @@ def render_score_map(smap):
         num_cols=(2,),
     )
     lead = (
-        f"見こみ点は 満点 × 直近 {EXPECTED_N} 回の成功率。"
+        f"見こみ点は 直近 {EXPECTED_N} 回の平均点（項目ごとに記録した点。項目の記録が無い古い行は 成功＝満点・それ以外＝0 点）。"
+        "満点は記録できる満点で、M07 の相手チームとのボーナスは数えない。"
         f"安定は 直近 {RECENT_N} 回のうち {STABLE_MIN} 回以上挑戦して {STABLE_RATE}% 以上。"
         "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
         "平均秒は 本番でもかかる時間（初期化完了 → 走行完了）の、測れた本の平均（成否に関わらず）で、2026-10-03 より前の記録には無い。"
@@ -899,7 +995,10 @@ def render_next(smap, rounds):
         reverse=True,
     )
     for x in growing[:2]:
-        body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 直近 {EXPECTED_N} 回の成功率は {pct(x['est'])}。安定すれば {round(gain_of(x))} 点ふえる。"
+        body = (
+            f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 直近 {EXPECTED_N} 回の成功率は {pct(x['est'])}。"
+            f"安定すれば {round(gain_of(x))} 点ふえる。" + weakest_text(x)
+        )
         items.append(("のびしろ", body, members_of(x["rows"])))
     for x in [x for x in smap if x["stage"] == "stable"][:2]:
         body = f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 単体で安定した。セレクターの programs に足す。"
@@ -912,14 +1011,12 @@ def render_next(smap, rounds):
                 "",
             )
         )
-    idle = sorted(
-        (x for x in smap if x["stage"] == "none"), key=lambda x: x["m"]["max"], reverse=True
-    )
+    idle = sorted((x for x in smap if x["stage"] == "none"), key=lambda x: x["full"], reverse=True)
     for x in idle[:2]:
         items.append(
             (
                 "未着手",
-                f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 満点 {x['m']['max']} 点。まだ記録がない。",
+                f"{x['m']['id']} {escape(x['m']['name'])} &mdash; 満点 {x['full']} 点。まだ記録がない。",
                 "",
             )
         )
@@ -935,7 +1032,7 @@ def render_next(smap, rounds):
 
 
 # ===== 組み立て =====
-def scope_note(out_path, other_path, coach):
+def scope_note(out_path, other_path, coach, include_old=False):
     """見出しの下に出す「この 1 枚に何が入っているか」と、もう 1 枚へのリンク。"""
     other = os.path.relpath(
         os.path.abspath(other_path), os.path.dirname(os.path.abspath(out_path))
@@ -946,11 +1043,22 @@ def scope_note(out_path, other_path, coach):
     else:
         text = f"名前に「{COACH_WORD}」が入る run ファイルの記録は数えていない。コーチの記録は"
         link = "コーチ確認用のダッシュボード"
-    return f'<div class="scope-note">{text} <a href="{escape(other)}">{link}</a> へ。</div>'
+    since = (
+        ""
+        if include_old
+        else f"{tr.count_from_text()} より前の記録は数えていない（項目ごとの記録を始める前）。"
+    )
+    return f'<div class="scope-note">{text} <a href="{escape(other)}">{link}</a> へ。{since}</div>'
 
 
 def build(
-    csv_path=TRIALS_CSV, out_path=None, include_error=False, now=None, coach=False, other_path=None
+    csv_path=TRIALS_CSV,
+    out_path=None,
+    include_error=False,
+    now=None,
+    coach=False,
+    other_path=None,
+    include_old=False,
 ):
     """trials.csv を読んでダッシュボードを書き出し、数えた行数を返す。
 
@@ -961,7 +1069,7 @@ def build(
     out_path = out_path or (OUT_COACH_HTML if coach else OUT_HTML)
     other_path = other_path or (OUT_HTML if coach else OUT_COACH_HTML)
     title = "コーチ確認用の試行記録" if coach else "ロボットゲームの試行記録"
-    rows = load_rows(csv_path, include_error, coach)
+    rows = load_rows(csv_path, include_error, coach, include_old)
     smap, rounds = score_map(rows), to_rounds(rows)
     period = (
         f"{rows[0]['date']} 〜 {rows[-1]['date']}・{len(rows)} 本"
@@ -981,7 +1089,7 @@ def build(
         [
             f'<header><div class="header-top"><h1>{title}</h1><span class="auto-pill">自動生成</span></div>'
             f'<div class="date-range">{escape(period)} &nbsp;&middot;&nbsp; <span class="repo">{escape(repo)}</span></div>'
-            f"{scope_note(out_path, other_path, coach)}</header>",
+            f"{scope_note(out_path, other_path, coach, include_old)}</header>",
             render_summary(rows, smap, now),
             render_highlights(rows, smap, rounds, coach),
             render_score_map(smap),
@@ -1016,11 +1124,16 @@ def build_all(
     coach_out_path=OUT_COACH_HTML,
     include_error=False,
     now=None,
+    include_old=False,
 ):
     """チームの dashboard.html とコーチの dashboard_coach.html をまとめて作り、(チームの行数, コーチの行数) を返す。"""
     now = now or datetime.now()
-    team = build(csv_path, out_path, include_error, now, coach=False, other_path=coach_out_path)
-    coach = build(csv_path, coach_out_path, include_error, now, coach=True, other_path=out_path)
+    team = build(
+        csv_path, out_path, include_error, now, False, coach_out_path, include_old=include_old
+    )
+    coach = build(
+        csv_path, coach_out_path, include_error, now, True, out_path, include_old=include_old
+    )
     return team, coach
 
 
@@ -1040,9 +1153,16 @@ def main():
     ap.add_argument(
         "--include-error", action="store_true", help="「動かなかった (error)」も試行に数える"
     )
+    ap.add_argument(
+        "--all",
+        action="store_true",
+        help="数える前（scripts/trial_results.py の COUNT_FROM より前）の記録も入れる（見返す用）",
+    )
     ap.add_argument("--open", action="store_true", help="作ったあとチームの方をブラウザで開く")
     args = ap.parse_args()
-    n, n_coach = build_all(args.csv, args.out, args.coach_out, args.include_error)
+    n, n_coach = build_all(
+        args.csv, args.out, args.coach_out, args.include_error, include_old=args.all
+    )
     print(f"📊 ダッシュボードを作りました: {args.out}（{n} 行）")
     print(f"📊 コーチ確認用: {args.coach_out}（{n_coach} 行）")
     if n + n_coach == 0:
