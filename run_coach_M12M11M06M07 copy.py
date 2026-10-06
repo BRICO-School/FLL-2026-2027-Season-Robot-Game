@@ -16,7 +16,6 @@
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-03: 手押し記録を基にM12等の攻略を行う走行ファイルを新規作成した。
-- 2026-10-06: M12の直進距離を短縮し旋回角度を大きく調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -71,16 +70,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261003_110652.log）
 
     # M12
-    await robot.straight(600)  # 前進 627mm
+    await robot.straight(560)  # 前進 627mm
+    await robot.turn(-10, 200)  # 右 38°
     await right_lift.run_angle(1000, -360 * 3)  # 右アーム 6°
-    await robot.turn(45)  # 右 38°
-    await right_lift.run_angle(1000, 360 * 1.7)  # 右アームを逆に 6°
+    await robot.turn(34, 90)  # 右 38°
+    await right_lift.run_angle(300, 360 * 1.7)  # 右アームを逆に 6°
+    await wait(500)
 
     # #M11へ
-    await robot.turn(-20)  # 左 16°
-    await robot.curve(-42, 22)  # カーブ 半径 42mm・左 22°（前進 16mm）
-    await robot.turn(-65)  # 左 65°
-    await robot.curve(-49, 23)  # カーブ 半径 49mm・左 23°（前進 20mm）
+    await robot.turn(-105)  # 左 16°
     await robot.straight(153)  # 前進 153mm
     await left_lift.run_angle(500, 360 * 1.5)  # 右アーム 5°
 
@@ -90,19 +88,19 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.turn(61)  # 右 61°
     await robot.curve(-44, -15)  # カーブ 半径 44mm・右 15°（後退 11mm）
     await robot.curve(56, 44)  # カーブ 半径 56mm・右 44°（前進 43mm）
-    await robot.straight(200, 180)  # 前進 115mm
+    await robot.straight(260, 160)  # 前進 115mm
     await robot.straight(-137)  # 後退 137mm
 
-    # #M07へ
+    # M07へ
     await robot.curve(38, 51)  # カーブ 半径 38mm・右 51°（前進 34mm）
-    await robot.straight(290)  # 前進 321mm
+    await robot.straight(260)  # 前進 321mm
+    await right_lift.run_angle(1000, -360 * 1.5)  # 右アーム 6°
     await robot.turn(-64)  # 左 64°
-    await robot.curve(48, -34)  # カーブ 半径 48mm・左 34°（後退 29mm）
-    await right_lift.run_angle(1000, -360 * 1)  # 右アーム 6°
+    await robot.curve(48, -38)  # カーブ 半径 48mm・左 34°（後退 29mm）
     await robot.straight(32)  # 前進 32mm
-    await right_lift.run_angle(1000, -360 * 2)  # 右アーム 6°
+    await right_lift.run_angle(1000, 360 * 1)  # 右アーム 6°
     await robot.straight(-65)  # 後退 65mm
-    await right_lift.run_angle(1000, 360 * 2)  # 右アーム 6°
+    await right_lift.run_angle(1000, -360 * 1)  # 右アーム 6°
     await robot.curve(-26, -36)  # カーブ 半径 26mm・右 36°（後退 16mm）
     await robot.turn(43)  # 右 43°
     await robot.curve(38, 84)  # カーブ 半径 38mm・右 84°（前進 56mm）

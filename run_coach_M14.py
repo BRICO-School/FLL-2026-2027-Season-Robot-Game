@@ -18,6 +18,7 @@
 - 2026-10-01: ミッションM02用の走行プログラムを新規作成した
 - 2026-10-05: ミッションM12用の走行プログラムを新規作成した
 - 2026-10-05: ミッションM14用の走行プログラムを新規作成した
+- 2026-10-06: 走行処理をコメントアウトし左リフトの回転角度を変更した
 """
 
 from pybricks.hubs import PrimeHub
@@ -68,13 +69,13 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
     # ここにロボットの動作を記述してください
     #######################################
-    await robot.straight(400)
-    for i in range(4):
-        if i % 2 == 0:
-            await robot.curve(50, 15)
-        else:
-            await robot.curve(50, -15)
-    await left_lift.run_angle(300, -2000)
+    # await robot.straight(400)
+    # for i in range(4):
+    #     if i % 2 == 0:
+    #         await robot.curve(50, 15)
+    #     else:
+    #         await robot.curve(50, -15)
+    await left_lift.run_angle(300, -180 * 3.5)
 
     # ロボットを停止
     robot.stop()
