@@ -1,0 +1,65 @@
+=== 実行ログ ===
+スクリプト: run_with_log.py
+実行日時 : 2026-10-07 11:53:17
+ハブ     : --name Pybricks Hub3
+==================================================
+
+Searching for Pybricks Hub3...
+Traceback (most recent call last):
+  File "c:\Users\isaok\.vscode\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 3740, in <module>
+    main()
+  File "c:\Users\isaok\.vscode\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 3725, in main
+    globals = debugger.run(setup["file"], None, None, is_module)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\isaok\.vscode\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 2709, in run
+    return self._exec(is_module, entry_point_fn, module_name, file, globals, locals)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\isaok\.vscode\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\pydevd.py", line 2728, in _exec
+    globals = pydevd_runpy._run_module_as_main(module_name, alter_argv=False)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\isaok\.vscode\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_runpy.py", line 228, in _run_module_as_main
+    return _run_code(code, main_globals, None, "__main__", mod_spec)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\isaok\.vscode\extensions\ms-python.debugpy-2026.6.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_runpy.py", line 118, in _run_code
+    exec(code, run_globals)
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\__main__.py", line 9, in <module>
+    main()
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\cli\__init__.py", line 620, in main
+    asyncio.run(subparsers.choices[args.tool].tool.run(args))
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\asyncio\base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\cli\__init__.py", line 240, in run
+    await hub.run(script_path, args.wait or args.stay_connected)
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\connections\pybricks.py", line 623, in run
+    await self.download(py_path)
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\connections\pybricks.py", line 577, in download
+    mpy = await compile_multi_file(script_path, abi)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\compile.py", line 129, in compile_multi_file
+    return await _compile_multi_file_with_mpy_tool(path, abi)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\compile.py", line 235, in _compile_multi_file_with_mpy_tool
+    mpy, imported_modules = await _compile_module_and_get_imports(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\compile.py", line 196, in _compile_module_and_get_imports
+    mpy = await compile_file(proj_dir, src_path, abi)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Projects\FLL-2026-2027-Season-Robot-Game\.venv\Lib\site-packages\pybricksdev\compile.py", line 82, in compile_file
+    proc.check_returncode()
+  File "C:\Users\isaok\.pyenv\pyenv-win\versions\3.12.6\Lib\subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['c:\\Projects\\FLL-2026-2027-Season-Robot-Game\\.venv\\Lib\\site-packages\\mpy_cross_v6\\mpy-cross.exe', '-', '-s', 'run_with_log.py']' returned non-zero exit status 1.
+
+==================================================
+終了コード: 1
+終了日時  : 2026-10-07 11:53:21
+実行時間  : 3.6 秒
+接続〜初期化完了: 測れず（「=== ロボット初期化完了 ===」の行が無い）
+走行: 測れず（「# 走行完了！」の行が無い。途中で止まった？）

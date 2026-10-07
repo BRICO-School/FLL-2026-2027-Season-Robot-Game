@@ -70,12 +70,11 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261003_110652.log）
 
     # M12
-    await robot.straight(554)  # 前進 627mm
+    await robot.straight(560)  # 前進 627mm
     await robot.turn(-10, 200)  # 右 38°
-    await right_lift.run_angle(1000, -360 * 2.35)  # 右アーム 6°
-    await robot.turn(35, 125)  # 右 38°
-    await wait(500)
-    await right_lift.run_angle(240, 360 * 1)  # 右アームを逆に 6°
+    await right_lift.run_angle(1000, -360 * 2.3)  # 右アーム 6°
+    await robot.turn(35, 92)  # 右 38°
+    await right_lift.run_angle(400, 360 * 1.7)  # 右アームを逆に 6°
     await wait(500)
 
     # #M11へ
@@ -89,7 +88,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.turn(61)  # 右 61°
     await robot.curve(-44, -15)  # カーブ 半径 44mm・右 15°（後退 11mm）
     await robot.curve(56, 32)  # カーブ 半径 56mm・右 44°（前進 43mm）
-    await robot.straight(290, 175)  # 前進 115mm
+    await robot.straight(290, 180)  # 前進 115mm
     await robot.straight(-137)  # 後退 137mm
 
     # M07へ
