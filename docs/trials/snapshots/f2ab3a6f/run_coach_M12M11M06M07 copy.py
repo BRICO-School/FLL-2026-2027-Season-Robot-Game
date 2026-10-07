@@ -88,29 +88,27 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(313)  # 前進 313mm
     await robot.turn(65)  # 右 61°
     await robot.curve(-44, -15)  # カーブ 半径 44mm・右 15°（後退 11mm）
-    await robot.curve(56, 30)  # カーブ 半径 56mm・右 44°（前進 43mm）
-    await robot.straight(140, 171.8)  # 前進 115mm
-    await robot.straight(140, 171.8)  # 前進 115mm
+    await robot.curve(56, 32)  # カーブ 半径 56mm・右 44°（前進 43mm）
+    await robot.straight(140, 173)  # 前進 115mm
+    await robot.straight(140, 173)  # 前進 115mm
+    await robot.straight(-137)  # 後退 137mm
 
     # M07へ
-    await robot.straight(-137)  # 後退 137mm
     await robot.curve(38, 56)  # カーブ 半径 38mm・右 51°（前進 34mm）
     await robot.straight(270)  # 前進 321mm
-    await right_lift.run_angle(1000, -360 * 1.2)  # 右アーム 6°
-    await robot.turn(-97)  # 左 64°
+    await right_lift.run_angle(1000, -360 * 1.5)  # 右アーム 6°
+    await robot.turn(-68)  # 左 64°
+    await robot.curve(48, -38)  # カーブ 半径 48mm・左 34°（後退 29mm）
+    await robot.straight(25)  # 前進 32mm
+    await right_lift.run_angle(1000, 360 * 1.3)  # 右アーム 6°
     await wait(500)
-    await robot.straight(10)  # 前進 32mm
-    await wait(500)
-    await right_lift.run_angle(500, 210)  # 右アーム 6°
-    await wait(1000)
-    await robot.straight(-75, 100)  # 後退 65mm
-    await wait(500)
+    await robot.straight(-65, 150)  # 後退 65mm
     await right_lift.run_angle(1000, -360 * 1)  # 右アーム 6°
 
     # 帰還
     await robot.curve(-26, -36)  # カーブ 半径 26mm・右 36°（後退 16mm）
     await robot.turn(43)  # 右 43°
-    await robot.curve(38, 65)  # カーブ 半径 38mm・右 84°（前進 56mm）
+    await robot.curve(38, 84)  # カーブ 半径 38mm・右 84°（前進 56mm）
     await robot.straight(600)  # カーブ 半径 3994mm・左 9°（前進 627mm）
 
     # ロボットを停止

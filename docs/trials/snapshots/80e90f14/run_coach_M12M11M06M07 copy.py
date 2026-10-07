@@ -99,7 +99,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await right_lift.run_angle(1000, -360 * 1.2)  # 右アーム 6°
     await robot.turn(-97)  # 左 64°
     await wait(500)
-    await robot.straight(10)  # 前進 32mm
+    await robot.straight(25)  # 前進 32mm
     await wait(500)
     await right_lift.run_angle(500, 210)  # 右アーム 6°
     await wait(1000)
