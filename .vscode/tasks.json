@@ -7,14 +7,14 @@
       "command": "/bin/zsh",
       "args": [
         "-lc",
-        "if [[ \"${file}\" != *.py ]]; then echo \"ERROR: Active file is not a .py file: ${file}\"; echo \"Open a run*.py (or selector.py) and press F5.\"; exit 1; fi"
+        "if [[ \"${file}\" != *.py ]]; then echo \"ERROR: Active file is not a .py file: ${file}\"; echo \"Open a run*.py (or selector.py) and press F5.\"; exit 1; fi; case \"${relativeFile}\" in run_with_log.py|scripts/*|verification/compare.py) echo \"ERROR: ${relativeFile} runs on the PC. It cannot be sent to the hub.\"; echo \"Open the run*.py you want to run (or selector.py) and press F5.\"; exit 1;; esac"
       ],
       "windows": {
         "command": "powershell.exe",
         "args": [
           "-NoProfile",
           "-Command",
-          "if ('${fileExtname}' -ne '.py') { Write-Host 'ERROR: Active file is not a .py file: ${file}'; Write-Host 'Open a run*.py (or selector.py) and press F5.'; exit 1 }"
+          "if ('${fileExtname}' -ne '.py') { Write-Host 'ERROR: Active file is not a .py file: ${file}'; Write-Host 'Open a run*.py (or selector.py) and press F5.'; exit 1 }; if ('${relativeFile}' -match '^(run_with_log\\.py|scripts[\\\\/].*|verification[\\\\/]compare\\.py)$') { Write-Host 'ERROR: ${relativeFile} runs on the PC. It cannot be sent to the hub.'; Write-Host 'Open the run*.py you want to run (or selector.py) and press F5.'; exit 1 }"
         ]
       },
       "problemMatcher": []

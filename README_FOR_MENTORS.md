@@ -796,6 +796,7 @@ Pybricks Hub7     ← 7 台目以降（launch.json 追加が必要）
 | 起動時に「⚠ ジャイロの待ち」 | 機体が動いていて 10 秒たっても止まらなかった | 置いて手を離してから走らせ直す |
 | 起動時に「校正表に無いハブです」 | `ROBOT_PROFILES` にそのハブ名が無い | 本番機ならハブ名を確認。新しい機体なら §3.1 の手順で校正して表に足す |
 | 回転の角度がずれる（90° でおよそ 1° 以上） | ファームの入れ直しで 3 軸校正が消えた / ハブ・重いアタッチメントを付けかえた | §3.1 の ②（モーター 5 周）からやり直す |
+| F5 で「ERROR: run_with_log.py runs on the PC.」と出て止まる | PC で動かすファイル（`run_with_log.py`・`scripts/` の中・`verification/compare.py`）のタブを開いたまま F5 を押した。F5 は開いているファイルをハブに送るので、F5 の前の確認（`tasks.json` の `validate: active python file`）で止めている（止めないと `mpy-cross` の `CalledProcessError` になる） | 走らせたい `run_*.py`（か `selector.py`）のタブを選んでから F5 |
 | `verification/` のスクリプトで `setup` が見つからない（ImportError） | pybricksdev で直接送った（F5 の `🤖 Robot N` など） | `run_with_log.py` 経由で走らせる（`.hub_stage/` に setup.py を写して送る） |
 | `teach.py` で「動きが見つかりませんでした」 | タイヤもアームも回っていない（持ち上げて動かした など） | 床に置いたまま押す。アームは手で回す |
 | `teach.py` で「持ち上げて回した？」の注意 | タイヤが止まっている間に向きが 5° 以上変わった | 向きは次の回転で取り戻されるが、その間に動いた距離は入っていない。押し直すか、起こしたコードを手で直す |

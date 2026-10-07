@@ -125,7 +125,7 @@
 ```
 F5（🤖 Robot N を選んだ状態）
   └─ 実行前の下準備（preLaunchTask "ruff: all"）
-       ├─ 開いているファイルが .py か確認
+       ├─ 開いているファイルが .py か、PC で動かすファイル（run_with_log.py・scripts/ の中など）でないか確認
        ├─ ruff format  … 書式を自動でそろえる
        └─ ruff check --fix … おかしい所を自動で直す
   └─ pybricksdev で、開いているファイルをハブに送って実行
@@ -439,7 +439,7 @@ def add(items=[]): # B: デフォルト引数に [] は危険（呼び出し間�
 
 ruff は別々の 2 か所から自動で走ります。役割が違うので両方知っておきましょう。
 
-1. **F5 を押したとき**: `tasks.json` の `ruff: all` が「.py か確認 → format → check --fix」を
+1. **F5 を押したとき**: `tasks.json` の `ruff: all` が「.py か・PC で動かすファイルでないか確認 → format → check --fix」を
    順に実行します（`launch.json` のすべての構成で実行前に走る）。
 2. **`git commit` したとき**: `.pre-commit-config.yaml` の設定で ruff が走ります
    （`pre-commit install` をした場合）。

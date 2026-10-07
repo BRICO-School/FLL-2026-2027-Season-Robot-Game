@@ -315,6 +315,7 @@ await wait(500)  # 0.5秒まつ
 - **まっすぐ進まない** → `docs/how_to_reduce_SD.md` を読むとヒントがあるよ
 - **こわれた！** → あわてず `archive/` フォルダーを見る。前のバージョンがあるかも
 - **ハブが見つからない** → Bluetooth の名前があってる？ ハブのボタンはおした？
+- **F5 で「runs on the PC」と出て止まった** → ひらいているのが `run_with_log.py` などの PC 用のファイル。うごかしたい `run_xx.py` のタブをえらんでから F5
 - **ruff: command not found** → 「じゅんび①」の `uv sync` がまだ。もう一回うってみよう
 
 ---
