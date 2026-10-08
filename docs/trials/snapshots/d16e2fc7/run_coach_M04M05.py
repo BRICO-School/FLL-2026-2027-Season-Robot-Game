@@ -19,7 +19,6 @@
 - 2026-10-03: 手押し記録をもとにM04とM05の走行とアーム動作を実装した。
 - 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
 - 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
-- 2026-10-08: M04とM05の動作を調整し帰還動作を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -86,7 +85,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await right_lift.run_angle(1000, -460 * 2)  # 右アームを逆に 6°
     await robot.turn(30)  # 右 32°
 
-    await robot.straight(-40, 100)
+    await robot.straight(-50, 100)
     await wait(500)
     await right_lift.run_angle(500, 360)  # 右アームを逆に 6°
     await wait(500)

@@ -15,18 +15,10 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
-- 2026-10-02: 手押し記録をもとにM04の走行プログラムを新規作成した
-- 2026-10-03: 手押し記録をもとにM04とM05の走行とアーム動作を実装した。
-- 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
-- 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
-- 2026-10-08: M04とM05の動作を調整し帰還動作を追加した
 """
 
-from pybricks.hubs import PrimeHub
-from pybricks.parameters import Port, Axis, Direction, Color, Stop
-from pybricks.pupdevices import Motor
-from pybricks.robotics import DriveBase
-from pybricks.tools import wait, multitask, run_task, StopWatch
+from pybricks.tools import run_task
+
 from setup import initialize_robot
 
 
@@ -71,33 +63,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
-    # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261002_205805.log）
-
-    # M04
-    await robot.curve(1365, 27)  # カーブ 半径 1365mm・右 26°（前進 619mm）
-    await robot.curve(-49, 54)  # カーブ 半径 49mm・左 65°（前進 55mm）
-    await robot.turn(-9)  # 向きを合わせる 左 3°
-    await robot.straight(190, 150)  # 前進 151mm
-
-    await left_lift.run_angle(500, -360 * 2)  # 左アームを300deg/sで180度回転
-
-    # M05
-    # await robot.straight(-50, 200)  # 前進 151mm
-    await right_lift.run_angle(1000, -460 * 2)  # 右アームを逆に 6°
-    await robot.turn(30)  # 右 32°
-
-    await robot.straight(-40, 100)
-    await wait(500)
-    await right_lift.run_angle(500, 360)  # 右アームを逆に 6°
-    await wait(500)
-    await robot.straight(120, 200)
-    await wait(500)
-    await robot.straight(-50, 200)
-    await wait(500)
-    await right_lift.run_angle(1000, 360)  # 右アームを逆に 6°
-    await robot.straight(70)
-
-    # 帰還
+    # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261008_131801.log）
     await robot.straight(-452)  # 後退 452mm
     await robot.curve(-430, -58)  # カーブ 半径 430mm・右 58°（後退 435mm）
 
