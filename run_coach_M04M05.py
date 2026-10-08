@@ -20,6 +20,8 @@
 - 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
 - 2026-10-05: 直進速度や旋回角度を調整し後退と右アームの動作を追加した
 - 2026-10-08: M04とM05の動作を調整し帰還動作を追加した
+
+- 2026-10-08: 帰還時の後退距離とカーブ角度を調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -88,6 +90,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     await robot.straight(-40, 100)
     await wait(500)
+
     await right_lift.run_angle(500, 360)  # 右アームを逆に 6°
     await wait(500)
     await robot.straight(120, 200)
@@ -98,8 +101,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(70)
 
     # 帰還
-    await robot.straight(-452)  # 後退 452mm
-    await robot.curve(-430, -58)  # カーブ 半径 430mm・右 58°（後退 435mm）
+    await robot.straight(-380)  # 後退 452mm
+    await robot.curve(-430, -63)  # カーブ 半径 430mm・右 58°（後退 435mm）
 
     # ロボットを停止
     robot.stop()
