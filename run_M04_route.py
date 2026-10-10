@@ -15,7 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
-- 2026-10-02: 右リフトの動作を無効化し左リフトの動作を有効化した
+- 2026-10-10: 手押し記録からM04の走行プログラムを新規作成した
 """
 
 from pybricks.hubs import PrimeHub
@@ -27,11 +27,6 @@ from setup import initialize_robot
 
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
-
-    # await right_lift.run_angle(1000, 360)
-
-    await left_lift.run_angle(1000, 360 * 25)
-
     """
     ロボットの動作を記述する関数
 
@@ -71,6 +66,22 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
     # ここにロボットの動作を記述してください
     #######################################
+
+    # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261010_193202.log）
+    await robot.turn(5)  # 向きを合わせる 右 5°
+    await robot.straight(470)  # 前進 470mm
+    await robot.turn(3)  # 向きを合わせる 右 3°
+    await robot.curve(-469, 11)  # カーブ 半径 469mm・左 11°（前進 90mm）
+    await robot.turn(-6)  # 向きを合わせる 左 6°
+    await robot.straight(21)  # 前進 21mm
+    await robot.turn(-28)  # 左 28°
+    await robot.straight(23)  # 前進 23mm
+    await robot.turn(9)  # 右 9°
+    await robot.turn(-6)  # 左 6°
+    await robot.curve(-41, -16)  # カーブ 半径 41mm・右 16°（後退 11mm）
+    await robot.curve(-562, -15)  # カーブ 半径 562mm・右 15°（後退 147mm）
+    await robot.turn(5)  # 向きを合わせる 右 5°
+    await robot.straight(-218)  # 後退 218mm
 
     # ロボットを停止
     robot.stop()
