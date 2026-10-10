@@ -42,7 +42,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
   docs/logs/<スクリプト名>/<YYYYMMDD_HHMMSS>.log   … 実行ログ
   docs/trials/trials.csv                            … 試行の記録（1 行 = 1 走行）
   docs/trials/snapshots/<code_hash>/                … 走行したコードのコピー
-  docs/trials/dashboard.html                        … 集計ダッシュボード（記録のたびに作り直す。git には入れない）
+  docs/trials/dashboard.html                        … 集計ダッシュボード（記録のたびに作り直す。git に入れる）
   docs/trials/dashboard_coach.html                  … 名前に coach が入る run ファイルだけの集計（記録のたびに作り直す。チームの方には数えない。git に入れる）
 
 ※ このファイルは PC 側だけで動く。ハブへ送るコード（setup.py / run_*.py）には
@@ -62,6 +62,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
 - 2026-10-03: コーチ用ダッシュボードの説明文をGit管理対象に修正した
 - 2026-10-05: 試行ログに項目別の結果記録と集計対象の判定処理を追加した。
 - 2026-10-05: 試行ログに項目別の結果記録と集計対象の判定処理を追加した
+- 2026-10-10: 集計ダッシュボードをgitに含めるよう説明を修正した。
 """
 
 import csv

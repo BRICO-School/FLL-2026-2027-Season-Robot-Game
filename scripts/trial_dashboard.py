@@ -76,7 +76,7 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   本当の通しの時間は ② 通しで見る。
   ミッション以外の点（装備の点検 20・精密トークン 50）は「取れる前提」の参考値として合計に足す（scripts/bioglow_missions.py の
   EXTRA_POINTS）。グレイシャス・プロフェッショナリズムはロボットゲームの得点ではないので足さない。
-dashboard.html は生成物なので git には入れない（.gitignore）。コーチ用の dashboard_coach.html は共有のため git に入れる（2026-10-03）。プレゼン用の表と PNG は trial_report.py。
+dashboard.html と dashboard_coach.html は生成物だが、共有のため どちらも git に入れる（コーチ用は 2026-10-03、チーム用は 2026-10-10 から）。プレゼン用の表と PNG は trial_report.py。
 """
 
 import argparse

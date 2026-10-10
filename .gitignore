@@ -16,9 +16,8 @@ Thumbs.db
 # run_with_log.py がサブフォルダのスクリプトをハブへ送る前に写す場所
 .hub_stage/
 
-# scripts/trial_dashboard.py が trials.csv から作る生成物（記録のたびに作り直す）
-# コーチ用の dashboard_coach.html は git に入れて共有する（2026-10-03）。チーム用の dashboard.html は入れない
-docs/trials/dashboard.html
+# scripts/trial_dashboard.py が trials.csv から作る dashboard.html（チーム用）と dashboard_coach.html（コーチ用）は
+# 生成物だが、どちらも git に入れて共有するのでここには書かない（コーチ用は 2026-10-03、チーム用は 2026-10-10 から）
 
 # Python のキャッシュ
 __pycache__/
