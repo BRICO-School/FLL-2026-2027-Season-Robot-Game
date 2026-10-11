@@ -17,6 +17,7 @@
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-02: 右リフトの動作を無効化し左リフトの動作を有効化した
 - 2026-10-08: 左リフトを動かすM08とM09用の走行プログラムを新規作成した
+- 2026-10-11: 左右リフトの動作を調整し旋回や後退などの走行動作を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -68,9 +69,24 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
-    # await right_lift.run_angle(1000, 360)
+    await left_lift.run_angle(1000, 360 * 12)
+    await left_lift.run_angle(1000, -360 * 10)
 
-    await left_lift.run_angle(1000, 360 * 25)
+    await right_lift.run_angle(1000, 360 * 1.2)
+    await wait(500)
+    await robot.turn(19, 100)
+    await wait(500)
+    await multitask(
+        robot.straight(-50),
+        right_lift.run_angle(1000, -360 * 1.5),
+    )
+    await wait(500)
+
+    await robot.turn(70, 100)
+
+    await robot.straight(-200)
+    await robot.turn(-60)
+    await robot.straight(-700)
 
     # ロボットを停止
     robot.stop()
