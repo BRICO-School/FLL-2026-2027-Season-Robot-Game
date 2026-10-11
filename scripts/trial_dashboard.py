@@ -31,7 +31,7 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
     崩れの検査は obsidian-plugin-html-viewer の npm run check-layout -- <HTML>（表示幅ごとに横スクロールを測る）
 
 【節の並び】（開発の進め方「① run ファイルで要素開発 → ② セレクターから通し」に合わせてある）
-  数字 4 つ → ハイライト → 点数マップ（15 ミッション）→ ① 要素開発（run ファイルごと）→ ② 通し（セレクター）
+  数字 4 つ → ハイライト → 点数マップ（M10 をのぞく 14 ミッション）→ ① 要素開発（run ファイルごと）→ ② 通し（セレクター）
   → 日ごとの試行 → メンバーごと → 最近の試行 → 次に手を入れるところ
 
 【ミッションごとの成否】（2026-10-03）
@@ -49,8 +49,8 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
 【項目ごとの点】（2026-10-05・docs/trial_log_spec.md の §11）
   M12 の支柱とサポートタイのように点の取れる項目がいくつもあるミッションは、項目ごとに記録される（part_results 列）。
   見こみ点は 直近 3 回の「取れた点」の平均（1 項目だけのミッションは 満点 × 成功率 と同じ）。
-  項目の記録が無い古い行は 成功＝満点・それ以外＝0 点。満点は記録できる満点（M07 は相手チームとのボーナス 20 を数えず 20）で、
-  合計の前に「数えない」行を出して合計は 530 のまま。項目が 2 つ以上のミッションは、ミッション名の下に項目ごとの直近 3 回を出し、
+  項目の記録が無い古い行は 成功＝満点・それ以外＝0 点。満点は記録できる満点（M07 は相手チームとのボーナス 20 を記録せず 20）で、
+  ボーナスは合計の前の「取れる前提」の行に出す（下の【取れる前提】）。項目が 2 つ以上のミッションは、ミッション名の下に項目ごとの直近 3 回を出し、
   のびしろの文に「取りこぼしがいちばん大きい項目」を添える。② 通しの回の点も、取れた点の合計。
 
 【1 つのミッションを別々の run でやる】（2026-10-05・§11.8）
@@ -76,6 +76,12 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   本当の通しの時間は ② 通しで見る。
   ミッション以外の点（装備の点検 20・精密トークン 50）は「取れる前提」の参考値として合計に足す（scripts/bioglow_missions.py の
   EXTRA_POINTS）。グレイシャス・プロフェッショナリズムはロボットゲームの得点ではないので足さない。
+
+【取れる前提】（2026-10-11 オーナー）
+  M07 の相手チームとのボーナス 20 は、それまでの「数えない」をやめて取れる前提にする。M10 こわれやすいすみか 20 は
+  ロボットが当てなければ取れるので、ミッションごと取れる前提にして点数マップのミッションの行からはずす（着手したミッションも 14 のうちで数える）。
+  どちらも点検・精密トークンと同じく、ミッションの小計のあとの「取れる前提」の行に出して合計に足す
+  （scripts/bioglow_missions.py の assumed・assume_all・ASSUMED_POINTS）。合計 530 ＝ ミッションの小計の満点 420 ＋ 取れる前提 110。
 dashboard.html と dashboard_coach.html は生成物だが、共有のため どちらも git に入れる（コーチ用は 2026-10-03、チーム用は 2026-10-10 から）。プレゼン用の表と PNG は trial_report.py。
 """
 
@@ -258,10 +264,12 @@ def members_of(rows):
 
 
 def score_map(rows):
-    """15 ミッションぶんの 段階・成功率・見こみ点。"""
+    """ミッションごとの 段階・成功率・見こみ点。ミッションごと取れる前提のもの（M10）は入れない（「取れる前提」の行に出す）。"""
     out = []
     every = attempts(rows)
     for m in bm.MISSIONS:
+        if m.get("assume_all"):
+            continue
         atts = [a for a in every if a[1] == m["id"]]
         mine = [r for r, _, _ in atts]
         t, rec = tally_attempts(atts), tally_attempts(atts[-RECENT_N:])
@@ -390,7 +398,7 @@ def score_totals(smap):
         "sec": sum(timed) if timed else None,
         "timed": len(timed),
         "grand_max": bm.GRAND_TOTAL,
-        "grand_expected": sum(x["expected"] for x in smap) + bm.EXTRA_TOTAL,
+        "grand_expected": sum(x["expected"] for x in smap) + bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL,
     }
 
 
@@ -634,7 +642,7 @@ def render_summary(rows, smap, today):
         (
             f"{expected}<small> / {bm.GRAND_TOTAL}</small>",
             "いまの見こみ点",
-            f"ミッション {round(totals['expected'])} ＋ 点検・精密トークン {bm.EXTRA_TOTAL}（参考）・{time_total_text(totals)}",
+            f"ミッション {round(totals['expected'])} ＋ 取れる前提 {bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL}（参考）・{time_total_text(totals)}",
             "down" if totals["sec"] is not None and totals["sec"] > bm.MATCH_SECONDS else "flat",
         ),
         (
@@ -742,22 +750,21 @@ def render_score_map(smap):
         ]
     )
     classes.append("total")
-    for m in bm.MISSIONS:
-        for name, points in m.get("uncounted", []):
-            body.append(
-                [
-                    f"{m['id']} {escape(name)}",
-                    points,
-                    "数えない",
-                    "",
-                    "",
-                    0,
-                    "",
-                    "",
-                    "",
-                ]
-            )
-            classes.append("ref")
+    for mid, name, points, cond in bm.ASSUMED_POINTS:
+        body.append(
+            [
+                f'{mid} {escape(name)}（参考） <span class="mission-en">{escape(cond)}</span>',
+                points,
+                "取れる前提",
+                "",
+                "",
+                points,
+                "",
+                "",
+                "",
+            ]
+        )
+        classes.append("ref")
     for name, points, cond in bm.EXTRA_POINTS:
         body.append(
             [
@@ -810,12 +817,13 @@ def render_score_map(smap):
     lead = (
         f"見こみ点は 直近 {EXPECTED_N} 回の平均点。点が分かれているミッションは、項目ごとに その項目に挑戦した直近 {EXPECTED_N} 回"
         "（「-」＝その run ではやらない回は数えない）の平均点を足す（別々の run でやる項目も合わせて数える）。"
-        "満点は記録できる満点で、M07 の相手チームとのボーナスは数えない。"
+        "満点は記録できる満点で、M07 の相手チームとのボーナスは 下の「取れる前提」の行に分けてある。"
         f"安定は 直近 {RECENT_N} 回のうち {STABLE_MIN} 回以上挑戦して {STABLE_RATE}% 以上（点が分かれているミッションは、どの項目も）。"
         "回数はそのミッションに挑戦した回数で、前のミッションのせいで届かなかった回は数えない。"
         "平均秒は 本番でもかかる時間（初期化完了 → 走行完了）の、測れた本の平均（成否に関わらず）で、2026-10-03 より前の記録には無い。"
         "続けて回る run は 1 本の時間を最初のミッションに出し、ほかのミッションは「-」。"
-        f"装備の点検と精密トークン（あわせて {bm.EXTRA_TOTAL} 点）は取れる前提の参考値として合計に足す"
+        "M07 の相手チームとのボーナス・M10 こわれやすいすみか（ロボットが当てなければ取れるので、ミッションの行には出さない）・"
+        f"装備の点検・精密トークン（あわせて {bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL} 点）は取れる前提の参考値として合計に足す"
         "（グレイシャス・プロフェッショナリズムはロボットゲームの得点ではないので足さない）。"
         f"合計の行の時間は 平均秒の和で、試合の {bm.MATCH_SECONDS} 秒と比べる"
         "（ホームでの付けかえは入らないので、本当の通しの時間は ② 通しで見る）。"

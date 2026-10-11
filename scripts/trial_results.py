@@ -131,7 +131,7 @@ def parts_of(mid):
 
 
 def full_points(mid):
-    """記録できる満点（M07 は相手チームとのボーナスを数えないので 20）。"""
+    """記録できる満点（M07 は相手チームとのボーナスを記録しないので 20）。"""
     return sum(bm.part_full(p) for p in PARTS.get(mid, []))
 
 

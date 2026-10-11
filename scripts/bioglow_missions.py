@@ -17,7 +17,11 @@ max = そのミッションの満点。items = 採点表の 1 行ずつ（条件
     count  個数 0〜most（1 つ points 点）。cap があると、その項目の値までしか入らない（M14 のマット ≤ ステーション）
     level  段階 0〜len(points)-1（段階 i が points[i] 点。levels は段階の名前）
   needs はボーナスの「かつ」: 書いた項目のどれかが取れていないと 0 点で、聞かない。
-  uncounted は記録しない点（M07 の相手チームとのボーナス）。parts の満点＋uncounted＝max になる（下の assert）。
+  assumed はダッシュボードで「取れる前提」として合計に足す点（名前, 点, 取れる条件）。記録はしない。
+  M07 の相手チームとのボーナスは parts の満点＋assumed＝max。assume_all のミッション（M10）はミッションごと取れる前提で、
+  assumed＝max（parts は記録用に残す）。どちらも下の assert で確かめる。
+  （2026-10-11 オーナー: M07 のボーナスは「数えない」から「取れる前提」へ。M10 はロボットが当てなければ取れるので、
+   点検・精密トークンと同じく取れる前提）
 """
 
 MISSIONS = [
@@ -125,7 +129,9 @@ MISSIONS = [
         "parts": [
             {"id": "mycelium", "label": "菌糸体", "kind": "yesno", "points": 20},
         ],
-        "uncounted": [("相手チームとのボーナス（相手がいる試合だけ）", 20)],
+        "assumed": [
+            ("相手チームとのボーナス", 20, "相手チームの根とつながる 2 つ（相手がいる試合だけ）")
+        ],
     },
     {
         "id": "M08",
@@ -162,6 +168,14 @@ MISSIONS = [
         "parts": [
             {"id": "spider", "label": "クモの生息地", "kind": "yesno", "points": 10},
             {"id": "snail", "label": "カタツムリの生息地", "kind": "yesno", "points": 10},
+        ],
+        "assume_all": True,
+        "assumed": [
+            (
+                "こわれやすいすみか",
+                20,
+                "ロボットが当てずに、クモとカタツムリのすみかを元の位置のまま残す",
+            )
         ],
     },
     {
@@ -267,6 +281,9 @@ MATCH_SECONDS = 150
 
 MISSION_MAX_TOTAL = sum(m["max"] for m in MISSIONS)  # 460
 EXTRA_TOTAL = sum(p for _, p, _ in EXTRA_POINTS)  # 70
+# ダッシュボードで「取れる前提」として合計に足すミッションの点（ミッション id, 名前, 点, 取れる条件）
+ASSUMED_POINTS = [(m["id"], *a) for m in MISSIONS for a in m.get("assumed", [])]
+ASSUMED_TOTAL = sum(p for _, _, p, _ in ASSUMED_POINTS)  # 40（M07 のボーナス 20・M10 20）
 GRAND_TOTAL = MISSION_MAX_TOTAL + EXTRA_TOTAL  # 530
 assert GRAND_TOTAL == 530, GRAND_TOTAL
 
@@ -281,8 +298,11 @@ def part_full(part):
 
 
 for _m in MISSIONS:
-    _full = sum(part_full(p) for p in _m["parts"]) + sum(pt for _, pt in _m.get("uncounted", []))
-    assert _full == _m["max"], (_m["id"], _full, _m["max"])
+    _parts = sum(part_full(p) for p in _m["parts"])
+    _assumed = sum(pt for _, pt, _ in _m.get("assumed", []))
+    # assume_all（M10）は parts も assumed もそれぞれ満点。それ以外は parts＋assumed が満点
+    _sums = (_parts, _assumed) if _m.get("assume_all") else (_parts + _assumed,)
+    assert all(s == _m["max"] for s in _sums), (_m["id"], _sums, _m["max"])
 RECORDABLE_TOTAL = sum(
     part_full(p) for m in MISSIONS for p in m["parts"]
 )  # 440（M07 の相手ボーナス 20 を引く）
