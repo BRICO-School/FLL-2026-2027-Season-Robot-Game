@@ -18,7 +18,7 @@
 - 2026-10-02: 右リフトの動作を無効化し左リフトの動作を有効化した
 - 2026-10-08: 左リフトを動かすM08とM09用の走行プログラムを新規作成した
 - 2026-10-11: 左右リフトの動作を調整し旋回や後退などの走行動作を追加した
-- 2026-10-11: 手押し記録に基づく走行と帰還の動作を追加しリフト角度を調整した
+- 2026-10-13: M09における左リフトの回転量を増やした
 """
 
 from pybricks.hubs import PrimeHub
@@ -79,7 +79,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(80, 100)  # 前進 66mm
 
     # M09
-    await left_lift.run_angle(1000, 360 * 11)
+    await left_lift.run_angle(1000, 360 * 12)
     await left_lift.run_angle(1000, -360 * 9)
 
     # m08
