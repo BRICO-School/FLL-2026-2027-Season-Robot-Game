@@ -17,6 +17,7 @@
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-14: M06などのミッションを攻略する走行プログラムを新規追加した。
 - 2026-10-14: 走行とアーム動作の数値を微調整し待機時間を追加した
+- 2026-10-14: 手押し記録に基づく走行動作を追加しM06の直進距離を調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -68,8 +69,19 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
+    # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261014_213529.log）
+    await robot.straight(535)  # 前進 585mm
+    await robot.turn(-65)  # 左 65°
+    await robot.turn(-3)  # 向きを合わせる 左 3°
+    await robot.straight(431)  # 前進 531mm
+    await robot.turn(39)  # 右 39°
+    await robot.turn(16)  # 向きを合わせる 右 16°
+    await robot.curve(30, 57)  # カーブ 半径 30mm・右 59°（前進 31mm）
+    await wait(500)
+
     # M06
-    await robot.straight(100, 200)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
+    await robot.straight(150, 200)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
+    await wait(500)
     await robot.straight(-180)
     await robot.turn(45)
     await robot.straight(270)
