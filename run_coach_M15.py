@@ -16,6 +16,7 @@
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-13: M15用の走行プログラムを新規作成した
+- 2026-10-14: 右アームの角度と旋回角度を調整し最後のカーブ後退を直進後退に変更した。
 """
 
 from pybricks.hubs import PrimeHub
@@ -78,13 +79,13 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(95)  # 前進 95mm
     await right_lift.run_angle(500, -270)  # 右アーム 5°
     await robot.curve(-150, -30)  # 後退 86mm
-    await right_lift.run_angle(500, 180)  # 右アーム 5°
-    await robot.turn(93)  # 右 93°
+    await right_lift.run_angle(500, 270)  # 右アーム 5°
+    await robot.turn(45)  # 右 93°
     await robot.turn(-3)  # 向きを合わせる 左 3°
     await robot.straight(-100)  # 後退 156mm
-    await robot.turn(-90)  # 左 63°
+    await robot.turn(-45)  # 左 63°
     # await robot.curve(42, -37)  # カーブ 半径 42mm・左 37°（後退 27mm）
-    await robot.curve(-1000, -35)  # カーブ 半径 642mm・右 58°（後退 650mm）
+    await robot.straight(-800)  # カーブ 半径 642mm・右 58°（後退 650mm）
 
     # ロボットを停止
     robot.stop()
