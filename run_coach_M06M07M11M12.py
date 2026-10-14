@@ -16,6 +16,7 @@
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-14: M06などのミッションを攻略する走行プログラムを新規追加した。
+- 2026-10-14: 走行とアーム動作の数値を微調整し待機時間を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -71,21 +72,24 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(100, 200)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
     await robot.straight(-180)
     await robot.turn(45)
-    await robot.straight(285)
+    await robot.straight(270)
 
     # M07
-    await right_lift.run_angle(1000, -1000)  # 右アームを逆方向に1回転
-    await robot.turn(-90)
+    await right_lift.run_angle(1000, -900)  # 右アームを逆方向に1回転
+    await robot.turn(-87)
 
-    await right_lift.run_angle(150, 240)  # 右アームを逆方向に1回転
-    await robot.straight(-80, 200)
-    await robot.straight(30, 200)
+    await right_lift.run_angle(150, 220)  # 右アームを逆方向に1回転
+    await wait(500)
+    await robot.straight(-80, 100)
+    await wait(500)
+    await robot.straight(35, 200)
+    await wait(500)
     await right_lift.run_angle(300, -240)  # 右アームを逆方向に1回転
 
     # 12
-    await robot.turn(60)
-    await robot.straight(183, 150)
-    await robot.turn(19, 90)
+    await robot.turn(63)
+    await robot.straight(180, 150)
+    await robot.turn(10, 90)
     await right_lift.run_angle(400, 450)  # 右アームを逆方向に1回転
     await robot.turn(10, 200)
 
