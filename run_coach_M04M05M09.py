@@ -24,6 +24,7 @@
 - 2026-10-08: 帰還時の後退距離とカーブ角度を調整した
 - 2026-10-11: 種子採取処理の追加とミッション動作や帰還経路の調整を行った
 - 2026-10-11: 右リフトの回転角度を200度から190度に変更した。
+- 2026-10-14: 帰還時のコメントアウトされた旋回処理を削除した
 """
 
 from pybricks.hubs import PrimeHub
@@ -125,7 +126,6 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # 帰還
     await robot.straight(-300)  # 後退 178mm
     await robot.curve(-330, -90)  # カーブ 半径 229mm・右 42°（後退 168mm）
-    # await robot.curve(-200, -19)  # カーブ 半径 68mm・右 19°（後退 23mm）
 
     # # 帰還
     # await robot.straight(-380)  # 後退 452mm

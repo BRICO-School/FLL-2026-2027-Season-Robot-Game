@@ -19,6 +19,7 @@
 - 2026-10-08: 左リフトを動かすM08とM09用の走行プログラムを新規作成した
 - 2026-10-11: 左右リフトの動作を調整し旋回や後退などの走行動作を追加した
 - 2026-10-13: M09における左リフトの回転量を増やした
+- 2026-10-14: ロボットの移動と帰還に関する処理をコメントアウトした
 """
 
 from pybricks.hubs import PrimeHub
@@ -71,12 +72,12 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
 
     # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261011_180327.log）
-    await robot.straight(191)  # 前進 191mm
-    await robot.curve(46, 44)  # カーブ 半径 46mm・右 44°（前進 35mm）
-    await robot.turn(3)  # 向きを合わせる 右 4°
-    await robot.straight(550)  # 前進 589mm
-    await robot.turn(-47)  # カーブ 半径 25mm・左 54°（後退 24mm）
-    await robot.straight(80, 100)  # 前進 66mm
+    # await robot.straight(191)  # 前進 191mm
+    # await robot.curve(46, 44)  # カーブ 半径 46mm・右 44°（前進 35mm）
+    # await robot.turn(3)  # 向きを合わせる 右 4°
+    # await robot.straight(550)  # 前進 589mm
+    # await robot.turn(-47)  # カーブ 半径 25mm・左 54°（後退 24mm）
+    # await robot.straight(80, 100)  # 前進 66mm
 
     # M09
     await left_lift.run_angle(1000, 360 * 12)
@@ -91,13 +92,13 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         robot.straight(-50),
         right_lift.run_angle(1000, -360 * 1.5),
     )
-    await wait(500)
-    await robot.turn(70, 100)
+    # await wait(500)
+    # await robot.turn(70, 100)
 
-    # 帰還
-    await robot.straight(-200)
-    await robot.turn(-60)
-    await robot.straight(-700)
+    # # 帰還
+    # await robot.straight(-200)
+    # await robot.turn(-60)
+    # await robot.straight(-700)
 
     # ロボットを停止
     robot.stop()
