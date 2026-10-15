@@ -314,7 +314,7 @@ stdout を tee しつつ `docs/logs/<script>/<YYYYMMDD_HHMMSS>.log` に保存し
 ```bash
 # ① 記録して、そのままコードにする（いちばん楽。中で ② の teach_record.py を走らせる）
 uv run python scripts/teach.py --name "Pybricks Hub3"
-uv run python scripts/teach.py --name "Pybricks Hub3" --out run_M05_kanna.py  # run_template.py の形で書き出す（上書きはしない）
+uv run python scripts/teach.py --name "Pybricks Hub3" --out run_route.py  # run_template.py の形で書き出す（上書きはしない）
 
 # ② 記録だけする（teach_record.py をハブで走らせる。ログは docs/logs/teach_record/<日時>.log）
 uv run python run_with_log.py teach_record.py --name "Pybricks Hub3" --no-trial
