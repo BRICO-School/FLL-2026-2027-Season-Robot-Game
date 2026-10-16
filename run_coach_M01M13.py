@@ -18,6 +18,7 @@
 - 2026-10-05: M01用の走行プログラムを新規作成した
 - 2026-10-05: 空行の末尾にある不要な空白を削除しました
 - 2026-10-15: M01とM13の攻略に向けた走行とリフト動作を実装した
+- 2026-10-16: 旋回角度を微調整し最後に右旋回と前進動作を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -87,7 +88,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     await robot.straight(255)  # 前進 255mm
     await robot.curve(35, 27)  # カーブ 半径 35mm・右 27°（前進 17mm）
-    await robot.turn(61)  # 右 64°
+    await robot.turn(59)  # 右 64°
     await robot.straight(145)  # 前進 124mm
 
     await left_lift.run_angle(600, -1800)  # 左アームを300deg/sで180度回転
@@ -95,9 +96,12 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await left_lift.run_angle(1000, 1000)  # 左アームを300deg/sで180度回転
 
     await robot.straight(328)  # 前進 218mm
-    await robot.turn(-30, rate=20)
+    await robot.turn(-28, rate=20)
 
     await left_lift.run_angle(400, 500)  # 左アームを300deg/sで180度回転
+
+    await robot.turn(48)
+    await robot.straight(600)
 
     # ロボットを停止
     robot.stop()
