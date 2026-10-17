@@ -63,7 +63,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
-    await right_lift.run_angle(500, 360 * 3)  # 右アームを逆方向に1回転
+    await right_lift.run_angle(500, -360 * 3)  # 右アームを逆方向に1回転
 
     # ロボットを停止
     robot.stop()

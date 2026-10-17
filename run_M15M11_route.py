@@ -72,17 +72,23 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.turn(-90)  # 左 45°
     await robot.straight(505)
     await robot.turn(90)
-    await robot.straight(275)
+    await robot.straight(280)
     await robot.turn(-90)
-    await robot.straight(70)
+    await robot.straight(75)
     await right_lift.run_angle(300, 400)
     await robot.straight(-90)
     await right_lift.run_angle(300, -400)
-    await robot.straight(45)
+    await robot.straight(35)
     await robot.turn(90)
     await robot.straight(-190)
     await robot.turn(-90)
-
+    await robot.straight(-400)
+    await left_lift.run_angle(300, -690)
+    await robot.turn(45)
+    await robot.straight(90)
+    await right_lift.run_angle(500, 370)
+    await left_lift.run_angle(300, 200)
+    await robot.straight(-450)
     # await robot.curve(2251, 11)  # カーブ 半径 2251mm・右 11°（前進 432mm）
     # await robot.curve(48, 92)  # カーブ 半径 48mm・右 92°（前進 77mm）
     # await robot.straight(250)  # 前進 250mm
