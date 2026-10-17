@@ -17,6 +17,7 @@
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-13: M15用の走行プログラムを新規作成した
 - 2026-10-14: 右アームの角度と旋回角度を調整し最後のカーブ後退を直進後退に変更した。
+- 2026-10-17: 前進距離を368mmから372mmに変更し引数100を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -72,7 +73,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(284)  # 前進 284mm
     await robot.curve(54, 42)  # カーブ 半径 54mm・右 42°（前進 39mm）
     await robot.turn(3)  # 向きを合わせる 右 3°
-    await robot.straight(368)  # 前進 368mm
+    await robot.straight(372, 100)  # 前進 368mm
     await right_lift.run_angle(500, 360)  # 右アーム 5°
     await robot.straight(180)  # 前進 99mm
     await robot.turn(-47)  # 左 47°
