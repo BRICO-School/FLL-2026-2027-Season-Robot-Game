@@ -70,6 +70,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
 
     # ロボットを停止
+    # ロボットを停止
     robot.stop()
     print("# 走行完了！")
 

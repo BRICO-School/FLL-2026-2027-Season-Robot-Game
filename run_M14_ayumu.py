@@ -78,7 +78,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
         robot.curve(2000, -30, speed=150),
         lower_left_arm(),
     )
-
+    await robot.straight(200)
     # ロボットを停止
     robot.stop()
     print("# 走行完了！")
