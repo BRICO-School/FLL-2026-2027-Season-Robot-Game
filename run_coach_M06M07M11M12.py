@@ -19,6 +19,7 @@
 - 2026-10-14: 走行とアーム動作の数値を微調整し待機時間を追加した
 - 2026-10-14: 手押し記録に基づく走行動作を追加しM06の直進距離を調整した
 - 2026-10-19: M13の左アーム動作を追加しM07とM12の移動量やアーム角度を調整した。
+- 2026-10-19: 帰還前の動作間に待機時間を追加し帰還時の旋回角度を微調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -111,11 +112,13 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.turn(20, 90)
     await robot.straight(100, 100)
     await right_lift.run_angle(400, 450)  # 右アームを逆方向に1回転
+    await wait(500)
     await robot.turn(10, 200)
+    await wait(500)
 
     # 帰還
     await robot.curve(-187, 36)  # カーブ 半径 187mm・左 36°（後退 117mm）
-    await robot.turn(95, 120)
+    await robot.turn(85, 120)
     await robot.straight(700)
 
     # ロボットを停止
