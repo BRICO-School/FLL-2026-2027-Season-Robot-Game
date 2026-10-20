@@ -102,6 +102,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRIALS_CSV = os.path.join(ROOT, "docs", "trials", "trials.csv")
 OUT_HTML = os.path.join(ROOT, "docs", "trials", "dashboard.html")
 OUT_COACH_HTML = os.path.join(ROOT, "docs", "trials", "dashboard_coach.html")
+OUT_SELECTOR_HTML = os.path.join(
+    ROOT, "docs", "trials", "dashboard_selector.html"
+)  # selector.py（生徒）
+OUT_SELECTOR_COACH_HTML = os.path.join(
+    ROOT, "docs", "trials", "dashboard_selector_coach.html"
+)  # selector_coach.py
 STYLE_CSS = os.path.join(ROOT, "scripts", "dashboard_style.css")
 SCORESHEET_URL = (
     "https://firstinspires.blob.core.windows.net/fll/challenge/2026-27/"
@@ -123,7 +129,7 @@ RECENT_N = 10  # 「直近」の本数（安定の判定・run ファイルご�
 EXPECTED_N = 3  # 見こみ点に使う「直近」の回数（オーナー 2026-10-05）
 STABLE_RATE = 80  # 安定とみなす成功率 (%)
 STABLE_MIN = 5  # 安定とみなすのに要る本数
-ROUND_GAP_SEC = 90  # 通しの途中でこれ以上あいたら、次の回として数える (秒)
+ROUND_GAP_SEC = 150  # 通しの途中でこれ以上あいたら、次の回として数える (秒)。試合の 150 秒をこえる付けかえは同じ試合ではない（2026-10-20 に 90 → 150）
 STRIP_N = 10  # 「直近の並び」に出す本数
 CHART_DAYS = 14  # グラフに出す日数
 RECENT_ROWS = 20  # 「最近の試行」に出す本数
@@ -228,6 +234,14 @@ def attempts(rows):
 
 def is_selector(row):
     return row.get("via", "").startswith("selector")
+
+
+def swap_of(row):
+    """セレクターの付けかえの時間（swap_sec）。無い（その回の最初・古い記録）なら None。"""
+    try:
+        return float(row["swap_sec"]) if row.get("swap_sec") else None
+    except ValueError:
+        return None
 
 
 def seconds_of(row):
@@ -424,11 +438,30 @@ def script_table(rows):
     return sorted(groups.items(), key=lambda kv: stamp(kv[1][-1]), reverse=True)
 
 
+def best_points(rows):
+    """回の中の run を合わせて、(ミッション, 項目) ごとにいちばん良い点を足す（§11.8）。"""
+    best = {}
+    for r in rows:
+        for m, res in tr.results_of(r):
+            if res == "unreached":
+                continue
+            if tr.parts_of(m):
+                values = tr.values_in(r, m, res) or {}
+                for q in tr.PARTS[m]:
+                    got = tr.part_points(q, values.get(q["id"]))
+                    best[(m, q["id"])] = max(best.get((m, q["id"]), 0), got)
+            else:
+                best[(m, None)] = max(best.get((m, None), 0), tr.points_in(r, m, res))
+    return sum(best.values())
+
+
 def to_rounds(rows):
     """② 通し: セレクターの記録を「通し 1 回」にまとめる。
 
-    同じログ（＝セレクターを 1 回起動したあいだ）の中で、同じプログラムがもう一度出たとき、
+    同じログ（＝セレクターを 1 回起動したあいだ）の中で、同じプログラムがもう一度出たとき（打ち切った回のやり直しは除く）、
     または前のゴールから ROUND_GAP_SEC より長くあいたときに、次の回として数える。
+    swap_sec（付けかえ）があれば、回の時間は 走行の合計 ＋ 付けかえの合計（最初に押してから最後の実行完了まで）。
+    無い古い記録は、行の時刻（秒まで）から最初のスタート → 最後のゴールを出す。
     """
     by_log = OrderedDict()
     for r in rows:
@@ -440,33 +473,33 @@ def to_rounds(rows):
         for r in runs:
             start = datetime.strptime(stamp(r), "%Y-%m-%d %H:%M:%S")
             end = start + timedelta(seconds=seconds_of(r))
+            # 打ち切った回（via が「中断」で終わる）のやり直しは、同じ回のつづき
             repeated = current is not None and any(
-                x["script"] == r["script"] for x in current["rows"]
+                x["script"] == r["script"] and not x.get("via", "").endswith("中断")
+                for x in current["rows"]
             )
-            gap = last_end is not None and (start - last_end).total_seconds() > ROUND_GAP_SEC
+            swap = swap_of(r)
+            if swap is None and last_end is not None:
+                swap = (start - last_end).total_seconds()
+            gap = swap is not None and swap > ROUND_GAP_SEC
             if current is None or repeated or gap:
-                current = {"rows": [], "start": start}
+                current = {"rows": [], "start": start, "swaps": []}
                 rounds.append(current)
+            else:
+                current["swaps"].append(swap)
             current["rows"].append(r)
             current["end"] = end
             last_end = end
     for x in rounds:
         x["n_runs"] = len(x["rows"])
         x["t"] = mission_tally(x["rows"])
-        x["sec"] = round((x["end"] - x["start"]).total_seconds())
-        best = {}  # (ミッション, 項目) ごとの取れた点。回の中の run を合わせて、いちばん良い点（§11.8）
-        for r in x["rows"]:
-            for m, res in tr.results_of(r):
-                if res == "unreached":
-                    continue
-                if tr.parts_of(m):
-                    values = tr.values_in(r, m, res) or {}
-                    for q in tr.PARTS[m]:
-                        got = tr.part_points(q, values.get(q["id"]))
-                        best[(m, q["id"])] = max(best.get((m, q["id"]), 0), got)
-                else:
-                    best[(m, None)] = max(best.get((m, None), 0), tr.points_in(r, m, res))
-        x["points"] = sum(best.values())
+        x["run_sec"] = sum(seconds_of(r) for r in x["rows"])
+        x["swap_sec"] = sum(x["swaps"])
+        has_swap = all(swap_of(r) is not None for r in x["rows"][1:])
+        x["sec"] = round(
+            x["run_sec"] + x["swap_sec"] if has_swap else (x["end"] - x["start"]).total_seconds()
+        )
+        x["points"] = best_points(x["rows"])
     rounds.sort(key=lambda x: x["start"])
     return rounds
 
@@ -687,9 +720,12 @@ def render_highlights(rows, smap, rounds, coach=False):
     if rounds:
         x = rounds[-1]
         fit = "をこえている" if x["sec"] > bm.MATCH_SECONDS else "に収まっている"
+        swap = (
+            f"（走行 {x['run_sec']:.0f} 秒・付けかえ {x['swap_sec']:.0f} 秒）" if x["swaps"] else ""
+        )
         items.append(
             f"<strong>最新の通しは見こみ {x['points']} 点。</strong> "
-            f"かかった時間は {x['sec']} 秒で、試合の {bm.MATCH_SECONDS} 秒{fit}。"
+            f"かかった時間は {x['sec']} 秒{swap}で、試合の {bm.MATCH_SECONDS} 秒{fit}。"
         )
     if not items:
         return ""
@@ -913,6 +949,10 @@ def render_rounds(rounds):
                 meter(100 * x["sec"] / bm.MATCH_SECONDS, over)
                 + f"{x['sec']} 秒"
                 + ("・オーバー" if over else ""),
+                f"{x['run_sec']:.0f} 秒",
+                (f"{x['swap_sec']:.0f} 秒（" + "・".join(f"{v:.0f}" for v in x["swaps"]) + "）")
+                if x["swaps"]
+                else "—",
                 order,
             ]
         )
@@ -929,12 +969,24 @@ def render_rounds(rounds):
     )
     best = max(rounds, key=lambda x: x["points"])
     caption = f"通しの 1 回ごとの見こみ点。これまでの最高は {best['start'].strftime('%m/%d %H:%M')} の回である。"
-    lead = f"セレクターから続けて走らせた記録。時間は最初のスタートから最後のゴールまでで、試合は {bm.MATCH_SECONDS} 秒。"
-    heads = ["はじめた時刻", "本数", "成功したミッション", "見こみ点", "時間", "走らせた順"]
+    lead = (
+        f"セレクターから続けて走らせた記録。時間は最初にフォースセンサーを押してから最後のゴールまでで、"
+        f"ホームでの付けかえもふくむ（試合は {bm.MATCH_SECONDS} 秒）。付けかえは、前のゴールから次に押すまで。"
+    )
+    heads = [
+        "はじめた時刻",
+        "本数",
+        "成功したミッション",
+        "見こみ点",
+        "時間",
+        "走行",
+        "付けかえ（1 回ずつ）",
+        "走らせた順",
+    ]
     inner = (
         chart_panel(chart, caption)
         + '<div class="gap"></div>'
-        + table(heads, body, num_cols=(1, 2, 3))
+        + table(heads, body, num_cols=(1, 2, 3, 5, 6))
     )
     return section("② 通し", inner, lead)
 
@@ -1081,6 +1133,205 @@ def render_next(smap, rounds):
 
 
 # ===== 組み立て =====
+# ===== セレクターのページ（dashboard_selector.html / dashboard_selector_coach.html。2026-10-20） =====
+def selector_sessions(csv_path, coach=None):
+    """セレクター経由の行を、セレクターを 1 回起動したあいだ（＝ 1 本のログ）ごとにまとめる。
+
+    coach=False なら selector.py（生徒用）、True なら selector_coach.py（コーチ用）の回だけ、None なら全部。
+    起動したセレクターの名前で分ける（1 回の通しを 2 枚に分けないため。run ファイルの名前では分けない）。
+
+    チームとコーチの両方・数える前（COUNT_FROM より前）・「動かなかった」もふくめて、全部入れる。
+    時間は 走行（run_sec）の合計 ＋ 交換（swap_sec）の合計 ＝ 最初に押してから最後の実行完了まで。
+    """
+    rows = [
+        r
+        for coach in (False, True)
+        for r in load_rows(csv_path, include_error=True, coach=coach, include_old=True)
+        if is_selector(r)
+    ]
+    rows.sort(key=stamp)
+    by_log = OrderedDict()
+    for r in rows:
+        by_log.setdefault(r.get("log_path") or r["date"], []).append(r)
+    sessions = []
+    for log, runs in by_log.items():
+        run_sec = sum(seconds_of(r) for r in runs)
+        swaps = [swap_of(r) for r in runs[1:]]
+        if all(v is not None for v in swaps):
+            swap_sec = sum(swaps)
+        else:  # swap_sec の無い古い記録: 行の時刻（秒まで）から出す
+            start = datetime.strptime(stamp(runs[0]), "%Y-%m-%d %H:%M:%S")
+            end = datetime.strptime(stamp(runs[-1]), "%Y-%m-%d %H:%M:%S") + timedelta(
+                seconds=seconds_of(runs[-1])
+            )
+            swap_sec = (end - start).total_seconds() - run_sec
+        sessions.append(
+            {
+                "log": log,
+                "rows": runs,
+                "selector": runs[0]["via"].split()[0],
+                "hub": runs[0].get("hub", ""),
+                "start": runs[0]["date"] + " " + runs[0].get("time", "")[:5],
+                "run_sec": run_sec,
+                "swap_sec": swap_sec,
+                "sec": run_sec + swap_sec,
+                "points": best_points(runs),
+            }
+        )
+    if coach is not None:
+        sessions = [x for x in sessions if (COACH_WORD in x["selector"]) == coach]
+    return sessions
+
+
+def sec_text(sec):
+    return f"{sec:.1f} 秒" if sec else "—"
+
+
+def session_mission(mid, res, parts):
+    """ミッションのセル: 「M09 種を運ぶ」と、項目があればその下に項目ごとの値（点は「点」の列）。"""
+    m = next((x for x in bm.MISSIONS if x["id"] == mid), None)
+    cell = f"<strong>{mid}</strong> {escape(m['name']) if m else ''}"
+    if tr.parts_of(mid) and res != "unreached":
+        detail = tr.describe([(mid, res)], parts)
+        detail = detail[detail.find("（") + 1 : -1] if "（" in detail else ""
+        if detail:
+            cell += f'<span class="mission-en">{escape(detail)}</span>'
+    return cell
+
+
+def session_table(x):
+    """1 回の通し: run ファイルの行にミッションを 1 行ずつ並べ、run のあいだに交換時間の行をはさむ。"""
+    heads = ["run ファイル", "ミッション", "結果", "点", "時間"]
+    body, classes = [], []
+    for i, r in enumerate(x["rows"]):
+        if i:
+            swap = swap_of(r)
+            body.append(["<strong>交換時間</strong>", "", "", "", sec_text(swap or 0)])
+            classes.append("ref")
+        aborted = r["via"].endswith("中断")
+        name = (
+            run_file(r["script"])
+            + f' <span class="mission-en">{escape(r["via"].split()[1])}</span>'
+        )
+        took = sec_text(seconds_of(r)) + (' <span class="over-mark">中断</span>' if aborted else "")
+        parts = tr.parse_parts(r.get("part_results"))
+        pairs = tr.results_of(r) or [(None, r["result"])]
+        for k, (m, res) in enumerate(pairs):
+            body.append(
+                [
+                    name if k == 0 else "",
+                    session_mission(m, res, parts) if m else "—",
+                    dot(RESULT_DOT.get(res, "none"), RESULT_LABEL.get(res, res)),
+                    tr.points_in(r, m, res) if m and res != "unreached" else "",
+                    took if k == 0 else "",
+                ]
+            )
+            classes.append("")
+    over = x["sec"] > bm.MATCH_SECONDS
+    body.append(
+        [
+            "<strong>通し</strong>",
+            f"走行 {x['run_sec']:.1f} 秒・交換 {x['swap_sec']:.1f} 秒",
+            "",
+            x["points"],
+            f"{x['sec']:.1f} 秒" + (' <span class="over-mark">オーバー</span>' if over else ""),
+        ]
+    )
+    classes.append("total")
+    return table(heads, body, num_cols=(3, 4), row_classes=classes)
+
+
+def render_selector_sessions(sessions):
+    if not sessions:
+        return section("通し", "<p>セレクター経由の記録はまだありません。</p>")
+    heads = ["はじめた時刻", "セレクター", "本数", "見こみ点", "通し", "走行", "交換"]
+    body = []
+    for x in reversed(sessions):
+        over = x["sec"] > bm.MATCH_SECONDS
+        body.append(
+            [
+                f"{short_date(x['start'][:10])} {x['start'][11:]}",
+                escape(x["selector"]),
+                len(x["rows"]),
+                x["points"],
+                meter(100 * x["sec"] / bm.MATCH_SECONDS, over)
+                + f"{x['sec']:.0f} 秒"
+                + ("・オーバー" if over else ""),
+                f"{x['run_sec']:.0f} 秒",
+                f"{x['swap_sec']:.0f} 秒",
+            ]
+        )
+    out = [
+        section(
+            "一覧",
+            table(heads, body, num_cols=(2, 3, 5, 6)),
+            f"セレクターを 1 回起動したあいだを、通し 1 回とする。時間は最初にフォースセンサーを押してから最後の実行完了まで"
+            f"（走行 ＋ 交換。試合は {bm.MATCH_SECONDS} 秒）。交換は、前の実行完了から次に押すまで。",
+        )
+    ]
+    for x in reversed(sessions):
+        log = (
+            f'<a class="pr-link" href="../../{escape(x["log"])}">ログ</a>'
+            if "/" in x["log"]
+            else ""
+        )
+        title = f"{short_date(x['start'][:10])} {x['start'][11:]} · {escape(x['selector'])}"
+        lead = f"{escape(x['hub'])} · {len(x['rows'])} 本 · 見こみ {x['points']} 点 · {log}"
+        out.append(section(title, session_table(x), lead))
+    return "".join(out)
+
+
+def build_selector(csv_path=TRIALS_CSV, out_path=None, now=None, coach=False, other_path=None):
+    """セレクター経由の記録だけのページを書き出し、通しの回数を返す。
+
+    coach=False なら selector.py（生徒用）の dashboard_selector.html、True なら selector_coach.py の
+    dashboard_selector_coach.html。other_path はもう 1 枚の置き場所（見出しの下のリンク先）。
+    """
+    now = now or datetime.now()
+    out_path = out_path or (OUT_SELECTOR_COACH_HTML if coach else OUT_SELECTOR_HTML)
+    other_path = other_path or (OUT_SELECTOR_HTML if coach else OUT_SELECTOR_COACH_HTML)
+    sessions = selector_sessions(csv_path, coach)
+    title = "コーチのセレクターの通し" if coach else "セレクターの通し"
+    rel = lambda p: os.path.relpath(  # noqa: E731
+        os.path.abspath(p), os.path.dirname(os.path.abspath(out_path))
+    ).replace(os.sep, "/")
+    period = (
+        f"{sessions[0]['start'][:10]} 〜 {sessions[-1]['start'][:10]}・通し {len(sessions)} 回"
+        if sessions
+        else "記録はまだありません"
+    )
+    mine, other = (
+        ("selector_coach.py", "生徒の selector.py")
+        if coach
+        else ("selector.py", "コーチの selector_coach.py")
+    )
+    note = (
+        f'<div class="scope-note">{mine} から走らせた記録だけ（数える前の記録もふくむ）。'
+        f'<a href="{escape(rel(other_path))}">{other} の通し</a>・'
+        f'<a href="{escape(rel(OUT_HTML))}">チームのダッシュボード</a>・'
+        f'<a href="{escape(rel(OUT_COACH_HTML))}">コーチ確認用のダッシュボード</a> へ。</div>'
+    )
+    body = (
+        f'<header><div class="header-top"><h1>{title}</h1><span class="auto-pill">自動生成</span></div>'
+        f'<div class="date-range">{escape(period)}</div>{note}</header>'
+        + render_selector_sessions(sessions)
+        + f"<footer>出典: {escape(os.path.abspath(csv_path))} &nbsp;&mdash;&nbsp; {now.strftime('%Y年%m月%d日 %H:%M')} 生成</footer>"
+    )
+    with open(STYLE_CSS, encoding="utf-8") as f:
+        css = f.read()
+    html = (
+        '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="UTF-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>{title}</title>\n"
+        "<!-- scripts/trial_dashboard.py が trials.csv から生成 -->\n"
+        f'<style>\n{css}{EXTRA_CSS}</style>\n</head>\n<body>\n  <div class="page">\n{body}\n  </div>\n</body>\n</html>\n'
+    )
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(html)
+    return len(sessions)
+
+
 def scope_note(out_path, other_path, coach, include_old=False):
     """見出しの下に出す「この 1 枚に何が入っているか」と、もう 1 枚へのリンク。"""
     other = os.path.relpath(
@@ -1183,6 +1434,13 @@ def build_all(
     coach = build(
         csv_path, coach_out_path, include_error, now, True, out_path, include_old=include_old
     )
+    out_dir = os.path.dirname(os.path.abspath(out_path))
+    sel, sel_coach = (
+        os.path.join(out_dir, n)
+        for n in ("dashboard_selector.html", "dashboard_selector_coach.html")
+    )
+    build_selector(csv_path, sel, now, False, sel_coach)
+    build_selector(csv_path, sel_coach, now, True, sel)
     return team, coach
 
 
@@ -1214,6 +1472,11 @@ def main():
     )
     print(f"📊 ダッシュボードを作りました: {args.out}（{n} 行）")
     print(f"📊 コーチ確認用: {args.coach_out}（{n_coach} 行）")
+    out_dir = os.path.dirname(os.path.abspath(args.out))
+    print(f"📊 セレクターの通し（selector.py）: {os.path.join(out_dir, 'dashboard_selector.html')}")
+    print(
+        f"📊 コーチのセレクターの通し（selector_coach.py）: {os.path.join(out_dir, 'dashboard_selector_coach.html')}"
+    )
     if n + n_coach == 0:
         print("   記録がまだありません。「📝 Robot N + Log」で走らせて成否を入れると行が増えます。")
     if args.open:

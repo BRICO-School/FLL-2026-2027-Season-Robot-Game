@@ -19,7 +19,7 @@
 - 2026-10-05: 空行の末尾にある不要な空白を削除しました
 - 2026-10-15: M01とM13の攻略に向けた走行とリフト動作を実装した
 - 2026-10-16: 旋回角度を微調整し最後に右旋回と前進動作を追加した
-- 2026-10-20: M01とM13の攻略に向けた走行プログラムを新規作成した
+- 2026-10-20: 最終旋回角度を38度から30度に調整し不要な履歴コメントを削除した
 """
 
 from pybricks.hubs import PrimeHub
@@ -101,7 +101,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     # await left_lift.run_angle(400, 500)  # 左アームを300deg/sで180度回転
 
-    await robot.turn(38)
+    await robot.turn(30)
     await robot.straight(600)
 
     # ロボットを停止

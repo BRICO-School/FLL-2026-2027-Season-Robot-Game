@@ -26,6 +26,17 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
   名前が selector で始まる .py をセレクターとして扱う（is_selector_file）。
   チームとコーチのどちらのダッシュボードに入るかは、走った run ファイルの名前（coach が入るか）で決まる。
 
+【付けかえの時間】（2026-10-20）
+  本番の 150 秒にはホームでのアタッチメントの付けかえも入る。セレクターでは、前のプログラムの「実行完了」から
+  次の「実行中」（＝フォースセンサーを押したとき）までを swap_sec 列に入れる（その回の最初のプログラムは空）。
+  通しの時間 ＝ 走行（run_sec）の合計 ＋ 付けかえ（swap_sec）の合計 ＝ 最初に押してから最後の実行完了まで。
+  記録しなかった（s）プログラムの走行は、次のプログラムの付けかえの方に入る（合計は変わらない）。
+
+【走っている途中で打ち切る】（2026-10-20）
+  selector_coach.py は、走っているあいだに真ん中のボタンを押すと、そのプログラムだけ打ち切って
+  「=== プログラム N を中断 ===」を出し、セレクターに戻る（ログは続く）。打ち切った回はそこを走行の終わりとして測り、
+  成否の既定キーを x にする。プログラム全体を止めて実行完了の行が無い回は、elapsed_sec を止めた時刻までにする。
+
 【使い方（コマンドライン）】
   python run_with_log.py run_M01_kidachi.py --name "Pybricks Hub4"
   python run_with_log.py verification/run_lift_motor_test.py --name "Pybricks Hub4" --no-trial
@@ -69,6 +80,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
 - 2026-10-05: 試行ログに項目別の結果記録と集計対象の判定処理を追加した
 - 2026-10-10: 集計ダッシュボードをgitに含めるよう説明を修正した。
 - 2026-10-20: コーチ用セレクターでもプログラムごとの成否記録に対応した
+- 2026-10-20: セレクターでの付けかえ時間の記録とプログラム中断の検知に対応した
 """
 
 import csv
@@ -109,12 +121,16 @@ CSV_COLUMNS = [
     "mission_results",  # ミッションごとの成否「M12=fail M11=success」（2026-10-03 追加）
     "run_sec",  # 本番でもかかる時間（初期化完了 → 走行完了。セレクターはプログラムの実行中 → 実行完了）（2026-10-03 追加）
     "part_results",  # 項目ごとの値「M12.staff=1 M12.tie=0」（2026-10-05 追加・docs/trial_log_spec.md §11）
+    "swap_sec",  # セレクター: 前のプログラムの実行完了 → このプログラムを押すまで（付けかえ）。最初は空（2026-10-20 追加）
 ]
 
 # selector.py が画面に出す行（この文字列を PC 側で読むだけ。ハブ側は変更しない）
 SELECTOR_START = re.compile(r"=== プログラム (\d+) を実行中 ===")
 SELECTOR_DONE = re.compile(r"=== プログラム (\d+) 実行完了 ===")
 SELECTOR_ERROR = re.compile(r"^エラー: ")
+SELECTOR_ABORT = re.compile(
+    r"=== プログラム (\d+) を中断 ==="
+)  # 真ん中のボタンで打ち切った（selector_coach.py）
 
 # 本番でもかかる時間を測る目じるし（ハブがもう出している行。ハブ側は変更しない）
 INIT_DONE = "=== ロボット初期化完了 ==="  # setup.py の initialize_robot() の最後
@@ -224,21 +240,36 @@ class SelectorWatcher:
     """
 
     def __init__(self):
-        self.runs = []  # {"index", "start", "end", "error"}
+        self.runs = []  # {"index", "start", "end", "error", "aborted", "stopped"}
 
     def feed(self, line):
         m = SELECTOR_START.search(line)
         if m:
             self.runs.append(
-                {"index": int(m.group(1)), "start": datetime.now(), "end": None, "error": False}
+                {
+                    "index": int(m.group(1)),
+                    "start": datetime.now(),
+                    "end": None,
+                    "error": False,
+                    "aborted": False,  # 真ん中のボタンで打ち切った
+                    "stopped": None,  # 実行完了の前にプログラム全体が止まった時刻
+                }
             )
             return
         if not self.runs or self.runs[-1]["end"] is not None:
             return
         if SELECTOR_ERROR.search(line):
             self.runs[-1]["error"] = True
+        elif SELECTOR_ABORT.search(line):
+            self.runs[-1]["aborted"] = True
+            self.runs[-1]["end"] = datetime.now()
         elif SELECTOR_DONE.search(line) or "セレクターに戻りました" in line:
             self.runs[-1]["end"] = datetime.now()
+
+    def close(self, when):
+        """プログラムが終わったときに呼ぶ。実行完了の行が無いまま止まった回に、止まった時刻を控える。"""
+        if self.runs and self.runs[-1]["end"] is None:
+            self.runs[-1]["stopped"] = when
 
 
 class RunTimer:
@@ -328,8 +359,12 @@ def write_trial(
     via="",
     run_sec=None,
     part_results="",
+    swap_sec=None,
 ):
-    """1 試行分を CSV に追記し、コードのコピーを残す。run_sec は本番でもかかる時間（測れなければ None）。"""
+    """1 試行分を CSV に追記し、コードのコピーを残す。run_sec は本番でもかかる時間（測れなければ None）。
+
+    swap_sec はセレクターの付けかえの時間（前のプログラムの実行完了 → このプログラムを押すまで。無ければ None）。
+    """
     script_base = os.path.basename(run_file)
     script_name = os.path.splitext(script_base)[0]
     mission = guess_mission(script_name)
@@ -355,6 +390,7 @@ def write_trial(
         "mission_results": mission_results,
         "part_results": part_results,
         "run_sec": f"{run_sec:.1f}" if run_sec is not None else "",
+        "swap_sec": f"{swap_sec:.1f}" if swap_sec is not None else "",
     }
     append_trial(root, row)
     pairs = tr.results_of(row)
@@ -375,6 +411,10 @@ def refresh_dashboard(root):
         print("📊 ダッシュボード: docs/trials/dashboard.html（ブラウザで開いて F5）")
         print(
             "   コーチ確認用（名前に coach が入る run ファイル）: docs/trials/dashboard_coach.html"
+        )
+        print("   セレクターの通し（selector.py）: docs/trials/dashboard_selector.html")
+        print(
+            "   コーチのセレクターの通し（selector_coach.py）: docs/trials/dashboard_selector_coach.html"
         )
     except Exception as e:
         print(f"⚠ ダッシュボードを作り直せませんでした: {e}")
@@ -439,19 +479,29 @@ def record_selector_trials(root, selector_file, hub_args, watcher, exit_code, lo
         if not os.path.exists(run_file):
             run_file = os.path.join(root, os.path.basename(selector_file))
         title = f"[{i}/{len(watcher.runs)}] 画面の番号 {shown}: {module}"
-        warning = "  ⚠ エラーあり" if run["error"] else ""
-        item = new_item(module, title, "x" if run["error"] else "o", warning)
+        if run["error"]:
+            warning = "  ⚠ エラーあり"
+        elif run["aborted"]:
+            warning = "  ⏹ 途中で打ち切った"
+        elif run["end"] is None:
+            warning = "  ⏹ 途中でプログラムを止めた"
+        else:
+            warning = ""
+        item = new_item(module, title, "o" if not warning else "x", warning)
         plans.append((run, run_file, shown, item))
     if not tr.ask_trials([p[3] for p in plans]):
         print("📊 記録しませんでした")
         return
     wrote = 0
+    prev_end = None  # 前に記録したプログラムの実行完了（記録しなかったプログラムの走行は付けかえの方に入る）
     for run, run_file, shown, item in plans:
         result, mission_results = tr.item_results(item)
         if result is None:
             continue
-        end = run["end"] or datetime.now()
+        end = run["end"] or run["stopped"] or datetime.now()
         seconds = (end - run["start"]).total_seconds()
+        swap = (run["start"] - prev_end).total_seconds() if prev_end else None
+        prev_end = run["end"]
         write_trial(
             root,
             run_file,
@@ -463,11 +513,13 @@ def record_selector_trials(root, selector_file, hub_args, watcher, exit_code, lo
             result,
             mission_results,
             item["note"],
-            via=f"{selector_name} P{shown}",  # selector P3 / selector_coach P3
+            # selector P3 / selector_coach P3。打ち切った回は「selector_coach P3 中断」（やり直しを同じ通しに数える）
+            via=f"{selector_name} P{shown}" + (" 中断" if run["aborted"] else ""),
             run_sec=seconds
             if run["end"]
             else None,  # セレクターは実行中 → 実行完了がそのまま本番の時間
             part_results=tr.item_parts(item),
+            swap_sec=swap,
         )
         wrote += 1
     if wrote:
@@ -486,14 +538,27 @@ def timing_lines(timer, watcher, is_selector):
         else f"接続〜初期化完了: 測れず（「{INIT_DONE}」の行が無い）"
     )
     if is_selector:
+        prev_end = None
         for i, run in enumerate(watcher.runs, 1):
+            if prev_end:
+                lines.append(
+                    f"付けかえ {i - 1} → {i}: {(run['start'] - prev_end).total_seconds():.1f} 秒（実行完了 → 次に押すまで）"
+                )
+            prev_end = run["end"]
             if run["end"]:
                 sec = (run["end"] - run["start"]).total_seconds()
-                lines.append(
-                    f"走行 {i}（プログラム {run['index']}）: {sec:.1f} 秒（本番でもかかる時間）"
-                )
+                how = "途中で打ち切った" if run["aborted"] else "本番でもかかる時間"
+                lines.append(f"走行 {i}（プログラム {run['index']}）: {sec:.1f} 秒（{how}）")
             else:
-                lines.append(f"走行 {i}（プログラム {run['index']}）: 測れず（実行完了の行が無い）")
+                lines.append(
+                    f"走行 {i}（プログラム {run['index']}）: 測れず（実行完了の行が無い。途中でプログラムを止めた？）"
+                )
+        ends = [r["end"] for r in watcher.runs if r["end"]]
+        if ends:
+            total = (ends[-1] - watcher.runs[0]["start"]).total_seconds()
+            lines.append(
+                f"通し: {total:.1f} 秒（最初に押してから最後の実行完了まで。付けかえこみ・試合は 150 秒）"
+            )
     else:
         sec = timer.run_sec()
         lines.append(
@@ -595,6 +660,7 @@ def main():
                 process.kill()
 
         process.wait()
+        watcher.close(datetime.now())
 
         end_time = datetime.now()
         elapsed = (end_time - start_time).total_seconds()

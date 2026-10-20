@@ -28,7 +28,7 @@
 # ===== ライブラリのインポート =====
 # LEGOロボットを動かすために必要な道具を読み込みます
 from pybricks.hubs import PrimeHub  # ロボットの「脳みそ」（ハブ）を使うための道具
-from pybricks.parameters import Axis, Direction, Port  # ポート、軸、方向などの設定
+from pybricks.parameters import Axis, Color, Direction, Port  # ポート、軸、方向、色などの設定
 from pybricks.pupdevices import Motor  # モーターを使うための道具
 from pybricks.robotics import DriveBase  # ロボットの移動機能を使うための道具
 from pybricks.tools import StopWatch, wait  # 待機とタイマーの道具
@@ -704,6 +704,8 @@ def initialize_robot(drive_settings=None):
 
     # ----- ステップ1: ハブの設定 -----
     hub = setup_hub()
+    # 初期化（ジャイロの待ちをふくむ）のあいだはオレンジ＝まだ走れない（2026-10-20）
+    hub.light.on(Color.ORANGE)
     apply_robot_profile(hub)
     print("✓ ハブ設定完了")
 
@@ -732,6 +734,7 @@ def initialize_robot(drive_settings=None):
     # ----- ステップ6: モーター角度のリセット -----
     reset_motor_angles(left_wheel, right_wheel, left_lift, right_lift)
 
+    hub.light.off()  # 初期化が終わったらオレンジを消す（セレクターはこのあと緑にする）
     print("=== ロボット初期化完了 ===")
 
     # ----- すべての設定情報を返す -----
