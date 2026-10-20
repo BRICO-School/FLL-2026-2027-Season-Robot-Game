@@ -61,7 +61,7 @@ scripts/trial_report.py（プレゼン前に手で実行）
 | `log_path` | `docs/logs/run_M01_kidachi/20260909_183012.log` | 詳細ログへのリンク | 自動 |
 | `code_hash` | `a3f9c1e2` | 走行した `run_*.py` ＋ `setup.py` の内容ハッシュ（短縮）。同じ値なら同じコードで走った | 自動 |
 | `snapshot` | `docs/trials/snapshots/a3f9c1e2/` | 走行時のコードのコピー先（§4.5） | 自動 |
-| `via` | `selector P3` | selector 経由ならハブ画面の番号。直接実行なら空（§4.4） | 自動 |
+| `via` | `selector P3` | セレクター経由ならセレクターの名前とハブ画面の番号（`selector_coach P3` など）。直接実行なら空（§4.4） | 自動 |
 | `mission_results` | `M12=fail M11=success M07=unreached` | ミッションごとの成否（2026-10-03 追加・§9）。空の古い行は `result` を全ミッションに当てる | **人が入力** |
 | `run_sec` | `5.1` | 本番でもかかる時間（2026-10-03 追加・§10）。「初期化完了 → 走行完了」、セレクターは「実行中 → 実行完了」。測れなければ空 | 自動 |
 
@@ -134,6 +134,10 @@ scripts/trial_report.py（プレゼン前に手で実行）
   モジュール名（`run1_M10_M11.py` など）、`via` 列にハブ画面の番号が入る。
   スナップショットはそのモジュール＋`setup.py` なので、単体実行と同じコードなら
   同じ `code_hash` になり、集計が混ざらない。エラー行があった回は既定キーが `x`。
+- 2026-10-20 から: セレクターは 2 本。`selector.py`（生徒用）と `selector_coach.py`（コーチ用・`run_coach_*.py` だけ登録）。
+  名前が `selector` で始まる `.py`（`is_selector_file()`）をセレクターとして扱い、番号→モジュールはそのセレクター自身の
+  `programs` から引く。`via` 列はセレクターの名前＋番号（`selector P3` / `selector_coach P3`）。どちらのダッシュボードに
+  入るかは `script` 列（走ったモジュール名）に `coach` が入るかで決まる（セレクターの名前では決めない）。
 
 ### 4.5 走行時のコードをそのまま保存する（スナップショット）
 
