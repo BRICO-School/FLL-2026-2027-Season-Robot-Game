@@ -82,6 +82,11 @@ run_with_log.py で成否を記録するたびに自動で作り直されるの�
   ロボットが当てなければ取れるので、ミッションごと取れる前提にして点数マップのミッションの行からはずす（着手したミッションも 14 のうちで数える）。
   どちらも点検・精密トークンと同じく、ミッションの小計のあとの「取れる前提」の行に出して合計に足す
   （scripts/bioglow_missions.py の assumed・assume_all・ASSUMED_POINTS）。合計 530 ＝ ミッションの小計の満点 420 ＋ 取れる前提 110。
+【セレクターの通しのページ】（2026-10-21 オーナー）
+  dashboard_selector.html / dashboard_selector_coach.html の精密トークンは「取れる前提」の 50 点ではなく、
+  走行中に真ん中のボタンで打ち切った回数（via の「中断」）だけトークンが減るとして数える（残り 6 − 中断 → PRECISION_TOKENS）。
+  一覧の上に「推移」（通しごとの 参考値をふくむ点 と 時間 の棒グラフ）、一覧の表の下に 最新の通しから計算した
+  「いまの状態」と「次にやること」を出す（session_analysis）。
 dashboard.html と dashboard_coach.html は生成物だが、共有のため どちらも git に入れる（コーチ用は 2026-10-03、チーム用は 2026-10-10 から）。プレゼン用の表と PNG は trial_report.py。
 """
 
@@ -175,6 +180,7 @@ EXTRA_CSS = """
   .gap { height: 14px; }
   .scope-note { color: var(--gray-500); font-size: 13px; margin-top: 6px; }
   .scope-note a { color: var(--clay); }
+  .sub-head { font-size: 15px; margin: 22px 0 10px; color: var(--gray-700); }
   footer { overflow-wrap: anywhere; }
   /* 狭い画面（Obsidian の画面分割など）: 見出しも折り返し、余白・バー・メモの最小幅を詰める */
   @media (max-width: 720px) {
@@ -440,6 +446,11 @@ def script_table(rows):
 
 def best_points(rows):
     """回の中の run を合わせて、(ミッション, 項目) ごとにいちばん良い点を足す（§11.8）。"""
+    return sum(best_by_mission(rows).values())
+
+
+def best_by_mission(rows):
+    """best_points の内訳: {ミッション: 項目ごとにいちばん良い点の和}。届かなかっただけのミッションは入らない。"""
     best = {}
     for r in rows:
         for m, res in tr.results_of(r):
@@ -452,7 +463,10 @@ def best_points(rows):
                     best[(m, q["id"])] = max(best.get((m, q["id"]), 0), got)
             else:
                 best[(m, None)] = max(best.get((m, None), 0), tr.points_in(r, m, res))
-    return sum(best.values())
+    out = OrderedDict()
+    for (m, _), got in best.items():
+        out[m] = out.get(m, 0) + got
+    return out
 
 
 def to_rounds(rows):
@@ -578,15 +592,19 @@ def table(heads, rows, num_cols=(), row_classes=None):
     )
 
 
-def bar_chart(points, label, unit="", y_max=None):
-    """見本（ベロシティ）と同じ棒グラフ。points = [(x の字, 値, 補足)]。いちばん高い棒だけ色を変える。"""
+def bar_chart(points, label, unit="", y_max=None, limit=None, mark=None):
+    """見本（ベロシティ）と同じ棒グラフ。points = [(x の字, 値, 補足)]。いちばん高い棒だけ色を変える。
+
+    limit を渡すと、その値に点線を引き、こえた棒を錆色にする（通しの時間の 150 秒）。
+    mark を渡すと、いちばん高い棒のかわりに その番号の棒の色を変える（最新の通し）。
+    """
     if not points:
         return ""
     base_y, top_y, left, right = 140, 20, 48, 620
     top = y_max or max(v for _, v, _ in points) or 1
     slot = (right - left) / len(points)
     bar_w = min(56, slot * 0.7)
-    peak = max(range(len(points)), key=lambda i: points[i][1])
+    peak = mark if mark is not None else max(range(len(points)), key=lambda i: points[i][1])
     text = '<text x="{x:.1f}" y="{y:.1f}" text-anchor="{a}" font-family="system-ui" font-size="11" fill="{f}"{w}>{s}</text>'
     out = [f'<svg viewBox="0 0 640 180" role="img" aria-label="{escape(label)}">']
     for frac in (0, 1 / 3, 2 / 3, 1):
@@ -596,6 +614,15 @@ def bar_chart(points, label, unit="", y_max=None):
             f'<line x1="{left}" y1="{y:.0f}" x2="{right}" y2="{y:.0f}" stroke="{color}" stroke-width="{width}"/>'
         )
         out.append(text.format(x=40, y=y + 4, a="end", f="#87867F", w="", s=f"{top * frac:.0f}"))
+    if limit is not None:
+        y = base_y - (base_y - top_y) * limit / top
+        out.append(
+            f'<line x1="{left}" y1="{y:.1f}" x2="{right}" y2="{y:.1f}" stroke="#B04A3F" '
+            'stroke-width="1.5" stroke-dasharray="5 4"/>'
+        )
+        out.append(
+            text.format(x=right, y=y - 5, a="end", f="#B04A3F", w="", s=f"{limit:.0f}{unit}")
+        )
     for i, (x_label, value, note) in enumerate(points):
         cx = left + slot * (i + 0.5)
         h = (base_y - top_y) * value / top
@@ -604,6 +631,8 @@ def bar_chart(points, label, unit="", y_max=None):
             if i == peak
             else ("#E3DACC", "#87867F", "")
         )
+        if limit is not None and value > limit:
+            fill = "#B04A3F"
         out.append(
             f'<rect x="{cx - bar_w / 2:.1f}" y="{base_y - h:.1f}" width="{bar_w:.1f}" height="{h:.1f}" rx="6" fill="{fill}">'
             f"<title>{escape(note)}</title></rect>"
@@ -1165,6 +1194,8 @@ def selector_sessions(csv_path, coach=None):
                 seconds=seconds_of(runs[-1])
             )
             swap_sec = (end - start).total_seconds() - run_sec
+        aborts = sum(is_aborted(r) for r in runs)
+        tokens = max(0, PRECISION_TOKENS_START - aborts)
         sessions.append(
             {
                 "log": log,
@@ -1176,6 +1207,9 @@ def selector_sessions(csv_path, coach=None):
                 "swap_sec": swap_sec,
                 "sec": run_sec + swap_sec,
                 "points": best_points(runs),
+                "aborts": aborts,
+                "tokens": tokens,
+                "token_points": bm.PRECISION_TOKENS[tokens],
             }
         )
     if coach is not None:
@@ -1187,9 +1221,18 @@ def selector_sessions(csv_path, coach=None):
 MISSION_SUBTOTAL_MAX = sum(tr.full_points(m["id"]) for m in bm.MISSIONS if not m.get("assume_all"))
 
 
+PRECISION_TOKENS_START = max(bm.PRECISION_TOKENS)  # 試合のはじめのトークンの数（6）
+
+
+def is_aborted(row):
+    """走行中に真ん中のボタンで打ち切った回（run_with_log.py が via の後ろに「中断」を付ける）。"""
+    return (row.get("via") or "").endswith("中断")
+
+
 def grand_points(x):
-    """通しのミッションの点 ＋ 取れる前提（参考値）。"""
-    return x["points"] + bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL
+    """通しのミッションの点 ＋ 取れる前提（参考値）。精密トークンだけは中断の回数から出した点（2026-10-21）。"""
+    assumed = bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL - bm.PRECISION_TOKENS[PRECISION_TOKENS_START]
+    return x["points"] + assumed + x["token_points"]
 
 
 def sec_text(sec):
@@ -1221,7 +1264,7 @@ def session_table(x):
             swap = swap_of(r)
             body.append(["<strong>交換時間</strong>", "", "", "", "", sec_text(swap or 0)])
             classes.append("ref")
-        aborted = r["via"].endswith("中断")
+        aborted = is_aborted(r)
         name = (
             run_file(r["script"])
             + f' <span class="mission-en">{escape(r["via"].split()[1])}</span>'
@@ -1255,19 +1298,24 @@ def session_table(x):
     )
     classes.append("total")
     refs = [
-        (f"{mid} {escape(name)}", points, cond) for mid, name, points, cond in bm.ASSUMED_POINTS
-    ] + [(escape(name), points, cond) for name, points, cond in bm.EXTRA_POINTS]
-    for label, points, cond in refs:
-        body.append(
-            [
-                "",
-                f'{label}（参考）<span class="mission-en">{escape(cond)}</span>',
-                points,
-                "取れる前提",
-                points,
-                "",
-            ]
-        )
+        (f"{mid} {escape(name)}（参考）", points, escape(cond), "取れる前提", points)
+        for mid, name, points, cond in bm.ASSUMED_POINTS
+    ]
+    for name, points, cond in bm.EXTRA_POINTS:
+        if name == "精密トークン":  # 中断 1 回でトークンが 1 つ減る（2026-10-21 オーナー）
+            refs.append(
+                (
+                    escape(name),
+                    points,
+                    f"中断 {x['aborts']} 回 → 残り {x['tokens']} / {PRECISION_TOKENS_START} 個",
+                    "中断の回数から",
+                    x["token_points"],
+                )
+            )
+        else:
+            refs.append((f"{escape(name)}（参考）", points, escape(cond), "取れる前提", points))
+    for label, points, cond, how, got in refs:
+        body.append(["", f'{label}<span class="mission-en">{cond}</span>', points, how, got, ""])
         classes.append("ref")
     body.append(
         [
@@ -1283,6 +1331,214 @@ def session_table(x):
     return table(heads, body, num_cols=(2, 4, 5), row_classes=classes)
 
 
+def session_label(x):
+    return f"{short_date(x['start'][:10])} {x['start'][11:]}"
+
+
+def session_ends(x):
+    """run ごとの、最初に押してからその run の実行完了までの秒（交換 ＋ 走行の積み上げ）。"""
+    ends, t = [], 0.0
+    for i, r in enumerate(x["rows"]):
+        t += (swap_of(r) or 0) if i else 0
+        t += seconds_of(r)
+        ends.append(t)
+    return ends
+
+
+def session_missions(x):
+    """{ミッション: その回でそのミッションをやった run ファイルの名前}（届かなかっただけの run もふくむ）。"""
+    out = OrderedDict()
+    for r in x["rows"]:
+        for m, _ in tr.results_of(r):
+            names = out.setdefault(m, [])
+            if r["script"] not in names:
+                names.append(r["script"])
+    return out
+
+
+def session_analysis(x, prev=None):
+    """一覧の下に出す「いまの状態」と「次にやること」を、最新の通し x（と前回 prev）から計算する（2026-10-21）。
+
+    返すのは (状態の文のリスト, [(札, 文)])。数字はぜんぶ trials.csv から出し、HTML にスクリプトは入れない。
+    """
+    names = {m["id"]: m["name"] for m in bm.MISSIONS}
+    rows, best, did = x["rows"], best_by_mission(x["rows"]), session_missions(x)
+    state, todo = [], []
+
+    delta = ""
+    if prev:
+        d = grand_points(x) - grand_points(prev)
+        delta = f"前回（{session_label(prev)}）より {d:+d} 点。" if d else "前回と同じ点。"
+    state.append(
+        f"<strong>最新の通し（{session_label(x)}）は ミッション {x['points']} / {MISSION_SUBTOTAL_MAX} 点、"
+        f"参考値をふくむと {grand_points(x)} / {bm.GRAND_TOTAL} 点。</strong> "
+        f"{len(rows)} 本を走らせた。{delta}"
+    )
+
+    over = x["sec"] - bm.MATCH_SECONDS
+    share = 100 * x["swap_sec"] / x["sec"] if x["sec"] else 0
+    ends = session_ends(x)
+    in_time = [r for r, end in zip(rows, ends, strict=True) if end <= bm.MATCH_SECONDS]
+    if over > 0:
+        cut = best_points(in_time)
+        last = (
+            f"{len(in_time)} 本目の {run_file(in_time[-1]['script'])} まで" if in_time else "1 本も"
+        )
+        state.append(
+            f"<strong>時間は {x['sec']:.0f} 秒で、試合の {bm.MATCH_SECONDS} 秒を {over:.0f} 秒こえた。</strong> "
+            f"走行 {x['run_sec']:.0f} 秒・交換 {x['swap_sec']:.0f} 秒（交換が {share:.0f}%）。"
+            f"{bm.MATCH_SECONDS} 秒で切ると {last}で、ミッションは {cut} 点（{x['points'] - cut} 点へる）。"
+        )
+    else:
+        state.append(
+            f"<strong>時間は {x['sec']:.0f} 秒で、試合の {bm.MATCH_SECONDS} 秒に収まった（あと {-over:.0f} 秒）。</strong> "
+            f"走行 {x['run_sec']:.0f} 秒・交換 {x['swap_sec']:.0f} 秒（交換が {share:.0f}%）。"
+        )
+
+    aborted = [r["script"] for r in rows if is_aborted(r)]
+    full_tokens = bm.PRECISION_TOKENS[PRECISION_TOKENS_START]
+    if aborted:
+        counts = OrderedDict()
+        for s in aborted:
+            counts[s] = counts.get(s, 0) + 1
+        which = "・".join(run_file(s) + (f" ×{n}" if n > 1 else "") for s, n in counts.items())
+        state.append(
+            f"<strong>中断が {len(aborted)} 回で、精密トークンは残り {x['tokens']} 個（{x['token_points']} / {full_tokens} 点）。</strong> "
+            f"打ち切ったのは {which}。"
+        )
+    else:
+        state.append(f"<strong>中断は 0 回で、精密トークンは {full_tokens} 点のまま。</strong>")
+
+    seen, retry, retry_sec = {}, [], 0.0
+    for i, r in enumerate(rows):
+        seen[r["script"]] = seen.get(r["script"], 0) + 1
+        if seen[r["script"]] > 1:
+            retry_sec += seconds_of(r) + ((swap_of(r) or 0) if i else 0)
+    retry = [(s, n) for s, n in seen.items() if n > 1]
+    if retry:
+        which = "・".join(f"{run_file(s)} ×{n}" for s, n in retry)
+        state.append(
+            f"<strong>同じ run を 2 回以上走らせた: {which}。</strong> "
+            f"2 回目からの走行と その前の交換で {retry_sec:.0f} 秒つかった。"
+        )
+
+    lost = sorted(
+        (
+            (tr.full_points(m) - best.get(m, 0), m)
+            for m in did
+            if m in names and best.get(m, 0) < tr.full_points(m)
+        ),
+        reverse=True,
+    )
+    if lost:
+        which = "・".join(
+            f"{m} {escape(names[m])} {best.get(m, 0)} / {tr.full_points(m)}" for _, m in lost[:3]
+        )
+        state.append(
+            f"<strong>取りこぼしが大きいのは {which} 点。</strong> "
+            f"通しに入れた {len([m for m in did if m in names])} ミッションで、合わせて {sum(n for n, _ in lost)} 点を落とした。"
+        )
+    idle = sorted(
+        (m for m in bm.MISSIONS if not m.get("assume_all") and m["id"] not in did),
+        key=lambda m: tr.full_points(m["id"]),
+        reverse=True,
+    )
+    if idle:
+        which = "・".join(f"{m['id']} {escape(m['name'])}" for m in idle)
+        state.append(
+            f"<strong>通しに入っていないのは {which}。</strong> "
+            f"満点は合わせて {sum(tr.full_points(m['id']) for m in idle)} 点。"
+        )
+
+    if over > 0:
+        swaps = [(swap_of(r) or 0, r["script"]) for r in rows[1:]]
+        runs = [(seconds_of(r), r["script"]) for r in rows]
+        tip = []
+        if swaps:
+            s, name = max(swaps)
+            tip.append(f"交換がいちばん長かったのは {run_file(name)} の前の {s:.0f} 秒")
+        s, name = max(runs)
+        tip.append(f"走行がいちばん長かったのは {run_file(name)} の {s:.0f} 秒")
+        todo.append(("時間", f"あと {over:.0f} 秒けずる。" + "、".join(tip) + "。"))
+    if x["token_points"] < full_tokens:
+        keep = PRECISION_TOKENS_START - min(
+            k for k, v in bm.PRECISION_TOKENS.items() if v == full_tokens
+        )
+        top = max(counts.items(), key=lambda kv: kv[1])
+        todo.append(
+            (
+                "中断",
+                f"中断を {keep} 回以下にすると、精密トークンが +{full_tokens - x['token_points']} 点。"
+                f"いちばん打ち切ったのは {run_file(top[0])}（{top[1]} 回）。単体の run で直してから通しに戻す。",
+            )
+        )
+    if retry:
+        todo.append(
+            (
+                "やり直し",
+                f"試合ではやり直しも時間とトークンを使う。1 回で決まるまで単体でつめると {retry_sec:.0f} 秒あく。",
+            )
+        )
+    for n, m in lost[:2]:
+        todo.append(
+            (
+                "取りこぼし",
+                f"{m} {escape(names[m])} &mdash; 通しで {best.get(m, 0)} / {tr.full_points(m)} 点（{n} 点落とした）。"
+                f"{'・'.join(run_file(s) for s in did[m])} を単体でつめる。",
+            )
+        )
+    for m in idle[:2]:
+        todo.append(
+            (
+                "未投入",
+                f"{m['id']} {escape(m['name'])} &mdash; 満点 {tr.full_points(m['id'])} 点。まだ通しに入っていない。",
+            )
+        )
+    return state, todo
+
+
+def render_selector_trend(sessions):
+    """一覧の上の「推移」: 通しごとの点（参考値をふくむ）と時間の棒グラフ。直近 ROUND_ROWS 回。"""
+    shown = sessions[-ROUND_ROWS:]
+    last = len(shown) - 1
+
+    def note(x):
+        return (
+            f"{session_label(x)} {len(x['rows'])} 本・ミッション {x['points']} 点・"
+            f"参考値をふくむ {grand_points(x)} 点・{x['sec']:.0f} 秒（走行 {x['run_sec']:.0f}・交換 {x['swap_sec']:.0f}）・中断 {x['aborts']} 回"
+        )
+
+    points = bar_chart(
+        [(session_label(x), grand_points(x), note(x)) for x in shown],
+        "通しごとの点",
+        y_max=bm.GRAND_TOTAL,
+        mark=last,
+    )
+    top_sec = max([bm.MATCH_SECONDS] + [x["sec"] for x in shown])
+    secs = bar_chart(
+        [(session_label(x), x["sec"], note(x)) for x in shown],
+        "通しごとの時間",
+        unit=" 秒",
+        y_max=top_sec,
+        limit=bm.MATCH_SECONDS,
+        mark=last,
+    )
+    best = max(shown, key=grand_points)
+    n_over = sum(x["sec"] > bm.MATCH_SECONDS for x in shown)
+    panels = chart_panel(
+        points,
+        f"通しごとの点（参考値をふくむ・満点 {bm.GRAND_TOTAL}。精密トークンは中断の回数から）。"
+        f"最新は {grand_points(shown[-1])} 点で、いちばん高かったのは {session_label(best)} の {grand_points(best)} 点である。",
+    )
+    panels += '<div class="gap"></div>'
+    panels += chart_panel(
+        secs,
+        f"通しごとの時間（走行 ＋ 交換）。点線が試合の {bm.MATCH_SECONDS} 秒で、"
+        f"こえた通しは {len(shown)} 回のうち {n_over} 回である。",
+    )
+    return section("推移", panels)
+
+
 def render_selector_sessions(sessions):
     if not sessions:
         return section("通し", "<p>セレクター経由の記録はまだありません。</p>")
@@ -1290,6 +1546,7 @@ def render_selector_sessions(sessions):
         "はじめた時刻",
         "セレクター",
         "本数",
+        "中断",
         "見こみ点",
         "参考値をふくむ",
         "通し",
@@ -1301,9 +1558,10 @@ def render_selector_sessions(sessions):
         over = x["sec"] > bm.MATCH_SECONDS
         body.append(
             [
-                f"{short_date(x['start'][:10])} {x['start'][11:]}",
+                session_label(x),
                 escape(x["selector"]),
                 len(x["rows"]),
+                x["aborts"],
                 x["points"],
                 f"{grand_points(x)} / {bm.GRAND_TOTAL}",
                 meter(100 * x["sec"] / bm.MATCH_SECONDS, over)
@@ -1313,15 +1571,34 @@ def render_selector_sessions(sessions):
                 f"{x['swap_sec']:.0f} 秒",
             ]
         )
+    state, todo = session_analysis(sessions[-1], sessions[-2] if len(sessions) > 1 else None)
+    analysis = (
+        '<h3 class="sub-head">いまの状態</h3><ul class="highlights">'
+        + "".join(f"<li>{s}</li>" for s in state)
+        + "</ul>"
+    )
+    if todo:
+        analysis += (
+            '<h3 class="sub-head">次にやること</h3><div class="carryover">'
+            + "".join(
+                f'<div class="carry-item"><span class="carry-tag">{tag}</span><div class="carry-body">{text}</div></div>'
+                for tag, text in todo
+            )
+            + "</div>"
+        )
     out = [
+        render_selector_trend(sessions),
         section(
             "一覧",
-            table(heads, body, num_cols=(2, 3, 4, 6, 7)),
+            table(heads, body, num_cols=(2, 3, 4, 5, 7, 8)) + analysis,
             f"セレクターを 1 回起動したあいだを、通し 1 回とする。時間は最初にフォースセンサーを押してから最後の実行完了まで"
             f"（走行 ＋ 交換。試合は {bm.MATCH_SECONDS} 秒）。交換は、前の実行完了から次に押すまで。"
-            f"見こみ点はミッションの点で、参考値をふくむは 点数マップと同じく 取れる前提（M07 の相手チームとのボーナス・"
-            f"M10・装備の点検・精密トークン あわせて {bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL} 点）を足した点。",
-        )
+            f"中断は、走行中に真ん中のボタンで打ち切った回数。見こみ点はミッションの点で、参考値をふくむは 点数マップと同じく "
+            f"取れる前提（M07 の相手チームとのボーナス・M10・装備の点検 あわせて "
+            f"{bm.ASSUMED_TOTAL + bm.EQUIPMENT_INSPECTION} 点）と、精密トークン（中断 1 回でトークンが 1 つ減るとして、"
+            f"残りの数の点。中断なしなら {bm.PRECISION_TOKENS[PRECISION_TOKENS_START]} 点）を足した点。"
+            f"下の状態と次にやることは、最新の通しから出している。",
+        ),
     ]
     for x in reversed(sessions):
         log = (
@@ -1329,9 +1606,9 @@ def render_selector_sessions(sessions):
             if "/" in x["log"]
             else ""
         )
-        title = f"{short_date(x['start'][:10])} {x['start'][11:]} · {escape(x['selector'])}"
+        title = f"{session_label(x)} · {escape(x['selector'])}"
         lead = (
-            f"{escape(x['hub'])} · {len(x['rows'])} 本 · 見こみ {x['points']} 点"
+            f"{escape(x['hub'])} · {len(x['rows'])} 本 · 中断 {x['aborts']} 回 · 見こみ {x['points']} 点"
             f"（参考値をふくむと {grand_points(x)} / {bm.GRAND_TOTAL} 点） · {log}"
         )
         out.append(section(title, session_table(x), lead))
