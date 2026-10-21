@@ -17,7 +17,7 @@
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-01: M03用の走行ファイルを新規作成し左リフトの動作を追加した
 - 2026-10-14: M04用の走行ファイルを新規作成し移動と左リフト動作を実装した。
-- 2026-10-21: 既存の移動処理をコメントアウトし右アーム動作と前進の同時処理を追加
+- 2026-10-21: 前進を無効化して右アームの単独動作に変更し回転角度を調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -39,11 +39,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # await robot.turn(15)  # 右 15°
     # await robot.curve(53, 20)  # カーブ 半径 53mm・右 20°（前進 18mm）
     # await robot.turn(4)  # 向きを合わせる 右 4°
-    # 右アームを上げながら前進 21mm（両方終わるまで待つ。アームは 1.5 秒で打ち切り）
-    await multitask(
-        robot.straight(21),
-        robot.run_motor(right_lift, 300, 400, timeout=1500),
-    )
+    # await robot.straight(21)  # 前進 21mm
+    await robot.run_motor(right_lift, 300, 500, timeout=1500)  # 右アーム 400°（1.5 秒で打ち切り）
 
     """
     ロボットの動作を記述する関数

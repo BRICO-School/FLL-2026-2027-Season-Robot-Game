@@ -20,6 +20,7 @@
 - 2026-10-15: M01とM13の攻略に向けた走行とリフト動作を実装した
 - 2026-10-16: 旋回角度を微調整し最後に右旋回と前進動作を追加した
 - 2026-10-20: 最終旋回角度を38度から30度に調整し不要な履歴コメントを削除した
+- 2026-10-21: M01とM13の直進距離や旋回角度を微調整し待機時間を追加
 """
 
 from pybricks.hubs import PrimeHub
@@ -73,24 +74,31 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
 
     # M01
-    await robot.straight(655, speed=380)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
+    await robot.straight(350, speed=420)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
     await wait(500)
-    await robot.straight(-30)
-    await robot.run_motor(right_wheel, 480, 480)  # 右車輪を 200deg/s で 140° 回す
+    await robot.straight(335, speed=360)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
     await wait(500)
-    await robot.curve(-57, -19)  # カーブ 半径 57mm・右 19°（後退 19mm）
-    await robot.run_motor(right_wheel, 480, 150)  # 右車輪を 200deg/s で 140° 回す
+    await robot.straight(-40)
+    await robot.run_motor(right_wheel, 500, 550)  # 右車輪を 200deg/s で 140° 回す
+    await wait(500)
+    await robot.run_motor(right_wheel, 480, -100)  # 右車輪を 200deg/s で 140° 回す
+
+    # await robot.curve(-57, -19)  # カーブ 半径 57mm・右 19°（後退 19mm）
+    await robot.run_motor(right_wheel, 480, 300)  # 右車輪を 200deg/s で 140° 回す
+    # await robot.curve(200, -40)
+    await wait(500)
 
     # M13
-    await robot.curve(62, 24)  # カーブ 半径 62mm・右 24°（前進 26mm）
-    await robot.curve(-67, -51)  # カーブ 半径 67mm・右 41°（後退 48mm）
+    await robot.curve(62, 30)  # カーブ 半径 62mm・右 24°（前進 26mm）
+    await wait(500)
+    await robot.curve(-67, -48)  # カーブ 半径 67mm・右 41°（後退 48mm）
     await robot.curve(-266, -15)  # カーブ 半径 266mm・右 29°（後退 135mm）
     await robot.turn(-113)  # 左 92°
 
     await robot.straight(255)  # 前進 255mm
     await robot.curve(35, 27)  # カーブ 半径 35mm・右 27°（前進 17mm）
-    await robot.turn(50)  # 右 64°
-    await robot.straight(145 + 328)  # 前進 124mm
+    await robot.turn(45)  # 右 64°
+    await robot.straight(370)  # 前進 124mm
 
     # await left_lift.run_angle(600, -1800)  # 左アームを300deg/sで180度回転
 
@@ -101,8 +109,8 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     # await left_lift.run_angle(400, 500)  # 左アームを300deg/sで180度回転
 
-    await robot.turn(30)
-    await robot.straight(600)
+    await robot.turn(28)
+    await robot.straight(700)
 
     # ロボットを停止
     robot.stop()
