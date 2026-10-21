@@ -1183,6 +1183,15 @@ def selector_sessions(csv_path, coach=None):
     return sessions
 
 
+# 点数マップの「ミッションの小計」の満点（ミッションごと取れる前提の M10 は入れない。420）
+MISSION_SUBTOTAL_MAX = sum(tr.full_points(m["id"]) for m in bm.MISSIONS if not m.get("assume_all"))
+
+
+def grand_points(x):
+    """通しのミッションの点 ＋ 取れる前提（参考値）。"""
+    return x["points"] + bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL
+
+
 def sec_text(sec):
     return f"{sec:.1f} 秒" if sec else "—"
 
@@ -1200,13 +1209,17 @@ def session_mission(mid, res, parts):
 
 
 def session_table(x):
-    """1 回の通し: run ファイルの行にミッションを 1 行ずつ並べ、run のあいだに交換時間の行をはさむ。"""
-    heads = ["run ファイル", "ミッション", "結果", "点", "時間"]
+    """1 回の通し: run ファイルの行にミッションを 1 行ずつ並べ、run のあいだに交換時間の行をはさむ。
+
+    ミッションの小計のあとに、点数マップと同じ「取れる前提」の行（M07 のボーナス・M10・装備の点検・精密トークン）と
+    合計の行を足す（2026-10-21）。満点は記録できる満点（tr.full_points。M07 のボーナスは「取れる前提」の行）。
+    """
+    heads = ["run ファイル", "ミッション", "満点", "結果", "点", "時間"]
     body, classes = [], []
     for i, r in enumerate(x["rows"]):
         if i:
             swap = swap_of(r)
-            body.append(["<strong>交換時間</strong>", "", "", "", sec_text(swap or 0)])
+            body.append(["<strong>交換時間</strong>", "", "", "", "", sec_text(swap or 0)])
             classes.append("ref")
         aborted = r["via"].endswith("中断")
         name = (
@@ -1221,6 +1234,7 @@ def session_table(x):
                 [
                     name if k == 0 else "",
                     session_mission(m, res, parts) if m else "—",
+                    tr.full_points(m) if m else "",
                     dot(RESULT_DOT.get(res, "none"), RESULT_LABEL.get(res, res)),
                     tr.points_in(r, m, res) if m and res != "unreached" else "",
                     took if k == 0 else "",
@@ -1228,23 +1242,60 @@ def session_table(x):
             )
             classes.append("")
     over = x["sec"] > bm.MATCH_SECONDS
+    time_cell = f"{x['sec']:.1f} 秒" + (' <span class="over-mark">オーバー</span>' if over else "")
     body.append(
         [
-            "<strong>通し</strong>",
+            "<strong>ミッションの小計</strong>",
             f"走行 {x['run_sec']:.1f} 秒・交換 {x['swap_sec']:.1f} 秒",
+            MISSION_SUBTOTAL_MAX,
             "",
             x["points"],
-            f"{x['sec']:.1f} 秒" + (' <span class="over-mark">オーバー</span>' if over else ""),
+            time_cell,
         ]
     )
     classes.append("total")
-    return table(heads, body, num_cols=(3, 4), row_classes=classes)
+    refs = [
+        (f"{mid} {escape(name)}", points, cond) for mid, name, points, cond in bm.ASSUMED_POINTS
+    ] + [(escape(name), points, cond) for name, points, cond in bm.EXTRA_POINTS]
+    for label, points, cond in refs:
+        body.append(
+            [
+                "",
+                f'{label}（参考）<span class="mission-en">{escape(cond)}</span>',
+                points,
+                "取れる前提",
+                points,
+                "",
+            ]
+        )
+        classes.append("ref")
+    body.append(
+        [
+            "<strong>合計（参考値をふくむ）</strong>",
+            "",
+            bm.GRAND_TOTAL,
+            "",
+            grand_points(x),
+            time_cell,
+        ]
+    )
+    classes.append("total")
+    return table(heads, body, num_cols=(2, 4, 5), row_classes=classes)
 
 
 def render_selector_sessions(sessions):
     if not sessions:
         return section("通し", "<p>セレクター経由の記録はまだありません。</p>")
-    heads = ["はじめた時刻", "セレクター", "本数", "見こみ点", "通し", "走行", "交換"]
+    heads = [
+        "はじめた時刻",
+        "セレクター",
+        "本数",
+        "見こみ点",
+        "参考値をふくむ",
+        "通し",
+        "走行",
+        "交換",
+    ]
     body = []
     for x in reversed(sessions):
         over = x["sec"] > bm.MATCH_SECONDS
@@ -1254,6 +1305,7 @@ def render_selector_sessions(sessions):
                 escape(x["selector"]),
                 len(x["rows"]),
                 x["points"],
+                f"{grand_points(x)} / {bm.GRAND_TOTAL}",
                 meter(100 * x["sec"] / bm.MATCH_SECONDS, over)
                 + f"{x['sec']:.0f} 秒"
                 + ("・オーバー" if over else ""),
@@ -1264,9 +1316,11 @@ def render_selector_sessions(sessions):
     out = [
         section(
             "一覧",
-            table(heads, body, num_cols=(2, 3, 5, 6)),
+            table(heads, body, num_cols=(2, 3, 4, 6, 7)),
             f"セレクターを 1 回起動したあいだを、通し 1 回とする。時間は最初にフォースセンサーを押してから最後の実行完了まで"
-            f"（走行 ＋ 交換。試合は {bm.MATCH_SECONDS} 秒）。交換は、前の実行完了から次に押すまで。",
+            f"（走行 ＋ 交換。試合は {bm.MATCH_SECONDS} 秒）。交換は、前の実行完了から次に押すまで。"
+            f"見こみ点はミッションの点で、参考値をふくむは 点数マップと同じく 取れる前提（M07 の相手チームとのボーナス・"
+            f"M10・装備の点検・精密トークン あわせて {bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL} 点）を足した点。",
         )
     ]
     for x in reversed(sessions):
@@ -1276,7 +1330,10 @@ def render_selector_sessions(sessions):
             else ""
         )
         title = f"{short_date(x['start'][:10])} {x['start'][11:]} · {escape(x['selector'])}"
-        lead = f"{escape(x['hub'])} · {len(x['rows'])} 本 · 見こみ {x['points']} 点 · {log}"
+        lead = (
+            f"{escape(x['hub'])} · {len(x['rows'])} 本 · 見こみ {x['points']} 点"
+            f"（参考値をふくむと {grand_points(x)} / {bm.GRAND_TOTAL} 点） · {log}"
+        )
         out.append(section(title, session_table(x), lead))
     return "".join(out)
 
