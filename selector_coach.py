@@ -1,6 +1,6 @@
 """
 【コーチ用プログラムセレクター】（selector.py の写し。登録しているのはコーチの run_coach_*.py だけ）
-生徒用は selector.py。選び方・走らせ方・dev フラグは selector.py と同じ。
+生徒用は selector.py。選び方・走らせ方・打ち切り・ライト・dev フラグは selector.py と同じ（2026-10-23 にそろえた）。
 「📝 Robot N + Log」で走らせると、記録は名前に coach が入る run ファイルとして
 コーチ確認用のダッシュボード（docs/trials/dashboard_coach.html）の「② 通し」に入る。
 

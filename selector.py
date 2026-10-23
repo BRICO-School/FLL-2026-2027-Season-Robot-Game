@@ -5,6 +5,19 @@
 ハブの左右ボタンでプログラムの番号を選び、フォースセンサー（ポート D）を押すと走り出す。
 走り終わるとセレクターに戻るので、ホームで次の番号を選んでまた押す。
 
+【走っている途中で打ち切る】（2026-10-20 に selector_coach.py に入れ、2026-10-23 にこちらにも写した）
+走っているあいだにハブの真ん中のボタンを押すと、そのプログラムだけを打ち切って、モーターを止めてセレクターに戻る
+（プログラム全体は止まらないので、つなぎ直し・ジャイロの待ちは要らない。ログも続けて取れる）。
+番号を選んでいるとき（走っていないとき）の真ん中のボタンは、これまでどおりプログラム全体を止める。
+走り終わったあと、フォースセンサーから手が離れるまでは次を走らせない（押しっぱなしでもう 1 回走り出さないように）。
+
+【ハブのライト】（selector_coach.py と同じ）セレクターが動いているあいだは消さない。
+- オレンジ: 起動してから走れるようになるまで（初期化・ジャイロの待ち。setup.py の initialize_robot()）
+- 緑: 番号を選んで押せる（走り終わったあと・打ち切ったあとも緑）。真ん中のボタンは押さない（全体が止まる）
+- 緑の点滅: 走っている途中でエラーが出て止まった。番号を選べば点滅は止まる。押せるのは緑と同じ
+- 赤: 走っている。止めたいときは真ん中のボタンで、そのプログラムだけ打ち切る
+（Pybricks がプログラムを受け取るまでと、プログラムが終わったあとのライトは Pybricks が決める）
+
 【競技の流れと初期化】
 initialize_robot() を呼ぶのは、このファイルを始めたときの 1 回だけ（ジャイロの待ち 2 秒もこの 1 回だけ。
 試合が始まる前に終わっている）。ミッションごとに行うのは reset_robot()（距離と向きを 0 に戻す）だけで、待ち時間は無い。
@@ -62,6 +75,15 @@ button = ForceSensor(Port.D)
 print("=== プログラムセレクター ===")
 print("LEFT/RIGHT: プログラム選択")
 print("フォースセンサー: プログラム実行")
+print("走っている途中に真ん中のボタン: そのプログラムだけ打ち切る")
+
+
+# ===== 打ち切りの合図を待つタスク =====
+async def abort_watch():
+    """走っているあいだ、真ん中のボタンが押されるのを待つ。押されたら True を返す（走行を打ち切る合図）。"""
+    while Button.CENTER not in hub.buttons.pressed():
+        await wait(20)
+    return True
 
 
 # ===== ロボットをリセットする関数（非同期版） =====
@@ -156,6 +178,7 @@ async def selector_task():
     - センサーログと並行して動く
     """
     program_id = 0  # 現在選択されているプログラムの番号
+    hub.light.on(Color.GREEN)  # 緑＝初期化が終わり、番号を選んで押せる
     max_programs = len(programs) - 1  # プログラムの総数-1
 
     # ----- メインループ（永遠に繰り返す） -----
@@ -173,32 +196,33 @@ async def selector_task():
 
         # 【右ボタンが押された場合】次のプログラムに進む
         if Button.RIGHT in pressed_buttons:
-            hub.light.on(Color.GREEN)  # ハブのライトを緑色に点灯
+            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
             # ボタンを離すまで待つ（押しっぱなしでも1つしか進まない）
             while Button.RIGHT in hub.buttons.pressed():
                 await wait(10)
             # プログラム番号を1つ増やす（最後まで行ったら0に戻る）
             program_id = (program_id + 1) % (max_programs + 1)
-            hub.light.off()  # ライトを消す
             print(f"→ プログラム {program_id} に変更")
 
         # 【左ボタンが押された場合】前のプログラムに戻る
         elif Button.LEFT in pressed_buttons:
-            hub.light.on(Color.BLUE)  # ハブのライトを青色に点灯
+            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
             # ボタンを離すまで待つ（押しっぱなしでも1つしか戻らない）
             while Button.LEFT in hub.buttons.pressed():
                 await wait(10)
             # プログラム番号を1つ減らす（0より前に行ったら最後に戻る）
             program_id = (program_id - 1) if program_id > 0 else max_programs
-            hub.light.off()  # ライトを消す
             print(f"← プログラム {program_id} に変更")
 
         # ----- フォースセンサーでプログラム実行 -----
         # フォースセンサーが0.5以上の力で押されたら、プログラムを実行
         if await button.force() >= 0.5:
-            hub.light.on(Color.RED)  # ハブのライトを赤色に点灯（実行中を示す）
+            hub.light.on(Color.RED)  # 赤＝走っている（止めたいときは真ん中のボタン）
             print(f"=== プログラム {program_id} を実行中 ===")
+            error = False
 
+            # 走っているあいだは、真ん中のボタンでプログラム全体を止めない（打ち切りに使う）
+            hub.system.set_stop_button(None)
             try:
                 # ----- 実行前の準備 -----
                 await reset_robot()  # ロボットをリセット（awaitで待つ）
@@ -210,7 +234,7 @@ async def selector_task():
 
                 # パラメータ（引数）がある場合は渡して実行、ない場合はロボット情報だけ渡す
                 if "params" in current_program:
-                    await function(
+                    mission = function(
                         *current_program["params"],
                         hub,
                         robot,
@@ -220,16 +244,28 @@ async def selector_task():
                         right_lift,
                     )
                 else:
-                    await function(hub, robot, left_wheel, right_wheel, left_lift, right_lift)
+                    mission = function(hub, robot, left_wheel, right_wheel, left_lift, right_lift)
 
-                print(f"=== プログラム {program_id} 実行完了 ===")
+                # 走行と打ち切りの合図を同時に動かし、先に終わった方で止める（race=True）
+                results = await multitask(mission, abort_watch(), race=True)
+
+                if results[1]:
+                    # 真ん中のボタンで打ち切った: モーターを全部止める
+                    robot.stop()
+                    left_lift.stop()
+                    right_lift.stop()
+                    print(f"=== プログラム {program_id} を中断 ===")
+                    hub.light.on(Color.GREEN)  # 緑＝打ち切った。番号を選んで押せる
+                    # ボタンから指が離れるまで待つ（離す前に戻すと、全体が止まってしまう）
+                    while Button.CENTER in hub.buttons.pressed():
+                        await wait(20)
+                else:
+                    print(f"=== プログラム {program_id} 実行完了 ===")
 
             except Exception as e:
                 # ----- エラーが発生した場合の処理 -----
                 print(f"エラー: {e}")  # エラーメッセージを表示
-                hub.light.on(Color.RED)  # 赤いライトを点灯してエラーを知らせる
-                await wait(500)  # 0.5秒待つ
-                hub.light.off()  # ライトを消す
+                error = True
             finally:
                 # ----- 実行後の後処理（必ず実行される） -----
                 try:
@@ -237,8 +273,20 @@ async def selector_task():
                     await wait(50)  # リセット後に少し待機（0.05秒）
                 except Exception as e:
                     print(f"リセットエラー: {e}")
+                # 真ん中のボタンを、プログラム全体を止めるボタンに戻す
+                hub.system.set_stop_button(Button.CENTER)
 
-            hub.light.off()  # ライトを消す
+            # 走り終わった（打ち切った）: 緑＝番号を選んで押せる。エラーで止まったときは緑の点滅
+            # （赤のままだと、打ち切るつもりで真ん中のボタンを押して全体を止めてしまう）
+            if error:
+                hub.light.blink(Color.GREEN, [200, 200])
+            else:
+                hub.light.on(Color.GREEN)
+
+            # フォースセンサーから手が離れるまで待つ（押しっぱなしで、もう 1 回走り出さないように）
+            while await button.force() >= 0.5:
+                await wait(20)
+
             print("セレクターに戻りました")
 
         # ----- ボタン連打防止のための待機 -----
