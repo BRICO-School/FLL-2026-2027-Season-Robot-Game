@@ -195,11 +195,12 @@ EXTRA_CSS = """
 
 
 # ===== 読みこみ =====
-def load_rows(csv_path, include_error=False, coach=False, include_old=False):
+def load_rows(csv_path, include_error=False, coach=False, include_old=False, include_board=False):
     """trials.csv を読んで、数える行だけを時刻の順に返す。
 
     coach=False ならコーチの記録（is_coach）を除いたチームの行、True ならコーチの行だけ。
     include_old=False なら、数える前（tr.COUNT_FROM より前）の行は入れない。
+    include_board=False なら、通しのあとに盤面で確かめた行（is_board。走行ではない）は入れない。
     """
     if not os.path.exists(csv_path):
         return []
@@ -213,6 +214,8 @@ def load_rows(csv_path, include_error=False, coach=False, include_old=False):
                 continue
             row = {k: (v or "") for k, v in r.items() if k}
             if is_coach(row) != coach or not (include_old or tr.is_counted(row)):
+                continue
+            if is_board(row) and not include_board:
                 continue
             rows.append(row)
     rows.sort(key=stamp)
@@ -240,6 +243,11 @@ def attempts(rows):
 
 def is_selector(row):
     return row.get("via", "").startswith("selector")
+
+
+def is_board(row):
+    """セレクターの通しのあとに盤面で確かめた行（M10。via が「selector_coach 盤面」。2026-10-23）。"""
+    return is_selector(row) and row.get("via", "").endswith(" 盤面")
 
 
 def swap_of(row):
@@ -1175,7 +1183,9 @@ def selector_sessions(csv_path, coach=None):
     rows = [
         r
         for coach in (False, True)
-        for r in load_rows(csv_path, include_error=True, coach=coach, include_old=True)
+        for r in load_rows(
+            csv_path, include_error=True, coach=coach, include_old=True, include_board=True
+        )
         if is_selector(r)
     ]
     rows.sort(key=stamp)
@@ -1184,6 +1194,10 @@ def selector_sessions(csv_path, coach=None):
         by_log.setdefault(r.get("log_path") or r["date"], []).append(r)
     sessions = []
     for log, runs in by_log.items():
+        boards = [r for r in runs if is_board(r)]
+        runs = [r for r in runs if not is_board(r)]
+        if not runs:
+            continue
         run_sec = sum(seconds_of(r) for r in runs)
         swaps = [swap_of(r) for r in runs[1:]]
         if all(v is not None for v in swaps):
@@ -1210,6 +1224,10 @@ def selector_sessions(csv_path, coach=None):
                 "aborts": aborts,
                 "tokens": tokens,
                 "token_points": bm.PRECISION_TOKENS[tokens],
+                # 盤面で確かめたミッション {ミッション: (行, 結果)}（M10。無ければ「取れる前提」のまま）
+                "board": {
+                    m: (r, res) for r in boards for m, res in tr.results_of(r) if res != "unreached"
+                },
             }
         )
     if coach is not None:
@@ -1229,9 +1247,24 @@ def is_aborted(row):
     return (row.get("via") or "").endswith("中断")
 
 
+def board_points(x, mid):
+    """盤面で確かめたミッション（M10）の点。確かめていなければ None（取れる前提のまま）。"""
+    if mid not in x["board"]:
+        return None
+    r, res = x["board"][mid]
+    return tr.points_in(r, mid, res)
+
+
 def grand_points(x):
-    """通しのミッションの点 ＋ 取れる前提（参考値）。精密トークンだけは中断の回数から出した点（2026-10-21）。"""
+    """通しのミッションの点 ＋ 取れる前提（参考値）。精密トークンだけは中断の回数から出した点（2026-10-21）。
+
+    盤面で確かめた M10 は、取れる前提の点のかわりに確かめた点を入れる（2026-10-23）。
+    """
     assumed = bm.ASSUMED_TOTAL + bm.EXTRA_TOTAL - bm.PRECISION_TOKENS[PRECISION_TOKENS_START]
+    for mid, _, points, _ in bm.ASSUMED_POINTS:
+        got = board_points(x, mid)
+        if got is not None:
+            assumed += got - points
     return x["points"] + assumed + x["token_points"]
 
 
@@ -1297,10 +1330,26 @@ def session_table(x):
         ]
     )
     classes.append("total")
-    refs = [
-        (f"{mid} {escape(name)}（参考）", points, escape(cond), "取れる前提", points)
-        for mid, name, points, cond in bm.ASSUMED_POINTS
-    ]
+    refs = []
+    for mid, name, points, cond in bm.ASSUMED_POINTS:
+        got = board_points(x, mid)
+        if got is None:
+            refs.append(
+                (f"{mid} {escape(name)}（参考）", points, escape(cond), "取れる前提", points)
+            )
+        else:  # 通しのあとに盤面で確かめた（M10）
+            r, res = x["board"][mid]
+            detail = tr.describe([(mid, res)], tr.parse_parts(r.get("part_results")))
+            detail = detail[detail.find("（") + 1 : -1] if "（" in detail else ""
+            refs.append(
+                (
+                    f"{mid} {escape(name)}",
+                    points,
+                    escape(detail),
+                    dot(RESULT_DOT.get(res, "none"), "盤面で " + RESULT_LABEL.get(res, res)),
+                    got,
+                )
+            )
     for name, points, cond in bm.EXTRA_POINTS:
         if name == "精密トークン":  # 中断 1 回でトークンが 1 つ減る（2026-10-21 オーナー）
             refs.append(
@@ -1550,6 +1599,8 @@ def render_selector_missions(sessions):
         for r in x["rows"]:
             for m, res in tr.results_of(r):
                 cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
+        for m, (r, res) in x["board"].items():  # 盤面で確かめた M10
+            cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
     heads = ["ミッション", "満点"] + [session_label(x) for x in shown] + ["成功"]
     body = []
     for mid, per in cells.items():
@@ -1570,6 +1621,7 @@ def render_selector_missions(sessions):
         f"直近 {len(shown)} 回の通しで、ミッションごとの結果を並べた（左が古く、右が最新）。"
         "緑が成功、オレンジが途中まで、赤が失敗、灰色が届かなかった・動かなかった回。"
         "1 回の通しで同じミッションを 2 回以上やったときは、そのぶん並ぶ。"
+        "M10 は通しのあとに盤面で確かめた結果（確かめなかった回は空）。"
         "成功は、届かなかった回を除いた回数のうちの成功の数。",
     )
 

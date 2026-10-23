@@ -27,6 +27,9 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
   チームとコーチのどちらのダッシュボードに入るかは、走った run ファイルの名前（coach が入るか）で決まる。
   同じミッションは 1 回だけ聞く（2026-10-23）。打ち切ったやり直し・2 本の run に同じミッションが入っているときは、
   そのミッションが入った最後の回で聞き、前の回の行には「届かなかった」と書く（行は残す。中断の数に使う）。
+  M10（こわれやすいすみか）は run ファイルに入らないので、最後に盤面を見て 1 回だけ聞く（2026-10-23）。
+  via が「selector_coach 盤面」の行を 1 行足す（走行の行ではないので、時間・中断・本数には入れない）。
+  「-」は確かめなかった（行を書かない）。
 
 【付けかえの時間】（2026-10-20）
   本番の 150 秒にはホームでのアタッチメントの付けかえも入る。セレクターでは、前のプログラムの「実行完了」から
@@ -84,6 +87,7 @@ pybricksdev の実行ログを docs/logs/ に自動保存するラッパー。
 - 2026-10-20: コーチ用セレクターでもプログラムごとの成否記録に対応した
 - 2026-10-20: セレクターでの付けかえ時間の記録とプログラム中断の検知に対応した
 - 2026-10-23: 通し練習で同じミッションが複数回走った時は最後の回だけ成否を聞くように変更した
+- 2026-10-23: セレクター実行後に盤面確認ミッションM10の結果を尋ねて記録する機能を追加
 """
 
 import csv
@@ -134,6 +138,9 @@ SELECTOR_ERROR = re.compile(r"^エラー: ")
 SELECTOR_ABORT = re.compile(
     r"=== プログラム (\d+) を中断 ==="
 )  # 真ん中のボタンで打ち切った（selector_coach.py）
+
+BOARD_MISSIONS = ["M10"]  # 通しの最後に盤面で確かめるミッション（run ファイルに入らない）
+BOARD_VIA = "盤面"  # その行の via の後ろ（「selector_coach 盤面」）
 
 # 本番でもかかる時間を測る目じるし（ハブがもう出している行。ハブ側は変更しない）
 INIT_DONE = "=== ロボット初期化完了 ==="  # setup.py の initialize_robot() の最後
@@ -363,6 +370,7 @@ def write_trial(
     run_sec=None,
     part_results="",
     swap_sec=None,
+    mission=None,
 ):
     """1 試行分を CSV に追記し、コードのコピーを残す。run_sec は本番でもかかる時間（測れなければ None）。
 
@@ -370,7 +378,7 @@ def write_trial(
     """
     script_base = os.path.basename(run_file)
     script_name = os.path.splitext(script_base)[0]
-    mission = guess_mission(script_name)
+    mission = mission or guess_mission(script_name)
     code_hash, snap_rel = save_snapshot(root, snapshot_files(root, run_file))
     date = start_time.strftime("%Y-%m-%d")
     row = {
@@ -476,6 +484,7 @@ def record_selector_trials(root, selector_file, hub_args, watcher, exit_code, lo
     同じミッションは 1 回だけ聞く（オーナー 2026-10-23）。打ち切ったやり直しや、2 本の run に同じミッションが
     入っているときは、そのミッションが入った最後の回で聞き、前の回には「届かなかった」と書く（行は残す。中断の数に使う）。
     聞くミッションが残らなかった回は聞かずに、全部「届かなかった」で書く。
+    最後に M10 を盤面で聞き、確かめた（全部「-」ではない）なら「<セレクター> 盤面」の行を足す（2026-10-23）。
     """
     modules = selector_programs(root, selector_file)
     selector_name = os.path.splitext(os.path.basename(selector_file))[0]
@@ -522,7 +531,12 @@ def record_selector_trials(root, selector_file, hub_args, watcher, exit_code, lo
             warning += f"  ※ {'・'.join(later)} は あとの回で聞く"
         item = new_item(module, title, default, warning, only=mine)
         plans.append((run, run_file, shown, item, all_missions))
-    if not tr.ask_trials([p[3] for p in plans if p[3] is not None]):
+    board = tr.new_item(
+        f"通しのあと: 盤面で確かめる（{' → '.join(BOARD_MISSIONS)}）  ※ 確かめなかったら -",
+        BOARD_MISSIONS,
+        "o",
+    )
+    if not tr.ask_trials([p[3] for p in plans if p[3] is not None] + [board]):
         print("📊 記録しませんでした")
         return
     wrote = 0
@@ -567,6 +581,27 @@ def record_selector_trials(root, selector_file, hub_args, watcher, exit_code, lo
             else None,  # セレクターは実行中 → 実行完了がそのまま本番の時間
             part_results=part_results,
             swap_sec=swap,
+        )
+        wrote += 1
+    result, mission_results = tr.item_results(board)
+    if result not in (None, "error") and any(
+        res != "unreached" for res in tr.parse_results(mission_results).values()
+    ):
+        last = watcher.runs[-1]
+        write_trial(
+            root,
+            os.path.join(root, os.path.basename(selector_file)),
+            hub_args,
+            last["end"] or last["stopped"] or datetime.now(),  # 最後の実行完了のとき
+            0.0,
+            exit_code,
+            log_path,
+            result,
+            mission_results,
+            board["note"],
+            via=f"{selector_name} {BOARD_VIA}",
+            part_results=tr.item_parts(board),
+            mission="+".join(BOARD_MISSIONS),
         )
         wrote += 1
     if wrote:
