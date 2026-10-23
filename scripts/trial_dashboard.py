@@ -1539,6 +1539,41 @@ def render_selector_trend(sessions):
     return section("推移", panels)
 
 
+def render_selector_missions(sessions):
+    """「ミッションごとの成否」: ミッションを行、通し（直近 ROUND_ROWS 回・左が古い）を列にした一覧（2026-10-23）。
+
+    1 回の通しで同じミッションを 2 回以上やったら、そのぶん色の点を並べる。成功は、届かなかった回を除いた回数のうちの成功。
+    """
+    shown = sessions[-ROUND_ROWS:]
+    cells = OrderedDict((m["id"], [[] for _ in shown]) for m in bm.MISSIONS)
+    for i, x in enumerate(shown):
+        for r in x["rows"]:
+            for m, res in tr.results_of(r):
+                cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
+    heads = ["ミッション", "満点"] + [session_label(x) for x in shown] + ["成功"]
+    body = []
+    for mid, per in cells.items():
+        if not any(per):
+            continue
+        tried = [res for runs in per for _, res in runs if res != "unreached"]
+        ok = sum(res == "success" for res in tried)
+        body.append(
+            [session_mission(mid, "unreached", {}), tr.full_points(mid)]
+            + [strip(runs) if runs else "" for runs in per]
+            + [f"{ok} / {len(tried)}" if tried else "—"]
+        )
+    if not body:
+        return ""
+    return section(
+        "ミッションごとの成否",
+        table(heads, body, num_cols=(1, len(heads) - 1)),
+        f"直近 {len(shown)} 回の通しで、ミッションごとの結果を並べた（左が古く、右が最新）。"
+        "緑が成功、オレンジが途中まで、赤が失敗、灰色が届かなかった・動かなかった回。"
+        "1 回の通しで同じミッションを 2 回以上やったときは、そのぶん並ぶ。"
+        "成功は、届かなかった回を除いた回数のうちの成功の数。",
+    )
+
+
 def render_selector_sessions(sessions):
     if not sessions:
         return section("通し", "<p>セレクター経由の記録はまだありません。</p>")
@@ -1599,6 +1634,7 @@ def render_selector_sessions(sessions):
             f"残りの数の点。中断なしなら {bm.PRECISION_TOKENS[PRECISION_TOKENS_START]} 点）を足した点。"
             f"下の状態と次にやることは、最新の通しから出している。",
         ),
+        render_selector_missions(sessions),
     ]
     for x in reversed(sessions):
         log = (
