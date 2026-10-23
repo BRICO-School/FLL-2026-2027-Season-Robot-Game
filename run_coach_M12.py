@@ -17,6 +17,7 @@
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
 - 2026-10-01: ミッションM02用の走行プログラムを新規作成した
 - 2026-10-05: ミッションM12用の走行プログラムを新規作成した
+- 2026-10-23: 右リフトと前後移動の量を微調整し旋回動作を追加
 """
 
 from pybricks.hubs import PrimeHub
@@ -67,14 +68,14 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
     # ここにロボットの動作を記述してください
     #######################################
-    await right_lift.run_angle(1000, -360 * 2.3)
+    await right_lift.run_angle(1000, -840)
 
-    await robot.straight(130)
-    await right_lift.run_angle(300, 180)
-    await robot.straight(-180, 200)
+    await robot.straight(120)
+    await right_lift.run_angle(150, 210)
+    await robot.straight(-150, 100)
+    await robot.turn(10, 90)
     await right_lift.run_angle(300, -350)
-    await robot.straight(100, 200)
-    await robot.straight(-160)
+    await robot.straight(-20)
 
     await right_lift.run_angle(1000, 360 * 2.3)
 
