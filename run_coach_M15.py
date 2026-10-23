@@ -18,6 +18,7 @@
 - 2026-10-13: M15用の走行プログラムを新規作成した
 - 2026-10-14: 右アームの角度と旋回角度を調整し最後のカーブ後退を直進後退に変更した。
 - 2026-10-17: 前進距離を368mmから372mmに変更し引数100を追加した
+- 2026-10-23: M11とM15の走行経路を微調整し左アームでのM15攻略動作を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -70,22 +71,43 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
 
     # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261013_214520.log）
+
+    # M11の種子を採る
     await robot.straight(284)  # 前進 284mm
-    await robot.curve(54, 42)  # カーブ 半径 54mm・右 42°（前進 39mm）
+    await robot.curve(54, 40)  # カーブ 半径 54mm・右 42°（前進 39mm）
+    await robot.turn(4)  # 向きを合わせる 右 3°
+    await robot.straight(372, 200)  # 前進 368mm
+    await right_lift.run_angle(500, 420)  # 右アーム 5°
+    await wait(500)
+
+    # M15
+    await robot.straight(95, 100)
     await robot.turn(3)  # 向きを合わせる 右 3°
-    await robot.straight(372, 100)  # 前進 368mm
-    await right_lift.run_angle(500, 360)  # 右アーム 5°
-    await robot.straight(180)  # 前進 99mm
-    await robot.turn(-47)  # 左 47°
-    await robot.straight(95)  # 前進 95mm
-    await right_lift.run_angle(500, -270)  # 右アーム 5°
-    await robot.curve(-150, -30)  # 後退 86mm
+    await left_lift.run_angle(500, -150)
+    await wait(200)
+    await robot.straight(30)
+    await wait(200)
+    await robot.straight(-30)
+    await left_lift.run_angle(1000, 800)
+
+    await robot.straight(90)  # 前進 99mm
+    await robot.turn(-45)  # 左 47°
+    await robot.straight(90, 100)  # 前進 95mm
+    await right_lift.run_angle(500, -360)  # 右アーム 5°
+
+    await robot.curve(-300, -15, speed=150)  # 後退 86mm
+    await wait(300)
+    await robot.straight(40)
+    await wait(300)
+    await robot.straight(-40)
+    await wait(300)
+    await robot.straight(30)
+    await wait(300)
     await right_lift.run_angle(500, 270)  # 右アーム 5°
     await robot.turn(45)  # 右 93°
     await robot.turn(-3)  # 向きを合わせる 左 3°
     await robot.straight(-100)  # 後退 156mm
     await robot.turn(-45)  # 左 63°
-    # await robot.curve(42, -37)  # カーブ 半径 42mm・左 37°（後退 27mm）
     await robot.straight(-800)  # カーブ 半径 642mm・右 58°（後退 650mm）
 
     # ロボットを停止
