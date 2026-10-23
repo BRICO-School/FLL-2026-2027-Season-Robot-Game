@@ -216,18 +216,22 @@ async def selector_task():
 
         # 【右ボタンが押された場合】次のプログラムに進む
         if Button.RIGHT in pressed_buttons:
+            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
+            # ボタンを離すまで待つ（押しっぱなしでも1つしか進まない）
+            while Button.RIGHT in hub.buttons.pressed():
+                await wait(10)
             # プログラム番号を1つ増やす（最後まで行ったら0に戻る）
             program_id = (program_id + 1) % (max_programs + 1)
-            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
-            await wait(100)  # 0.1秒待つ（awaitで他のタスクに譲る）
             print(f"→ プログラム {program_id} に変更")
 
         # 【左ボタンが押された場合】前のプログラムに戻る
         elif Button.LEFT in pressed_buttons:
+            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
+            # ボタンを離すまで待つ（押しっぱなしでも1つしか戻らない）
+            while Button.LEFT in hub.buttons.pressed():
+                await wait(10)
             # プログラム番号を1つ減らす（0より前に行ったら最後に戻る）
             program_id = (program_id - 1) if program_id > 0 else max_programs
-            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
-            await wait(100)  # 0.1秒待つ（awaitで他のタスクに譲る）
             print(f"← プログラム {program_id} に変更")
 
         # ----- フォースセンサーでプログラム実行 -----
