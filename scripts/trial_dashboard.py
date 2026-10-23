@@ -139,6 +139,7 @@ STRIP_N = 10  # 「直近の並び」に出す本数
 CHART_DAYS = 14  # グラフに出す日数
 RECENT_ROWS = 20  # 「最近の試行」に出す本数
 ROUND_ROWS = 10  # 「通し」に出す回数
+RATE_ROUNDS = 5  # 「ミッションごとの成否」の得点率を出す、直近の通しの回数
 
 STAGES = OrderedDict(
     [
@@ -1592,6 +1593,7 @@ def render_selector_missions(sessions):
     """「ミッションごとの成否」: ミッションを行、通し（直近 ROUND_ROWS 回・左が古い）を列にした一覧（2026-10-23）。
 
     1 回の通しで同じミッションを 2 回以上やったら、そのぶん色の点を並べる。成功は、届かなかった回を除いた回数のうちの成功。
+    得点率は、直近 RATE_ROUNDS 回の通しで取れた点の合計 ÷（満点 × 届かなかった回を除いた回数）（2026-10-23）。
     """
     shown = sessions[-ROUND_ROWS:]
     cells = OrderedDict((m["id"], [[] for _ in shown]) for m in bm.MISSIONS)
@@ -1601,28 +1603,43 @@ def render_selector_missions(sessions):
                 cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
         for m, (r, res) in x["board"].items():  # 盤面で確かめた M10
             cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
-    heads = ["ミッション", "満点"] + [session_label(x) for x in shown] + ["成功"]
+    n_rate = min(RATE_ROUNDS, len(shown))
+    heads = (
+        ["ミッション", "満点"]
+        + [session_label(x) for x in shown]
+        + ["成功", f"直近 {n_rate} 回の得点率"]
+    )
     body = []
     for mid, per in cells.items():
         if not any(per):
             continue
         tried = [res for runs in per for _, res in runs if res != "unreached"]
         ok = sum(res == "success" for res in tried)
+        recent = [(r, res) for runs in per[-n_rate:] for r, res in runs if res != "unreached"]
+        full = tr.full_points(mid)
+        if recent and full:
+            got = sum(tr.points_in(r, mid, res) for r, res in recent)
+            rate = 100 * got / (full * len(recent))
+            rate_cell = meter(rate) + f"{rate:.0f}%（{got} / {full * len(recent)} 点）"
+        else:
+            rate_cell = "—"
         body.append(
-            [session_mission(mid, "unreached", {}), tr.full_points(mid)]
+            [session_mission(mid, "unreached", {}), full]
             + [strip(runs) if runs else "" for runs in per]
-            + [f"{ok} / {len(tried)}" if tried else "—"]
+            + [f"{ok} / {len(tried)}" if tried else "—", rate_cell]
         )
     if not body:
         return ""
     return section(
         "ミッションごとの成否",
-        table(heads, body, num_cols=(1, len(heads) - 1)),
+        table(heads, body, num_cols=(1, len(heads) - 2, len(heads) - 1)),
         f"直近 {len(shown)} 回の通しで、ミッションごとの結果を並べた（左が古く、右が最新）。"
         "緑が成功、オレンジが途中まで、赤が失敗、灰色が届かなかった・動かなかった回。"
         "1 回の通しで同じミッションを 2 回以上やったときは、そのぶん並ぶ。"
         "M10 は通しのあとに盤面で確かめた結果（確かめなかった回は空）。"
-        "成功は、届かなかった回を除いた回数のうちの成功の数。",
+        "成功は、届かなかった回を除いた回数のうちの成功の数。"
+        f"得点率は、直近 {n_rate} 回の通しで取れた点の合計を、満点 × 届かなかった回を除いた回数で割ったもの"
+        "（途中までの回も取れた点のぶん入る）。",
     )
 
 
