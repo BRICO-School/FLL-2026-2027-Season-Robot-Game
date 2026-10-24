@@ -1,0 +1,362 @@
+"""
+【コーチ用プログラムセレクター】（selector.py の写し。登録しているのはコーチの run_coach_*.py だけ）
+生徒用は selector.py。選び方・走らせ方・打ち切り・ライト・dev フラグは selector.py と同じ（2026-10-23 にそろえた）。
+「📝 Robot N + Log」で走らせると、記録は名前に coach が入る run ファイルとして
+コーチ確認用のダッシュボード（docs/trials/dashboard_coach.html）の「② 通し」に入る。
+
+【使い方】
+ハブの左右ボタンでプログラムの番号を選び、フォースセンサー（ポート D）を押すと走り出す。
+走り終わるとセレクターに戻るので、ホームで次の番号を選んでまた押す。
+
+【走っている途中で打ち切る】（2026-10-20）
+走っているあいだにハブの真ん中のボタンを押すと、そのプログラムだけを打ち切って、モーターを止めてセレクターに戻る
+（プログラム全体は止まらないので、つなぎ直し・ジャイロの待ちは要らない。ログも続けて取れる）。
+番号を選んでいるとき（走っていないとき）の真ん中のボタンは、これまでどおりプログラム全体を止める。
+走り終わったあと、フォースセンサーから手が離れるまでは次を走らせない（押しっぱなしでもう 1 回走り出さないように）。
+
+【ハブのライト】（2026-10-20）セレクターが動いているあいだは消さない。
+- オレンジ: 起動してから走れるようになるまで（初期化・ジャイロの待ち。setup.py の initialize_robot()）
+- 緑: 番号を選んで押せる（走り終わったあと・打ち切ったあとも緑）。真ん中のボタンは押さない（全体が止まる）
+- 緑の点滅: 走っている途中でエラーが出て止まった。番号を選べば点滅は止まる。押せるのは緑と同じ
+- 赤: 走っている。止めたいときは真ん中のボタンで、そのプログラムだけ打ち切る
+（Pybricks がプログラムを受け取るまでと、プログラムが終わったあとのライトは Pybricks が決める）
+
+【競技の流れと初期化】
+initialize_robot() を呼ぶのは、このファイルを始めたときの 1 回だけ（ジャイロの待ち 2 秒もこの 1 回だけ。
+試合が始まる前に終わっている）。ミッションごとに行うのは reset_robot()（距離と向きを 0 に戻す）だけで、待ち時間は無い。
+
+【devフラグ】
+- dev=True : 開発モード（0.2 秒ごとにセンサーの値を画面に出す。デバッグ用）
+- dev=False : 本番モード（ログなし。競技本番はこちら）
+
+【プログラムの足し方】
+1. run_template.py をコピーして run_<ミッション>_<名前>.py を作る（例: run_M04_kanna.py）
+2. 下の「競技プログラムのインポート」に import を 1 行足す
+3. programs リストに {"module": <その名前>, "display_number": <ハブに出す番号>} を 1 行足す
+
+昨シーズンまでの run ファイルは archive/ に移した（2026-09-19）。
+"""
+
+# ===== ライブラリのインポート =====
+# LEGOロボットを動かすために必要な道具を読み込みます
+from pybricks.parameters import Button, Color, Port  # ポート番号、ボタン、色などの設定
+from pybricks.pupdevices import ForceSensor  # センサーを使うための道具
+from pybricks.tools import StopWatch, multitask, run_task, wait  # 待機、並行処理、タイマーの道具
+
+import run_coach_M01
+import run_coach_M02
+
+# ----- 競技プログラムのインポート -----
+# 各ミッションのプログラムを読み込みます（コーチの run_coach_*.py ができたら、ここに足す）
+import run_coach_M03
+import run_coach_M04M05M09
+import run_coach_M06M07M11M12
+import run_coach_M08M09
+import run_coach_M12
+import run_coach_M14
+import run_coach_M15
+from setup import initialize_robot  # ロボットを初期化する関数をインポート
+
+# ===== 開発モードの設定 =====
+# ★★★ここを変更することで、開発モードと本番モードを切り替えます★★★
+dev = False  # False=本番モード、True=開発モード（センサーログ有効）
+# テスト中は dev=True にすると、ロボットの動きが詳しく分かります
+# 競技本番では dev=False にすると、動作が軽くなります
+
+# ===== ロボットの初期化 =====
+# ロボットを使う準備をします（モーターやセンサーの設定を行う）
+hub, robot, left_wheel, right_wheel, left_lift, right_lift = initialize_robot()
+
+# ===== プログラムリスト =====
+# ここに、実行したいプログラムを登録します
+# 競技の「ラン（run）」の順番に並べると分かりやすいです
+#
+# 各プログラムは以下の情報を持っています：
+#   - module: どのファイルに関数があるか（必須）
+#   - display_number: ハブに表示する番号（必須）
+# ※ 各モジュールには「run」という名前の関数が必要です
+programs = [
+    {"module": run_coach_M03, "display_number": 1},
+    {"module": run_coach_M02, "display_number": 2},
+    {"module": run_coach_M04M05M09, "display_number": 3},
+    {"module": run_coach_M08M09, "display_number": 4},
+    {"module": run_coach_M01, "display_number": 5},
+    {"module": run_coach_M06M07M11M12, "display_number": 6},
+    {"module": run_coach_M15, "display_number": 7},
+    {"module": run_coach_M12, "display_number": 8},
+    {"module": run_coach_M14, "display_number": 9},
+]
+
+# ===== フォースセンサーの初期化 =====
+# ポートDに接続されたフォースセンサー（押すボタン）を使えるようにします
+button = ForceSensor(Port.D)
+
+# ===== 使い方の説明を表示 =====
+print("=== コーチ用プログラムセレクター ===")
+print("LEFT/RIGHT: プログラム選択")
+print("フォースセンサー: プログラム実行")
+print("走っている途中に真ん中のボタン: そのプログラムだけ打ち切る")
+
+
+# ===== 打ち切りの合図を待つタスク =====
+async def abort_watch():
+    """走っているあいだ、真ん中のボタンが押されるのを待つ。押されたら True を返す（走行を打ち切る合図）。"""
+    while Button.CENTER not in hub.buttons.pressed():
+        await wait(20)
+    return True
+
+
+# ===== ロボットをリセットする関数（非同期版） =====
+async def reset_robot():
+    """
+    ロボットを初期状態に戻す関数（非同期版）
+
+    【asyncとは？】
+    「async」は「非同期（ひどうき）」という意味です。
+    通常の関数（def）と違い、他の作業と同時に実行できます。
+
+    【やること】
+    - ロボットの動きを停止
+    - 走行距離などをリセット
+    - ジャイロセンサー（向き）を0度にリセット
+    """
+    try:
+        robot.stop()  # ロボットの動きを停止
+        robot.reset()  # ロボットの走行距離などをリセット
+        hub.imu.reset_heading(0)  # ジャイロセンサー（向き）を0度にリセット
+        print("ロボットリソースをリセットしました")
+    except Exception as e:
+        # エラーが発生した場合はメッセージを表示
+        print(f"リセットエラー: {e}")
+
+
+# ===== センサーログを記録するタスク =====
+async def sensor_logger_task():
+    """
+    センサーの値を定期的にコンピューターの画面に表示する関数
+
+    【この関数の役割】
+    ロボットが動いている間、センサーの値を0.2秒ごとに記録します。
+    ビデオカメラが動画を撮影するように、ロボットの動きを記録できます。
+
+    【記録される情報】
+    1. 経過時間（何ミリ秒経ったか）
+    2. dist（ロボットが進んだ距離）
+    3. heading（ロボットの向き、0度が正面）
+    4. L（左タイヤが回転した角度）
+    5. R（右タイヤが回転した角度）
+
+    【出力例】
+    LOG[ 1000ms]: dist= 150 mm  heading=   0°  L=  720°  R=  720°
+    ↑ 1秒後、150mm進んだ、向きは0度、タイヤは2回転（720度）
+
+    【いつ役立つ？】
+    - ロボットがまっすぐ進まないとき → headingを見て曲がり具合を確認
+    - 目標距離に届かないとき → distを見て実際の距離を確認
+    - プログラムのバグを探すとき → 数値を見て原因を特定
+
+    【非同期処理の仕組み】
+    この関数は「タスク」として、ロボットの動作と「同時に」実行されます。
+    料理で「お湯を沸かしながら野菜を切る」ように、2つのことを並行して行います。
+    """
+    print("--- センサーログタスク開始 ---")
+
+    # ----- 経過時間を測るタイマーを準備 -----
+    logger_timer = StopWatch()  # ストップウォッチを作成
+    logger_timer.reset()  # タイマーを0にリセット
+
+    # ----- 永遠にログを記録し続けるループ -----
+    while True:  # プログラムが終了するまで継続的にログを出力
+        # 各センサーの値を読み取る
+        elapsed_time = logger_timer.time()  # 経過時間（ミリ秒）
+        heading = hub.imu.heading()  # ロボットの向き（度）
+        left_deg = left_wheel.angle()  # 左タイヤの回転角度（度）
+        right_deg = right_wheel.angle()  # 右タイヤの回転角度（度）
+        dist = robot.distance()  # 走行距離（mm）
+
+        # 読み取った値を画面に表示（フォーマットを整えて見やすく）
+        print(
+            f"LOG[{elapsed_time:5.0f}ms]: dist={dist:4.0f} mm  heading={heading:4.0f}°  L={left_deg:5.0f}°  R={right_deg:5.0f}°"
+        )
+
+        # 0.2秒（200ミリ秒）待機して、次の記録まで待つ
+        # awaitをつけることで、待っている間に他のタスク（ロボットの動作）が実行できる
+        await wait(200)
+
+
+# ===== セレクタータスク（プログラム選択と実行） =====
+async def selector_task():
+    """
+    プログラムを選択して実行するタスク（非同期版）
+
+    【この関数の役割】
+    プログラムを選んで走らせる機能を、非同期処理で実現します。
+    左右ボタンでプログラムを選び、フォースセンサーで実行します。
+
+    【通常版との違い】
+    - すべての処理に「await」がついている（他のタスクと同時実行できる）
+    - センサーログと並行して動く
+    """
+    program_id = 0  # 現在選択されているプログラムの番号
+    hub.light.on(Color.GREEN)  # 緑＝初期化が終わり、番号を選んで押せる
+    max_programs = len(programs) - 1  # プログラムの総数-1
+
+    # ----- メインループ（永遠に繰り返す） -----
+    while True:
+        # ----- 現在のプログラム情報を取得 -----
+        current_program = programs[program_id]  # 選択中のプログラム
+
+        # display_numberが設定されていれば、それをハブに表示
+        # 設定されていなければ、program_idを表示
+        display_num = current_program.get("display_number", program_id)
+        hub.display.char(str(display_num))  # ハブに番号を表示
+
+        # ----- ハブのボタン入力をチェック -----
+        pressed_buttons = hub.buttons.pressed()  # 押されているボタンを確認
+
+        # 【右ボタンが押された場合】次のプログラムに進む
+        if Button.RIGHT in pressed_buttons:
+            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
+            # ボタンを離すまで待つ（押しっぱなしでも1つしか進まない）
+            while Button.RIGHT in hub.buttons.pressed():
+                await wait(10)
+            # プログラム番号を1つ増やす（最後まで行ったら0に戻る）
+            program_id = (program_id + 1) % (max_programs + 1)
+            print(f"→ プログラム {program_id} に変更")
+
+        # 【左ボタンが押された場合】前のプログラムに戻る
+        elif Button.LEFT in pressed_buttons:
+            hub.light.on(Color.GREEN)  # 緑のまま（エラーの点滅もここで止める）
+            # ボタンを離すまで待つ（押しっぱなしでも1つしか戻らない）
+            while Button.LEFT in hub.buttons.pressed():
+                await wait(10)
+            # プログラム番号を1つ減らす（0より前に行ったら最後に戻る）
+            program_id = (program_id - 1) if program_id > 0 else max_programs
+            print(f"← プログラム {program_id} に変更")
+
+        # ----- フォースセンサーでプログラム実行 -----
+        # フォースセンサーが0.5以上の力で押されたら、プログラムを実行
+        if await button.force() >= 0.5:
+            hub.light.on(Color.RED)  # 赤＝走っている（止めたいときは真ん中のボタン）
+            print(f"=== プログラム {program_id} を実行中 ===")
+            error = False
+
+            # 走っているあいだは、真ん中のボタンでプログラム全体を止めない（打ち切りに使う）
+            hub.system.set_stop_button(None)
+            try:
+                # ----- 実行前の準備 -----
+                await reset_robot()  # ロボットをリセット（awaitで待つ）
+                await wait(50)  # リセット後に少し待機（0.05秒）
+
+                # ----- プログラムを実行 -----
+                # モジュールからrun関数を取得（例: run1_M01_M02_kanna.run）
+                function = current_program["module"].run
+
+                # パラメータ（引数）がある場合は渡して実行、ない場合はロボット情報だけ渡す
+                if "params" in current_program:
+                    mission = function(
+                        *current_program["params"],
+                        hub,
+                        robot,
+                        left_wheel,
+                        right_wheel,
+                        left_lift,
+                        right_lift,
+                    )
+                else:
+                    mission = function(hub, robot, left_wheel, right_wheel, left_lift, right_lift)
+
+                # 走行と打ち切りの合図を同時に動かし、先に終わった方で止める（race=True）
+                results = await multitask(mission, abort_watch(), race=True)
+
+                if results[1]:
+                    # 真ん中のボタンで打ち切った: モーターを全部止める
+                    robot.stop()
+                    left_lift.stop()
+                    right_lift.stop()
+                    print(f"=== プログラム {program_id} を中断 ===")
+                    hub.light.on(Color.GREEN)  # 緑＝打ち切った。番号を選んで押せる
+                    # ボタンから指が離れるまで待つ（離す前に戻すと、全体が止まってしまう）
+                    while Button.CENTER in hub.buttons.pressed():
+                        await wait(20)
+                else:
+                    print(f"=== プログラム {program_id} 実行完了 ===")
+
+            except Exception as e:
+                # ----- エラーが発生した場合の処理 -----
+                print(f"エラー: {e}")  # エラーメッセージを表示
+                error = True
+            finally:
+                # ----- 実行後の後処理（必ず実行される） -----
+                try:
+                    await reset_robot()  # 実行後にロボットをリセット
+                    await wait(50)  # リセット後に少し待機（0.05秒）
+                except Exception as e:
+                    print(f"リセットエラー: {e}")
+                # 真ん中のボタンを、プログラム全体を止めるボタンに戻す
+                hub.system.set_stop_button(Button.CENTER)
+
+            # 走り終わった（打ち切った）: 緑＝番号を選んで押せる。エラーで止まったときは緑の点滅
+            # （赤のままだと、打ち切るつもりで真ん中のボタンを押して全体を止めてしまう）
+            if error:
+                hub.light.blink(Color.GREEN, [200, 200])
+            else:
+                hub.light.on(Color.GREEN)
+
+            # フォースセンサーから手が離れるまで待つ（押しっぱなしで、もう 1 回走り出さないように）
+            while await button.force() >= 0.5:
+                await wait(20)
+
+            print("セレクターに戻りました")
+
+        # ----- ボタン連打防止のための待機 -----
+        await wait(50)  # 0.05秒待つ（awaitで他のタスクに譲る）
+
+
+# ========================================
+# ===== プログラムのメイン実行部分 =====
+# ========================================
+
+# ここで、開発モード（dev）の設定に応じて、実行する内容を切り替えます
+
+if dev:
+    # ----- 開発モード（dev=True）の場合 -----
+    # センサーログタスクとセレクタータスクを「同時に」実行します
+    #
+    # 【multitaskの仕組み】
+    # multitask()は、複数のタスクを並行して実行する機能です。
+    # 料理で「パスタを茹でながら、ソースを作る」ように、
+    # 「センサーログを記録しながら、プログラムを選択・実行する」ことができます。
+    #
+    # 【実行されるタスク】
+    # 1. sensor_logger_task() : 0.2秒ごとにセンサー値を画面に表示
+    # 2. selector_task() : ボタンでプログラムを選択・実行
+    #
+    # この2つが同時に動くので、ロボットが動いている間もログが記録されます。
+    print("--- 開発モードで起動（センサーログ有効） ---")
+    run_task(
+        multitask(
+            sensor_logger_task(),  # センサー値を継続的にログに出力するタスク
+            selector_task(),  # プログラム選択・実行タスク
+        )
+    )
+else:
+    # ----- 本番モード（dev=False）の場合 -----
+    # セレクタータスクのみを実行します（センサーログなし）
+    #
+    # 【なぜログをオフにする？】
+    # センサーログは便利ですが、コンピューターへのデータ送信に時間がかかります。
+    # 競技本番では、ログは不要なので、オフにすると動作が少し速くなります。
+    #
+    # 【実行されるタスク】
+    # 1. selector_task() : ボタンでプログラムを選択・実行（通常版と同じ）
+    print("--- 本番モードで起動（センサーログなし） ---")
+    run_task(
+        multitask(
+            selector_task()  # プログラム選択・実行タスク（単独）
+        )
+    )
+
+# ========================================
+# プログラムはここまで
+# ========================================
