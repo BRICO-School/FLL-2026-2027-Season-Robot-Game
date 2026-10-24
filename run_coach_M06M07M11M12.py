@@ -21,6 +21,7 @@
 - 2026-10-19: M13の左アーム動作を追加しM07とM12の移動量やアーム角度を調整した。
 - 2026-10-19: 帰還前の動作間に待機時間を追加し帰還時の旋回角度を微調整した
 - 2026-10-22: 移動距離や旋回角度を微調整しM13の左アーム動作を2回に変更
+- 2026-10-24: M06とM07の走行動作を調整しM13以降をコメントアウト
 """
 
 from pybricks.hubs import PrimeHub
@@ -83,55 +84,54 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.curve(30, 58)  # カーブ 半径 30mm・右 59°（前進 31mm）
     await wait(500)
 
-    await robot.straight(
-        250, 208, timeout=1200
-    )  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
+    await robot.straight(180, 207)
+    await wait(300)
 
-    await wait(500)
-
-    await robot.straight(
-        200, 208, timeout=1000
-    )  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
+    for _ in range(4):
+        await robot.straight(-25)
+        await wait(300)
+        await robot.straight(38, 500)
+        await wait(300)
 
     # M07
     await robot.straight(-140)
-    await robot.turn(46)
-    await robot.straight(260)
+    await robot.turn(50)
+    await robot.straight(220)
     await right_lift.run_angle(1000, -900)  # 右アームを逆方向に1回転
-    await robot.turn(-87)
-    await right_lift.run_angle(150, 220)  # 右アームを逆方向に1回転
+    await robot.turn(-87, 100)
+    await right_lift.run_angle(150, 200)  # 右アームを逆方向に1回転
     await wait(500)
-    await robot.straight(-80, 100)
+    await robot.straight(-93, 70)
     await wait(500)
-    await robot.straight(35, 200)
+    await robot.straight(35, 100)
     await wait(500)
     await right_lift.run_angle(300, -260)  # 右アームを逆方向に1回転
 
     # M13
-    await robot.turn(46)
+    await robot.turn(52)
     await robot.straight(190, 150)
 
-    await left_lift.run_angle(800, 1200)
-    await wait(500)
-    await left_lift.run_angle(1000, -300)
-    await wait(500)
-    await left_lift.run_angle(800, 1000)
-    await wait(500)
-    await left_lift.run_angle(1000, -600)
+    # await left_lift.run_angle(400, 1400)
+    # await wait(500)
+    # await left_lift.run_angle(1000, -300)
+    # await wait(500)
+    # await left_lift.run_angle(800, 1000)
+    # await wait(500)
+    # await left_lift.run_angle(1000, -600)
 
-    # M12
-    await robot.straight(-100)
-    await robot.turn(20, 90)
-    await robot.straight(100, 90)
-    await right_lift.run_angle(400, 450)  # 右アームを逆方向に1回転
-    await wait(500)
-    await robot.turn(10, 200)
-    await wait(500)
+    # # M12
+    # await robot.straight(-100)
+    # await robot.turn(20, 90)
+    # await robot.straight(100, 90)
+    # await right_lift.run_angle(400, 450)  # 右アームを逆方向に1回転
+    # await wait(500)
+    # await robot.turn(20, rate=40)
+    # await wait(500)
 
     # 帰還
-    await robot.curve(-187, 34)  # カーブ 半径 187mm・左 36°（後退 117mm）
-    await robot.turn(105, 120)
-    await robot.straight(700)
+    # await robot.curve(-187, 34)  # カーブ 半径 187mm・左 36°（後退 117mm）
+    # await robot.turn(105, 120)
+    # await robot.straight(700)
 
     # ロボットを停止
     robot.stop()
