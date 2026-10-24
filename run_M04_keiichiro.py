@@ -18,6 +18,7 @@
 - 2026-10-01: M03用の走行ファイルを新規作成し左リフトの動作を追加した
 - 2026-10-14: M04用の走行ファイルを新規作成し移動と左リフト動作を実装した。
 - 2026-10-21: 前進を無効化して右アームの単独動作に変更し回転角度を調整した
+- 2026-10-24: M04の移動処理を有効化し右アームの動作と直進や旋回の数値を調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -30,18 +31,25 @@ from setup import initialize_robot
 
 async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
-    # await robot.curve(3721, 11)  # カーブ 半径 3721mm・右 11°（前進 714mm）
-    # await robot.curve(-44, 50)  # カーブ 半径 44mm・左 62°（前進 48mm）
-    # await robot.straight(124)  # 前進 124mm
-    # await left_lift.run_angle(300, -300 * 2)
-    # await robot.turn(4)  # 向きを合わせる 右 4°
-    # await robot.straight(-23)  # 後退 23mm
-    # await robot.turn(15)  # 右 15°
-    # await robot.curve(53, 20)  # カーブ 半径 53mm・右 20°（前進 18mm）
-    # await robot.turn(4)  # 向きを合わせる 右 4°
+    await robot.curve(3721, 11)  # カーブ 半径 3721mm・右 11°（前進 714mm）
+    await robot.curve(-44, 50)  # カーブ 半径 44mm・左 62°（前進 48mm）
+    await robot.straight(124)  # 前進 124mm
+    await left_lift.run_angle(300, -300 * 2)
+    await right_lift.run_angle(500, -1200)  # 右アームを逆方向に1回転
+    await robot.turn(4)  # 向きを合わせる 右 4°
+    await robot.straight(-29)  # 後退 23mm
+    await robot.turn(5)  # 右 15°
+    await robot.curve(53, 20)  # カーブ 半径 53mm・右 20°（前進 18mm）
+    await robot.turn(2)  # 向きを合わせる 右 4°
     # await robot.straight(21)  # 前進 21mm
-    await robot.run_motor(right_lift, 300, 500, timeout=1500)  # 右アーム 400°（1.5 秒で打ち切り）
-
+    # await robot.straight(30)  # 400mm直進
+    await right_lift.run_angle(500, 320)  # 右アームを逆方向に1回転
+    await robot.straight(43)  # 400mm直進
+    await right_lift.run_angle(100, -50)  # 右アームを逆方向に1回転
+    await robot.straight(-10)  # 400mm直進
+    await wait(500)
+    await right_lift.run_angle(500, 160)  # 右アームを逆方向に1回転
+    await robot.straight(40)  # 400mm直進
     """
     ロボットの動作を記述する関数
 
