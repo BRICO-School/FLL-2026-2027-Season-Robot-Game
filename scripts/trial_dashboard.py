@@ -139,7 +139,7 @@ STRIP_N = 10  # 「直近の並び」に出す本数
 CHART_DAYS = 14  # グラフに出す日数
 RECENT_ROWS = 20  # 「最近の試行」に出す本数
 ROUND_ROWS = 10  # 「通し」に出す回数
-RATE_ROUNDS = 5  # 「ミッションごとの成否」の得点率を出す、直近の通しの回数
+RATE_ROUNDS = 5  # 「ミッションごとの成否」に出し、得点率を出す、直近の通しの回数
 
 STAGES = OrderedDict(
     [
@@ -1590,12 +1590,13 @@ def render_selector_trend(sessions):
 
 
 def render_selector_missions(sessions):
-    """「ミッションごとの成否」: ミッションを行、通し（直近 ROUND_ROWS 回・左が古い）を列にした一覧（2026-10-23）。
+    """「ミッションごとの成否」: ミッションを行、通し（直近 RATE_ROUNDS 回・左が古い）を列にした一覧（2026-10-23）。
 
     1 回の通しで同じミッションを 2 回以上やったら、そのぶん色の点を並べる。成功は、届かなかった回を除いた回数のうちの成功。
-    得点率は、直近 RATE_ROUNDS 回の通しで取れた点の合計 ÷（満点 × 届かなかった回を除いた回数）（2026-10-23）。
+    得点率は、出している RATE_ROUNDS 回の通しで取れた点の合計 ÷（満点 × 届かなかった回を除いた回数）（2026-10-23）。
+    表に出す回数も 10 回から RATE_ROUNDS 回にした（オーナー 2026-10-24）。成功の列も同じ回数。
     """
-    shown = sessions[-ROUND_ROWS:]
+    shown = sessions[-RATE_ROUNDS:]
     cells = OrderedDict((m["id"], [[] for _ in shown]) for m in bm.MISSIONS)
     for i, x in enumerate(shown):
         for r in x["rows"]:
@@ -1603,7 +1604,7 @@ def render_selector_missions(sessions):
                 cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
         for m, (r, res) in x["board"].items():  # 盤面で確かめた M10
             cells.setdefault(m, [[] for _ in shown])[i].append((r, res))
-    n_rate = min(RATE_ROUNDS, len(shown))
+    n_rate = len(shown)
     heads = (
         ["ミッション", "満点"]
         + [session_label(x) for x in shown]
@@ -1615,7 +1616,7 @@ def render_selector_missions(sessions):
             continue
         tried = [res for runs in per for _, res in runs if res != "unreached"]
         ok = sum(res == "success" for res in tried)
-        recent = [(r, res) for runs in per[-n_rate:] for r, res in runs if res != "unreached"]
+        recent = [(r, res) for runs in per for r, res in runs if res != "unreached"]
         full = tr.full_points(mid)
         if recent and full:
             got = sum(tr.points_in(r, mid, res) for r, res in recent)
