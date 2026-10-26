@@ -21,6 +21,7 @@
 - 2026-10-16: 旋回角度を微調整し最後に右旋回と前進動作を追加した
 - 2026-10-20: 最終旋回角度を38度から30度に調整し不要な履歴コメントを削除した
 - 2026-10-21: M01とM13の直進距離や旋回角度を微調整し待機時間を追加
+- 2026-10-26: M01の直進を1回に統合し待機時間と帰還時の旋回角度を調整した
 """
 
 from pybricks.hubs import PrimeHub
@@ -74,21 +75,17 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     #######################################
 
     # M01
-    await robot.straight(350, speed=420)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
-    await wait(500)
-    await robot.straight(335, speed=360)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
-    await wait(500)
+
+    await robot.straight(650, speed=200)
     await robot.straight(-40)
     await robot.run_motor(right_wheel, 500, 550)  # 右車輪を 200deg/s で 140° 回す
-    await wait(500)
+    await wait(300)
     await robot.run_motor(right_wheel, 480, -100)  # 右車輪を 200deg/s で 140° 回す
-
-    # await robot.curve(-57, -19)  # カーブ 半径 57mm・右 19°（後退 19mm）
+    await wait(300)
     await robot.run_motor(right_wheel, 480, 300)  # 右車輪を 200deg/s で 140° 回す
-    # await robot.curve(200, -40)
-    await wait(500)
+    await wait(300)
 
-    # M13
+    # 右のホームエリアへ
     await robot.curve(62, 30)  # カーブ 半径 62mm・右 24°（前進 26mm）
     await wait(500)
     await robot.curve(-67, -48)  # カーブ 半径 67mm・右 41°（後退 48mm）
@@ -97,19 +94,10 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     await robot.straight(255)  # 前進 255mm
     await robot.curve(35, 27)  # カーブ 半径 35mm・右 27°（前進 17mm）
-    await robot.turn(45)  # 右 64°
+    await robot.turn(50)  # 右 64°
     await robot.straight(370)  # 前進 124mm
 
-    # await left_lift.run_angle(600, -1800)  # 左アームを300deg/sで180度回転
-
-    # await left_lift.run_angle(1000, 1000)  # 左アームを300deg/sで180度回転
-
-    # await robot.straight(328)  # 前進 218mm
-    # await robot.turn(-28, rate=20)
-
-    # await left_lift.run_angle(400, 500)  # 左アームを300deg/sで180度回転
-
-    await robot.turn(28)
+    await robot.turn(20)
     await robot.straight(700)
 
     # ロボットを停止
