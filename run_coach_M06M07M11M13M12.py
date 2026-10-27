@@ -77,49 +77,49 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261014_213529.log）
 
-    # # M06
-    # await robot.straight(535)  # 前進 585mm
-    # await robot.turn(-75)  # 左 65°
-    # await robot.straight(431)  # 前進 531mm
-    # await robot.turn(39)  # 右 39°
-    # await robot.turn(16)  # 向きを合わせる 右 16°
-    # await robot.curve(30, 58)  # カーブ 半径 30mm・右 59°（前進 31mm）
-    # await wait(500)
-
-    # await robot.straight(180, 207)
-    # await wait(300)
-
-    # for _ in range(4):
-    #     await robot.straight(-25)
-    #     await wait(300)
-    #     await robot.straight(38, 500)
-    #     await wait(300)
-
-    # # M07
-    # await robot.straight(-140)
-    # await robot.turn(50)
-    # await robot.straight(220)
-    # await right_lift.run_angle(1000, -900)  # 右アームを逆方向に1回転
-    # await robot.turn(-87, 100)
-    # await right_lift.run_angle(150, 200)  # 右アームを逆方向に1回転
-    # await wait(500)
-    # await robot.straight(-93, 70)
-    # await wait(500)
-    # await robot.straight(35, 100)
-    # await wait(500)
-    # await right_lift.run_angle(300, -260)  # 右アームを逆方向に1回転
-
-    # # M13
-    # await robot.turn(51)
-    # await robot.straight(190, 150)
-
-    await left_lift.run_angle(400, 1400)
+    # M06
+    await robot.straight(535)  # 前進 585mm
+    await robot.turn(-75)  # 左 65°
+    await robot.straight(431)  # 前進 531mm
+    await robot.turn(39)  # 右 39°
+    await robot.turn(16)  # 向きを合わせる 右 16°
+    await robot.curve(30, 58)  # カーブ 半径 30mm・右 59°（前進 31mm）
     await wait(500)
-    await left_lift.run_angle(1000, -300)
+
+    await robot.straight(180, 207)
+    await wait(300)
+
+    for _ in range(4):
+        await robot.straight(-25)
+        await wait(300)
+        await robot.straight(38, 500)
+        await wait(300)
+
+    # M07
+    await robot.straight(-140)
+    await robot.turn(50)
+    await robot.straight(220)
+    await right_lift.run_angle(1000, -900)  # 右アームを逆方向に1回転
+    await robot.turn(-87, 100)
+    await right_lift.run_angle(150, 200)  # 右アームを逆方向に1回転
     await wait(500)
-    await left_lift.run_angle(800, 1000)
+    await robot.straight(-93, 70)
     await wait(500)
-    await left_lift.run_angle(1000, -600)
+    await robot.straight(35, 100)
+    await wait(500)
+    await right_lift.run_angle(300, -260)  # 右アームを逆方向に1回転
+
+    # M13
+    await robot.turn(57)
+    await robot.straight(190, 150)
+
+    # await left_lift.run_angle(400, 1400)
+    # await wait(500)
+    # await left_lift.run_angle(1000, -300)
+    # await wait(500)
+    # await left_lift.run_angle(800, 1000)
+    # await wait(500)
+    # await left_lift.run_angle(1000, -600)
 
     # # M12
     # await robot.straight(-100)
