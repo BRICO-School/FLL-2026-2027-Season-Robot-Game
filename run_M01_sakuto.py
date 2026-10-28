@@ -66,8 +66,21 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
-    await robot.straight(650, speed=250)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
-
+    await robot.straight(650, 200)  # 前進 682mm
+    await robot.curve(64, -25)  # カーブ 半径 64mm・左 25°（後退 28mm）
+    await robot.turn(-14)  # 左 14°
+    await robot.curve(46, -17)  # カーブ 半径 46mm・左 17°（後退 14mm）
+    await robot.curve(45, 45)  # カーブ 半径 45mm・右 45°（前進 35mm）
+    # await robot.curve(381, -13)  # カーブ 半径 381mm・左 13°（後退 86mm）
+    await robot.turn(-22)  # 左 22°
+    # await robot.straight(107)  # 前進 107mm
+    # await robot.curve(673, 51)  # カーブ 半径 673mm・右 51°（前進 599mm）
+    await robot.turn(-470)  # 前進 470mm
+    # await robot.curve(-112, 14)  # カーブ 半径 112mm・左 14°（前進 27mm）
+    # await robot.curve(-29, 43)  # カーブ 半径 29mm・左 43°（前進 21mm）
+    # await robot.turn(-31)  # 左 31°
+    # await robot.curve(69, -22)  # カーブ 半径 69mm・左 22°（後退 27mm）
+    
     # ロボットを停止
     robot.stop()
     print("# 走行完了！")
