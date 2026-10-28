@@ -19,6 +19,7 @@
 - 2026-10-14: M04用の走行ファイルを新規作成し移動と左リフト動作を実装した。
 - 2026-10-21: 前進を無効化して右アームの単独動作に変更し回転角度を調整した
 - 2026-10-24: M04の移動処理を有効化し右アームの動作と直進や旋回の数値を調整した
+- 2026-10-28: 右アーム動作後の直進距離を40mmから45mmに変更した
 """
 
 from pybricks.hubs import PrimeHub
@@ -49,7 +50,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     await robot.straight(-10)  # 400mm直進
     await wait(500)
     await right_lift.run_angle(500, 160)  # 右アームを逆方向に1回転
-    await robot.straight(40)  # 400mm直進
+    await robot.straight(45)  # 400mm直進
     """
     ロボットの動作を記述する関数
 

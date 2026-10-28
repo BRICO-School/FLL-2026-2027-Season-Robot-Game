@@ -50,7 +50,7 @@ import run_coach_M02
 # 各ミッションのプログラムを読み込みます（コーチの run_coach_*.py ができたら、ここに足す）
 import run_coach_M03
 import run_coach_M04M05M09
-import run_coach_M06M07M11M12
+import run_coach_M06M07M11M13M12
 import run_coach_M08M09
 import run_coach_M12
 import run_coach_M14
@@ -81,7 +81,7 @@ programs = [
     {"module": run_coach_M04M05M09, "display_number": 3},
     {"module": run_coach_M08M09, "display_number": 4},
     {"module": run_coach_M01, "display_number": 5},
-    {"module": run_coach_M06M07M11M12, "display_number": 6},
+    {"module": run_coach_M06M07M11M13M12, "display_number": 6},
     {"module": run_coach_M15, "display_number": 7},
     {"module": run_coach_M12, "display_number": 8},
     {"module": run_coach_M14, "display_number": 9},
