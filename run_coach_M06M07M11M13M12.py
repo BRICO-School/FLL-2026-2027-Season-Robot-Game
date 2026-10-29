@@ -24,6 +24,7 @@
 - 2026-10-24: M06とM07の走行動作を調整しM13以降をコメントアウト
 - 2026-10-24: M13の旋回角度を51度に調整しM12や帰還を含む後続動作を有効化
 - 2026-10-26: M13の左リフト操作以外のミッションと帰還の動作をコメントアウトした
+- 2026-10-29: M13の前進距離を210に増やし左リフトの動作を有効化
 """
 
 from pybricks.hubs import PrimeHub
@@ -111,15 +112,15 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
 
     # M13
     await robot.turn(57)
-    await robot.straight(190, 150)
+    await robot.straight(210, 150)
 
-    # await left_lift.run_angle(400, 1400)
-    # await wait(500)
-    # await left_lift.run_angle(1000, -300)
-    # await wait(500)
-    # await left_lift.run_angle(800, 1000)
-    # await wait(500)
-    # await left_lift.run_angle(1000, -600)
+    await left_lift.run_angle(400, 1400)
+    await wait(500)
+    await left_lift.run_angle(1000, -300)
+    await wait(500)
+    await left_lift.run_angle(800, 1000)
+    await wait(500)
+    await left_lift.run_angle(1000, -600)
 
     # # M12
     # await robot.straight(-100)

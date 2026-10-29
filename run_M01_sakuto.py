@@ -15,6 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
+- 2026-10-29: 空行の不要な空白を削除した
 """
 
 from pybricks.hubs import PrimeHub
@@ -80,7 +81,7 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # await robot.curve(-29, 43)  # カーブ 半径 29mm・左 43°（前進 21mm）
     # await robot.turn(-31)  # 左 31°
     # await robot.curve(69, -22)  # カーブ 半径 69mm・左 22°（後退 27mm）
-    
+
     # ロボットを停止
     robot.stop()
     print("# 走行完了！")
