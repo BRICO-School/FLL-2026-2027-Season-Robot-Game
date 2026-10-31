@@ -15,7 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
-- 2026-10-28: 新しい手押し記録ログをもとにロボットの走行ルートの動作手順を更新した
+- 2026-10-31: 最新の手押し記録ログをもとにロボットの走行ルートの動作手順を更新した
 """
 
 from pybricks.hubs import PrimeHub
@@ -67,14 +67,10 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
-    # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261027_194958.log）
-    await robot.turn(55)  # 右 55°
-    await robot.turn(-6)  # 向きを合わせる 左 6°
-    await robot.straight(209)  # 前進 209mm
-    await robot.straight(-128)  # 後退 128mm
-    await robot.curve(52, 11)  # カーブ 半径 52mm・右 11°（前進 10mm）
-    await robot.straight(83)  # 前進 83mm
-    await robot.turn(13)  # 右 13°
+    # ↓ 手押しの記録から起こした（docs/logs/teach_record/20261030_144558.log）
+    await robot.curve(-219, -19)  # カーブ 半径 219mm・右 19°（後退 73mm）
+    await robot.straight(107)  # 前進 107mm
+    await robot.curve(48, 14)  # カーブ 半径 48mm・右 14°（前進 12mm）
 
     # ロボットを停止
     robot.stop()
