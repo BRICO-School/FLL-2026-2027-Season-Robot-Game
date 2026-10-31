@@ -15,6 +15,7 @@
 - 2026-09-18: 単体テスト用に昨年の走行設定で検証する方法のコメントを追加した
 - 2026-09-19: ロボット初期化時の静止待機と実行時の注意コメントを追加した
 - 2026-09-19: 命名ルールの説明追加とサンプル直進処理の配置位置を修正した
+- 2026-10-31: 直進の速度と距離を調整しアーム動作後に後退する処理を追加した
 """
 
 from pybricks.hubs import PrimeHub
@@ -66,11 +67,11 @@ async def run(hub, robot, left_wheel, right_wheel, left_lift, right_lift):
     # ここにロボットの動作を記述してください
     #######################################
 
-    # await robot.straight(500, speed=500)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
-    await robot.straight(75)
+    await robot.straight(75, speed=400)  # 例: 500mm/s で 500mm 直進（自分の動きに書きかえる）
     await robot.turn(45)
-    await robot.straight(370)
+    await robot.straight(390)
     await right_lift.run_angle(500, 360)  # 右アームを逆方向に1回転
+    await robot.straight(-450)
 
     # ロボットを停止
     robot.stop()
